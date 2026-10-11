@@ -1,0 +1,20 @@
+Hyper Lane に同梱したフォント
+
+チェックポイントフォント (Checkpoint.otf)
+作者: マルセ / よく飛ばない鳥
+配布元: https://cute-freefont.flop.jp/tori_checkpoint.html
+同梱の Checkpoint-LICENSE.txt と Checkpoint-README.txt を参照してください。
+フォントの字形・著作権表示は改変していません。
+
+ラノベPOP (LanobePOP.otf)
+作者: Fontna.com / Kato Masashi、M+ FONTS PROJECT
+配布元: https://www.fontna.com/blog/1706.html
+同梱の LanobePOP-README.txt、MPLUS-LICENSE_J.txt、MPLUS-LICENSE_E.txt を参照してください。
+
+これらのフォントはアプリ内だけで読み込みます。Windows へのインストールは不要です。
+
+Noto Sans CJK JP (NotoSansCJKjp-Regular.otf)
+未対応の文字を表示するための代用フォントです。
+配布元: https://github.com/notofonts/noto-cjk
+ライセンス: SIL Open Font License 1.1 (NotoSansCJK-LICENSE.txt)
+元のフォントファイルおよび著作権メタデータは改変していません。

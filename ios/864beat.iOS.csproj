@@ -22,6 +22,7 @@
     <BundleResource Include="..\assets\DifficultyPlate.png" LogicalName="DifficultyPlate.png" />
     <BundleResource Include="..\assets\MusicBox.png" LogicalName="MusicBox.png" />
     <BundleResource Include="..\assets\fonts\*.otf" LogicalName="fonts/%(Filename)%(Extension)" />
+    <BundleResource Include="..\assets\fonts\*.txt" LogicalName="fonts/%(Filename)%(Extension)" />
     <BundleResource Include="..\assets\hyper-lane-icon.png" LogicalName="hyper-lane-icon.png" />
   </ItemGroup>
 </Project>
