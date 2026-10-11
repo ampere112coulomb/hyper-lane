@@ -1,0 +1,52 @@
+name: Build iOS installation preview
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ios-preview
+  cancel-in-progress: false
+jobs:
+  preview:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Record build environment
+        run: |
+          xcodebuild -version
+          dotnet --info
+      - name: Install iOS workload
+        run: dotnet workload install ios
+      - name: Build unsigned device app
+        run: >-
+          dotnet build ios/864beat.iOS.csproj -c Release -r ios-arm64
+          -p:EnableCodeSigning=false -p:CodesignRequireProvisioningProfile=false
+          -p:BuildIpa=false -bl:ios-preview.binlog
+      - name: Package for local re-signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          app=$(find ios/bin/Release/net10.0-ios/ios-arm64 -maxdepth 1 -name '*.app' -type d -print -quit)
+          test -n "$app"
+          mkdir -p preview/Payload
+          cp -R "$app" preview/Payload/
+          cd preview
+          ditto -c -k --sequesterRsrc --keepParent Payload HyperLane-iOS-Preview-unsigned.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HyperLane-iOS-Preview-unsigned
+          path: preview/HyperLane-iOS-Preview-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 3
+      - name: Save diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iOS-build-diagnostics
+          path: ios-preview.binlog
+          if-no-files-found: ignore
+          retention-days: 3

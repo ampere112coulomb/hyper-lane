@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-ios</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>HyperLane.iOS</AssemblyName>
+    <RootNamespace>HyperLane.iOS</RootNamespace>
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+    <ApplicationId>com.ampere112coulomb.hyperlane.ios</ApplicationId>
+    <ApplicationTitle>Hyper Lane</ApplicationTitle>
+    <ApplicationDisplayVersion>0.1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\shared\864beat.MobileCore.csproj" />
+    <BundleResource Include="..\assets\skin\atlas.png" LogicalName="skin/atlas.png" />
+    <BundleResource Include="..\assets\skin\skin.json" LogicalName="skin/skin.json" />
+    <BundleResource Include="..\assets\skin\rank*.png" LogicalName="skin/%(Filename)%(Extension)" />
+    <BundleResource Include="..\assets\SE.wav" LogicalName="SE.wav" />
+    <BundleResource Include="..\assets\HUDPanel.png" LogicalName="HUDPanel.png" />
+    <BundleResource Include="..\assets\DifficultyPlate.png" LogicalName="DifficultyPlate.png" />
+    <BundleResource Include="..\assets\MusicBox.png" LogicalName="MusicBox.png" />
+    <BundleResource Include="..\assets\fonts\*.otf" LogicalName="fonts/%(Filename)%(Extension)" />
+    <BundleResource Include="..\assets\hyper-lane-icon.png" LogicalName="hyper-lane-icon.png" />
+  </ItemGroup>
+</Project>
