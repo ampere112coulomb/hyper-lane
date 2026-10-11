@@ -69,7 +69,8 @@ internal sealed class MigrationStage : UIView
             TouchRect zone = TouchZones.GetRect(diff.Lanes, lane, 1920, 1080);
             context.StrokeRect(new CGRect(zone.Left, zone.Top, zone.Right - zone.Left, zone.Bottom - zone.Top));
         }
-        using var attributes = new UIStringAttributes { ForegroundColor = UIColor.White, Font = UIFont.SystemFontOfSize(32) };
+        using var hudFont = UIFont.SystemFontOfSize(32);
+        var attributes = new UIStringAttributes { ForegroundColor = UIColor.White, Font = hudFont };
         using var text = new NSString($"{chart.Title} / {diff.Name} Lv.{diff.Level}\nSCORE {session.Score:D7}    {session.Combo} COMBO");
         text.DrawString(new CGRect(70, 50, 1250, 100), attributes);
         context.RestoreState();

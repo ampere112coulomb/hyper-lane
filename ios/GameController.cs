@@ -45,7 +45,7 @@ internal sealed class GameController : UIViewController
         View.AddSubview(stage);
         menu = new UIView { BackgroundColor = UIColor.FromRGB(8, 15, 27) };
         View.AddSubview(menu);
-        AVAudioSession.SharedInstance().SetCategory(AVAudioSessionCategory.Playback, out _);
+        AVAudioSession.SharedInstance().SetCategory(AVAudioSession.CategoryPlayback, out _);
         AVAudioSession.SharedInstance().SetActive(true, out _);
         string? se = NSBundle.MainBundle.PathForResource("SE", "wav");
         if (se is not null) for (int i = 0; i < 16; i++)
@@ -103,7 +103,7 @@ internal sealed class GameController : UIViewController
 
     private void Import()
     {
-        picker = new UIDocumentPickerViewController([UTType.Zip], true);
+        picker = new UIDocumentPickerViewController([UTTypes.Zip], true);
         importDelegate = new ImportDelegate(this); picker.Delegate = importDelegate;
         PresentViewController(picker, true, null);
     }
