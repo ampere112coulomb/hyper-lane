@@ -10,17 +10,19 @@ jobs:
   preview:
     runs-on: macos-15
     timeout-minutes: 40
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.0.1.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.100'
       - name: Record build environment
         run: |
           xcodebuild -version
           dotnet --info
       - name: Install iOS workload
-        run: dotnet workload install ios
+        run: dotnet workload install ios --version 10.0.100
       - name: Build unsigned device app
         run: >-
           dotnet build ios/864beat.iOS.csproj -c Release -r ios-arm64
