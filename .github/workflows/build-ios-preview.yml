@@ -1,6 +1,11 @@
 name: Build iOS installation preview
 on:
   workflow_dispatch:
+    inputs:
+      visual_only:
+        description: Skip device packaging while debugging simulator startup
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -24,18 +29,21 @@ jobs:
       - name: Install iOS workload
         run: dotnet workload install ios --version 10.0.100
       - name: Build unsigned device app
+        if: ${{ !inputs.visual_only }}
         # The existing game icon is resized mechanically by Apple's packaging tool.
         # No user photos or song art are used.
         # Generate before project evaluation so ImageAsset's glob sees the PNG.
         # The next step contains the actual build.
         run: sips -z 1024 1024 assets/hyper-lane-icon.png --out ios/Assets.xcassets/AppIcon.appiconset/icon-1024.png
       - name: Compile unsigned device app
+        if: ${{ !inputs.visual_only }}
         run: >-
           dotnet build ios/864beat.iOS.csproj -c Release -r ios-arm64
           -p:EnableCodeSigning=false -p:CodesignRequireProvisioningProfile=false
           -p:BuildIpa=false -bl:ios-preview.binlog
           -p:RestoreConfigFile=${{ github.workspace }}/ios/NuGet.Config
       - name: Package for local re-signing
+        if: ${{ !inputs.visual_only }}
         shell: bash
         run: |
           set -euo pipefail
@@ -46,6 +54,7 @@ jobs:
           cd preview
           ditto -c -k --sequesterRsrc --keepParent Payload HyperLane-iOS-Preview-unsigned.ipa
       - uses: actions/upload-artifact@v4
+        if: ${{ !inputs.visual_only }}
         with:
           name: HyperLane-iOS-Preview-unsigned
           path: preview/HyperLane-iOS-Preview-unsigned.ipa
@@ -60,10 +69,9 @@ jobs:
           if-no-files-found: ignore
           retention-days: 3
       - name: Build simulator visual check
-        run: >-
-          dotnet build ios/864beat.iOS.csproj -c Release -r iossimulator-arm64
-          -p:EnableCodeSigning=false -p:CodesignRequireProvisioningProfile=false
-          -p:BuildIpa=false -p:RestoreConfigFile=${{ github.workspace }}/ios/NuGet.Config
+        run: |
+          sips -z 1024 1024 assets/hyper-lane-icon.png --out ios/Assets.xcassets/AppIcon.appiconset/icon-1024.png
+          dotnet build ios/864beat.iOS.csproj -c Release -r iossimulator-arm64 -p:EnableCodeSigning=false -p:CodesignRequireProvisioningProfile=false -p:BuildIpa=false -p:RestoreConfigFile=${{ github.workspace }}/ios/NuGet.Config
       - name: Capture native iPad screens
         shell: bash
         run: |
@@ -78,14 +86,28 @@ jobs:
           codesign --force --deep --sign - "$app"
           codesign --verify --deep --strict "$app"
           xcrun simctl install "$udid" "$app"
+          failed=0
           for screen in title modes select playing result settings; do
             SIMCTL_CHILD_HL_VISUAL_QA="$screen" xcrun simctl launch --console "$udid" com.ampere112coulomb.hyperlane.ios > "visual-check/$screen.log" 2>&1 &
-            sleep 12
+            container=$(xcrun simctl get_app_container "$udid" com.ampere112coulomb.hyperlane.ios data)
+            for attempt in $(seq 1 24); do
+              sleep 2
+              if [ -f "$container/Documents/visual-qa/$screen.ready" ]; then break; fi
+            done
+            sleep 2
             xcrun simctl io "$udid" screenshot "visual-check/$screen.png"
+            container=$(xcrun simctl get_app_container "$udid" com.ampere112coulomb.hyperlane.ios data)
+            if [ -f "$container/Documents/visual-qa/$screen.ready" ]; then
+              cp "$container/Documents/visual-qa/$screen.ready" visual-check/
+            else
+              echo "No managed screen-ready marker for $screen" >> "visual-check/$screen.log"
+              failed=1
+            fi
             xcrun simctl terminate "$udid" com.ampere112coulomb.hyperlane.ios || true
           done
           xcrun simctl spawn "$udid" log show --last 5m --style compact --predicate 'eventMessage CONTAINS[c] "hyperlane" OR eventMessage CONTAINS[c] "signature" OR eventMessage CONTAINS[c] "dyld"' > visual-check/system.log 2>&1 || true
           find "$HOME/Library/Logs/DiagnosticReports" -type f -iname '*hyperlane*' -exec cp {} visual-check/ \; || true
+          test "$failed" -eq 0
       - name: Save visual checks
         if: always()
         uses: actions/upload-artifact@v4

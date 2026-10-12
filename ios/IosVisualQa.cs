@@ -19,6 +19,7 @@ internal sealed partial class GameController
         string notes=string.Join("\n",Enumerable.Range(1,6).Select(l=>$"{4+l*.5:0.0},{l}"));
         chart=MobileChart.Parse(text+notes+"\n");d=chart.Difficulties[0];var song=new MobileSong(path,folder,chart);stage.SetSongs([song]);stage.UserName="Visual QA";stage.Session=new MobileSession(song,d){AutoPlay=true};stage.Settings=settings;stage.Seconds=1;
         stage.ApplyVisualQa(name,song);
+        File.WriteAllText(Path.Combine(folder,name+".ready"),name);
     }
 }
 internal sealed partial class MigrationStage
