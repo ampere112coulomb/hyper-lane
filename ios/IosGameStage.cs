@@ -126,7 +126,14 @@ internal sealed partial class MigrationStage : UIView
         finally{UIGraphics.PopContext();c.RestoreState();}
     }
     internal static string Media(MobileSong? song,string? name)
-    {if(song==null||string.IsNullOrWhiteSpace(name))return "";string path=Path.GetFullPath(Path.Combine(song.Folder,name));return path.StartsWith(Path.GetFullPath(song.Folder)+Path.DirectorySeparatorChar,StringComparison.Ordinal)&&File.Exists(path)?path:"";}
+    {if(song==null||string.IsNullOrWhiteSpace(name))return "";try{string path=Path.GetFullPath(Path.Combine(song.Folder,name.Replace('\\','/')));return path.StartsWith(Path.GetFullPath(song.Folder)+Path.DirectorySeparatorChar,StringComparison.Ordinal)&&File.Exists(path)?path:"";}catch{return "";}}
+    internal static void PrepareMedia(MobileSong song)
+    {
+        string Pick(string preferred,params string[] extensions){string path=Media(song,preferred);if(path.Length>0&&extensions.Contains(Path.GetExtension(path),StringComparer.OrdinalIgnoreCase))return Path.GetRelativePath(song.Folder,path);return Directory.EnumerateFiles(song.Folder,"*",SearchOption.TopDirectoryOnly).Where(p=>extensions.Contains(Path.GetExtension(p),StringComparer.OrdinalIgnoreCase)).Select(p=>Path.GetRelativePath(song.Folder,p)).FirstOrDefault()??"";}
+        song.Chart.Audio=Pick(song.Chart.Audio,".ogg",".wav",".mp3",".m4a",".aac");song.Chart.Jacket=Pick(song.Chart.Jacket,".png",".jpg",".jpeg",".webp");song.Chart.Video=Pick(song.Chart.Video,".mp4");
+        // Background deliberately has NO file fallback: missing/blank means the
+        // default background and particles, exactly as on Android.
+    }
     private void LoadSong(MobileSong song)
     {
         if(ReferenceEquals(loadedSong,song))return;loadedSong=song;jacket=visuals.FileImage(Media(song,song.Chart.Jacket));previousBackground=selectionBackground;

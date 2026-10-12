@@ -20,6 +20,7 @@ internal sealed partial class GameController
         var courses=new List<IosDanCourse>();var errors=new List<string>();
         foreach(string path in Directory.EnumerateFiles(Path.Combine(documents,"song"),"*",SearchOption.AllDirectories).Where(p=>Path.GetFileName(p).Equals("Dan.json",StringComparison.OrdinalIgnoreCase)))
             try{var def=DanDefinition.Load(path);string folder=Path.GetDirectoryName(path)!;var tracks=new List<(MobileSong,MobileDifficulty)>();foreach(var track in def.Tracks){string chartPath=DanDefinition.TrackPath(folder,track.Chart.Replace('\\','/'));var chart=MobileChart.Parse(File.ReadAllText(chartPath));var diff=chart.Difficulties.First(d=>DifficultyName(d.Name).Equals(DifficultyName(track.Difficulty),StringComparison.OrdinalIgnoreCase));tracks.Add((new(chartPath,Path.GetDirectoryName(chartPath)!,chart),diff));}courses.Add(new(folder,def,tracks));}catch(Exception e){errors.Add(e.Message);}
+        foreach(var course in courses)foreach(var track in course.Tracks)MigrationStage.PrepareMedia(track.Song);
         stage.Courses=courses;stage.Revealed=Revealed;stage.Passed=LoadSet("dan-progress.json");stage.DanStart=BeginDan;stage.Page=MigrationStage.Screen.Dan;if(errors.Count>0)Alert("段位読み込み",string.Join("\n",errors));
     }
     private void BeginDan(IosDanCourse course){activeDan=course;danTrack=0;danResults.Clear();Array.Clear(danCounts);danEligible=!settings.AutoPlay;practice=false;replaying=false;Start(course.Tracks[0].Song,course.Tracks[0].Diff);}

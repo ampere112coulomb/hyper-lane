@@ -114,6 +114,7 @@ internal sealed partial class GameController : UIViewController
         activeDan=null;
         running = false; audio?.Stop(); noteSound?.Pause(); held.Clear(); stage.ClearTouches(); ClearMenu();
         songs = library.Scan();
+        foreach(var song in songs)MigrationStage.PrepareMedia(song);
         stage.SetSongs(songs);stage.ShowSelect();menu.Hidden=true;
         return;
 #pragma warning disable CS0162
