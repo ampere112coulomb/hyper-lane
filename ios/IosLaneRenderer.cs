@@ -142,7 +142,7 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
         [DllImport(Lib)]internal static extern void glEnable(uint cap);
         [DllImport(Lib)]internal static extern void glBlendFunc(uint s,uint d);
         [DllImport(Lib)]internal static extern uint glCreateShader(uint type);
-        [DllImport(Lib)]private static extern void glShaderSource(uint shader,int count,string[] source,IntPtr lengths);
+        [DllImport(Lib)]private static extern void glShaderSource(uint shader,int count,IntPtr source,IntPtr lengths);
         [DllImport(Lib)]private static extern void glCompileShader(uint shader);
         [DllImport(Lib)]private static extern void glGetShaderiv(uint shader,uint name,out int value);
         [DllImport(Lib)]private static extern void glGetShaderInfoLog(uint shader,int size,out int length,System.Text.StringBuilder log);
@@ -167,7 +167,7 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
         [DllImport(Lib)]private static extern void glDrawArrays(uint mode,int first,int count);
         internal static uint Program(string vertex,string fragment)
         {
-            uint Compile(uint type,string text){uint s=glCreateShader(type);glShaderSource(s,1,[text],IntPtr.Zero);glCompileShader(s);glGetShaderiv(s,35713,out int ok);if(ok==0){var log=new System.Text.StringBuilder(2048);glGetShaderInfoLog(s,2048,out _,log);throw new InvalidOperationException(log.ToString());}return s;}
+            uint Compile(uint type,string text){uint s=glCreateShader(type);IntPtr source=Marshal.StringToHGlobalAnsi(text),pointers=Marshal.AllocHGlobal(IntPtr.Size);try{Marshal.WriteIntPtr(pointers,source);glShaderSource(s,1,pointers,IntPtr.Zero);}finally{Marshal.FreeHGlobal(pointers);Marshal.FreeHGlobal(source);}glCompileShader(s);glGetShaderiv(s,35713,out int ok);if(ok==0){var log=new System.Text.StringBuilder(2048);glGetShaderInfoLog(s,2048,out _,log);throw new InvalidOperationException(log.ToString());}return s;}
             uint v=Compile(35633,vertex),f=Compile(35632,fragment),p=glCreateProgram();glAttachShader(p,v);glAttachShader(p,f);glLinkProgram(p);glGetProgramiv(p,35714,out int linked);glDeleteShader(v);glDeleteShader(f);if(linked==0)throw new InvalidOperationException("iOS lane shader link failed");return p;
         }
         internal static void Texture(int w,int h,byte[] pixels){var pin=GCHandle.Alloc(pixels,GCHandleType.Pinned);try{glTexImage2D(3553,0,6408,w,h,0,6408,5121,pin.AddrOfPinnedObject());}finally{pin.Free();}}

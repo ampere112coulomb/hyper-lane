@@ -48,7 +48,8 @@ internal sealed partial class GameController : UIViewController
         profile = HyperLane.UserProfile.Load(Path.Combine(documents,"profile.json"));
         rating = new HyperLane.PlayerRating(Path.Combine(documents,"player-rating.json"));
         View!.BackgroundColor = UIColor.Black;
-        stage = new MigrationStage { Frame = View.Bounds, AutoresizingMask = UIViewAutoresizing.FlexibleWidth | UIViewAutoresizing.FlexibleHeight };
+        try { stage = new MigrationStage { Frame = View.Bounds, AutoresizingMask = UIViewAutoresizing.FlexibleWidth | UIViewAutoresizing.FlexibleHeight }; }
+        catch(Exception error){Console.Error.WriteLine(error);View.AddSubview(new UILabel(View.Bounds){Text=error.ToString(),TextColor=UIColor.Red,Lines=0,Font=UIFont.SystemFontOfSize(16)});return;}
         stage.InputChanged = InputChanged;
         stage.PauseRequested = Pause;
         stage.Settings = settings; stage.UserName = profile.UserName; stage.Rating = rating;
@@ -73,6 +74,7 @@ internal sealed partial class GameController : UIViewController
         ShowSongs();
         stage.Page=MigrationStage.Screen.Title;
         ConfigureVisualQa();
+        if(!visualQa&&!HyperLane.UserProfile.ValidName(profile.UserName))BeginInvokeOnMainThread(ShowName);
     }
 
     public override void ViewDidLayoutSubviews()
@@ -191,7 +193,7 @@ internal sealed partial class GameController : UIViewController
         ConfigureDanSession();
         if(practice)MobilePracticeTiming.At(song.Chart,difficulty,practiceAnchor,settings.AudioOffsetMs).SkipPreviousNotes(difficulty);
         session.NoteSound += (_, _) => { if (MobileSoundPolicy.OnJudgement(settings.AutoPlay, settings.AutoNoteSound)) PlaySe(); };
-        soundTimes = difficulty.Notes.Where(n => n.Kind is not ('D' or 'G')).SelectMany(n => n.Kind == 'L'
+        soundTimes = difficulty.Notes.Where(n => !n.Done && n.Kind is not ('D' or 'G')).SelectMany(n => n.Kind == 'L'
             ? new[] { n.StartSeconds, n.EndSeconds } : new[] { n.StartSeconds }).Distinct().Order().ToArray();
         nextSound = 0; held.Clear(); stage.ClearTouches(); menu.Hidden = true;
         stage.Session = session; stage.Settings = settings;stage.Seconds=0;stage.LoadingReady();
@@ -201,6 +203,7 @@ internal sealed partial class GameController : UIViewController
     private void Tick(CADisplayLink link)
     {
         stage.Refresh(CAAnimation.CurrentMediaTime());
+        UpdatePreview();
         if (!running || audio is null || session is null) return;
         double raw=waitingForAudio?rawStart+CAAnimation.CurrentMediaTime()-startClock:audio.CurrentTime;
         if(waitingForAudio&&raw>=Math.Max(0,audio.CurrentTime)){waitingForAudio=false;audio.Play();stage.ResumeVideo();raw=audio.CurrentTime;}
@@ -243,8 +246,8 @@ internal sealed partial class GameController : UIViewController
         if (settings.SeVolume > 0) noteSound?.Play();
     }
     internal void Pause()
-    { if (running) { audio?.Pause(); noteSound?.Pause(); running = false; held.Clear(); stage.ClearTouches();stage.PauseVideo();stage.Page=MigrationStage.Screen.Paused; } }
-    private void Resume(){try{noteSound?.Begin(settings.SeVolume);}catch(Exception e){Alert("SEエラー",e.Message);return;}stage.Page=MigrationStage.Screen.Playing;running=true;audio?.Play();stage.ResumeVideo();}
+    { if (running) { if(waitingForAudio)rawStart+=CAAnimation.CurrentMediaTime()-startClock;audio?.Pause(); noteSound?.Pause(); running = false; held.Clear(); stage.ClearTouches();stage.PauseVideo();stage.Page=MigrationStage.Screen.Paused; } }
+    private void Resume(){try{noteSound?.Begin(settings.SeVolume);}catch(Exception e){Alert("SEエラー",e.Message);return;}stage.Page=MigrationStage.Screen.Playing;running=true;startClock=CAAnimation.CurrentMediaTime();if(!waitingForAudio){audio?.Play();stage.ResumeVideo();}}
     private void BeginPlayback()
     {
         if(audio==null||session==null)return;
@@ -257,8 +260,13 @@ internal sealed partial class GameController : UIViewController
     }
     private void ShowName()
     {
-        var dialog=UIAlertController.Create("ユーザーネームを設定してください。","1～10文字",UIAlertControllerStyle.Alert);dialog.AddTextField(t=>t.Text=profile.UserName);
-        dialog.AddAction(UIAlertAction.Create("決定",UIAlertActionStyle.Default,_=>{string name=(dialog.TextFields![0].Text??"").Trim();if(!HyperLane.UserProfile.ValidName(name)){ShowName();return;}profile.UserName=name;profile.Save(Path.Combine(documents,"profile.json"));stage.UserName=name;stage.Page=MigrationStage.Screen.Title;}));PresentViewController(dialog,true,null);
+        ClearMenu();menu.BackgroundColor=UIColor.Clear;menu.Frame=View!.Bounds;
+        nfloat w=menu.Bounds.Width*.7f,h=280;var popup=new UIView(new CGRect((menu.Bounds.Width-w)/2,(menu.Bounds.Height-h)/2,w,h)){BackgroundColor=UIColor.FromRGBA(5,3,12,235)};menu.AddSubview(popup);
+        popup.AddSubview(new UILabel(new CGRect(20,20,w-40,50)){Text="ユーザーネームを設定してください。",TextColor=UIColor.White,Font=UIFont.SystemFontOfSize(24),TextAlignment=UITextAlignment.Center,AdjustsFontSizeToFitWidth=true});
+        var hint=new UILabel(new CGRect(20,75,w-40,30)){Text="1～10文字",TextColor=UIColor.White,TextAlignment=UITextAlignment.Center};popup.AddSubview(hint);
+        var input=new UITextField(new CGRect(30,118,w-60,65)){Text=profile.UserName,TextColor=UIColor.White,BackgroundColor=UIColor.FromRGBA(35,31,44,220),Font=UIFont.SystemFontOfSize(28),AutocorrectionType=UITextAutocorrectionType.No};input.Layer.BorderWidth=2;input.Layer.BorderColor=UIColor.Yellow.CGColor;popup.AddSubview(input);
+        var confirm=UIButton.FromType(UIButtonType.System);confirm.Frame=new CGRect(w/2-90,204,180,50);confirm.SetTitle("決定",UIControlState.Normal);confirm.SetTitleColor(UIColor.White,UIControlState.Normal);confirm.BackgroundColor=UIColor.FromRGB(46,24,65);popup.AddSubview(confirm);
+        confirm.TouchUpInside+=(_,_)=>{string name=(input.Text??"").Trim();if(!HyperLane.UserProfile.ValidName(name)){hint.Text="1～10文字で入力してください。";hint.TextColor=UIColor.Red;return;}profile.UserName=name;profile.Save(Path.Combine(documents,"profile.json"));stage.UserName=name;menu.EndEditing(true);menu.Hidden=true;stage.Page=MigrationStage.Screen.Title;};input.BecomeFirstResponder();
     }
     private void ShowPause()
     {
@@ -292,7 +300,7 @@ internal sealed partial class GameController : UIViewController
     { var dialog = UIAlertController.Create(title, text, UIAlertControllerStyle.Alert); dialog.AddAction(UIAlertAction.Create("OK", UIAlertActionStyle.Default, null)); PresentViewController(dialog, true, null); }
     protected override void Dispose(bool disposing)
     {
-        if (disposing) { displayLink?.Invalidate(); displayLink?.Dispose(); audio?.Dispose(); noteSound?.Dispose(); }
+        if (disposing) { previewRequest++;previewAudio?.Dispose();displayLink?.Invalidate(); displayLink?.Dispose(); audio?.Dispose(); noteSound?.Dispose(); }
         base.Dispose(disposing);
     }
 }

@@ -30,5 +30,7 @@
     <BundleResource Include="..\assets\title-logo.png" LogicalName="skin/title_logo.png" />
     <BundleResource Include="..\assets\backgrounds\default-background.png" LogicalName="skin/background.png" />
     <BundleResource Include="NVorbis-LICENSE.txt" LogicalName="licenses/NVorbis-LICENSE.txt" />
+    <ImageAsset Include="Assets.xcassets\AppIcon.appiconset\Contents.json" />
+    <ImageAsset Include="Assets.xcassets\AppIcon.appiconset\*.png" />
   </ItemGroup>
 </Project>

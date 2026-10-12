@@ -26,6 +26,7 @@ internal sealed partial class MigrationStage
     internal void ApplyVisualQa(string name,MobileSong song)
     {
         LoadSong(song);resultAt=CAAnimation.CurrentMediaTime()-10;
+        if(name=="result")Session?.Advance(99,new HashSet<int>());
         Page=name switch{"modes"=>Screen.Modes,"select"=>Screen.Select,"playing"=>Screen.Playing,"result"=>Screen.Result,"settings"=>Screen.Settings,_=>Screen.Title};
     }
 }

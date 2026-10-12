@@ -24,6 +24,6 @@ internal sealed partial class GameController
     }
     private void NumberInput(string title,int value,Action<int> save)
     {
-        var dialog=UIAlertController.Create(title,"数値を入力",UIAlertControllerStyle.Alert);dialog.AddTextField(t=>{t.Text=value.ToString();t.KeyboardType=UIKeyboardType.NumbersAndPunctuation;});dialog.AddAction(UIAlertAction.Create("保存",UIAlertActionStyle.Default,_=>{if(int.TryParse(dialog.TextFields![0].Text,out int n))save(n);}));dialog.AddAction(UIAlertAction.Create("キャンセル",UIAlertActionStyle.Cancel,null));PresentViewController(dialog,true,null);
+        var dialog=UIAlertController.Create(title,"数値を入力",UIAlertControllerStyle.Alert);dialog.OverrideUserInterfaceStyle=UIUserInterfaceStyle.Dark;dialog.AddTextField(t=>{t.Text=value.ToString();t.KeyboardType=UIKeyboardType.NumbersAndPunctuation;});dialog.AddAction(UIAlertAction.Create("保存",UIAlertActionStyle.Default,_=>{if(int.TryParse(dialog.TextFields![0].Text,out int n))save(n);}));dialog.AddAction(UIAlertAction.Create("キャンセル",UIAlertActionStyle.Cancel,null));PresentViewController(dialog,true,null);
     }
 }

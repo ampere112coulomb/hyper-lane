@@ -24,6 +24,12 @@ jobs:
       - name: Install iOS workload
         run: dotnet workload install ios --version 10.0.100
       - name: Build unsigned device app
+        # The existing game icon is resized mechanically by Apple's packaging tool.
+        # No user photos or song art are used.
+        # Generate before project evaluation so ImageAsset's glob sees the PNG.
+        # The next step contains the actual build.
+        run: sips -z 1024 1024 assets/hyper-lane-icon.png --out ios/Assets.xcassets/AppIcon.appiconset/icon-1024.png
+      - name: Compile unsigned device app
         run: >-
           dotnet build ios/864beat.iOS.csproj -c Release -r ios-arm64
           -p:EnableCodeSigning=false -p:CodesignRequireProvisioningProfile=false
@@ -69,10 +75,10 @@ jobs:
           app=$(find ios/bin/Release/net10.0-ios/iossimulator-x64 -maxdepth 1 -name '*.app' -type d -print -quit)
           xcrun simctl install "$udid" "$app"
           for screen in title modes select playing result settings; do
-            SIMCTL_CHILD_HL_VISUAL_QA="$screen" xcrun simctl launch "$udid" com.ampere112coulomb.hyperlane.ios
-            sleep 4
+            SIMCTL_CHILD_HL_VISUAL_QA="$screen" xcrun simctl launch --console "$udid" com.ampere112coulomb.hyperlane.ios > "visual-check/$screen.log" 2>&1 &
+            sleep 12
             xcrun simctl io "$udid" screenshot "visual-check/$screen.png"
-            xcrun simctl terminate "$udid" com.ampere112coulomb.hyperlane.ios
+            xcrun simctl terminate "$udid" com.ampere112coulomb.hyperlane.ios || true
           done
       - name: Save visual checks
         if: always()
