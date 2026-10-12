@@ -55,7 +55,7 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
         if(Environment.GetEnvironmentVariable("HL_VISUAL_QA")=="playing-nodepth")Gl.glDisable(2929);
         Gl.glBindTexture(3553,atlas);Gl.glUniform1i(Gl.glGetUniformLocation(program,"image"),0);
         Gl.Draw(program,vertexBuffer,geometry,false);Gl.glDepthMask(0);Gl.Draw(program,vertexBuffer,sprites,true);Gl.glDepthMask(1);
-        if(!reportedFrame && Environment.GetEnvironmentVariable("HL_VISUAL_QA")!=null){reportedFrame=true;Console.Error.WriteLine($"HL GPU frame: {view.DrawableWidth}x{view.DrawableHeight}, geometry={geometry.Count/10}, sprites={sprites.Count/10}, error={Gl.glGetError()}");}
+        if(!reportedFrame && Environment.GetEnvironmentVariable("HL_VISUAL_QA")!=null){reportedFrame=true;Console.Error.WriteLine($"HL GPU frame: {view.DrawableWidth}x{view.DrawableHeight}, geometry={geometry.Count/10}, sprites={sprites.Count/10}, error={Gl.glGetError()}, center={Gl.Sample((int)view.DrawableWidth/2,(int)view.DrawableHeight*430/1080)}");File.WriteAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),"visual-qa","gpu-geometry.json"),System.Text.Json.JsonSerializer.Serialize(geometry));}
         if(Settings.LaneCover>0)
         {
             geometry.Clear();double beat=MobileChart.BeatAtSeconds(s.Difficulty,s.Song.Chart.Bpm,Seconds-s.Song.Chart.Offset);
@@ -158,6 +158,8 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
         [DllImport(Lib)]internal static extern void glBufferData(uint target,nint size,IntPtr data,uint usage);
         [DllImport(Lib)]internal static extern void glActiveTexture(uint texture);
         [DllImport(Lib)]internal static extern uint glGetError();
+        [DllImport(Lib)]private static extern void glReadPixels(int x,int y,int width,int height,uint format,uint type,IntPtr pixels);
+        internal static string Sample(int x,int y){byte[] pixel=new byte[4];var pin=GCHandle.Alloc(pixel,GCHandleType.Pinned);try{glReadPixels(x,y,1,1,6408,5121,pin.AddrOfPinnedObject());return string.Join(",",pixel);}finally{pin.Free();}}
         [DllImport(Lib)]internal static extern void glEnable(uint cap);
         [DllImport(Lib)]internal static extern void glDisable(uint cap);
         [DllImport(Lib)]internal static extern void glDepthFunc(uint func);

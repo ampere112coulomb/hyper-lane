@@ -8,21 +8,25 @@ public static class MobileNearClip
     public static void AppendQuad(ReadOnlySpan<float> quad,List<float> target)
     {
         if(quad.Length!=40)throw new ArgumentException("Four ten-float vertices required",nameof(quad));
-        Span<float> polygon=stackalloc float[50];int count=0;
-        for(int current=0;current<4;current++)
+        Span<float> polygon=stackalloc float[120],clipped=stackalloc float[120];quad.CopyTo(polygon);int count=4;
+        for(int plane=0;plane<6&&count>0;plane++)
         {
-            int previous=(current+3)%4;
-            var a=quad.Slice(previous*10,10);var b=quad.Slice(current*10,10);
-            double da=(double)a[2]+a[3],db=(double)b[2]+b[3];
+            int output=0,component=plane/2;double sign=plane%2==0?1:-1;
+            for(int current=0;current<count;current++)
+            {
+            int previous=(current+count-1)%count;
+            var a=polygon.Slice(previous*10,10);var b=polygon.Slice(current*10,10);
+            double da=a[3]+sign*a[component],db=b[3]+sign*b[component];
             bool insideA=da>=0,insideB=db>=0;
             if(insideA!=insideB)
             {
                 double t=da/(da-db);
-                for(int j=0;j<10;j++)polygon[count*10+j]=(float)(a[j]+(b[j]-a[j])*t);
-                // Round the near-plane coordinate toward the visible half-space.
-                polygon[count*10+2]=-polygon[count*10+3];count++;
+                for(int j=0;j<10;j++)clipped[output*10+j]=(float)(a[j]+(b[j]-a[j])*t);
+                clipped[output*10+component]=(float)(-sign*clipped[output*10+3]);output++;
             }
-            if(insideB){b.CopyTo(polygon.Slice(count*10,10));count++;}
+            if(insideB){b.CopyTo(clipped.Slice(output*10,10));output++;}
+            }
+            clipped.Slice(0,output*10).CopyTo(polygon);count=output;
         }
         for(int i=1;i<count-1;i++)
         {
