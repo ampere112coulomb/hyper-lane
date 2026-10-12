@@ -29,6 +29,27 @@ internal sealed class IosVisuals : IDisposable
         }
     }
     internal UIImage? Asset(string name) => FileImage(Path.Combine(NSBundle.MainBundle.BundlePath, name));
+    internal UIImage? GearImage()
+    {
+        const string key="ui:gear";
+        if(images.TryGetValue(key,out var cached))return cached;
+        UIGraphics.BeginImageContextWithOptions(new CGSize(72,72),false,1);
+        try
+        {
+            using var c=UIGraphics.GetCurrentContext();
+            c.SetFillColor(UIColor.White.CGColor);c.BeginPath();
+            for(int i=0;i<32;i++)
+            {
+                double angle=(i+.5)*Math.PI/16,r=i%4 is 1 or 2?34:26;
+                nfloat x=(nfloat)(36+Math.Cos(angle)*r),y=(nfloat)(36+Math.Sin(angle)*r);
+                if(i==0)c.MoveTo(x,y);else c.AddLineToPoint(x,y);
+            }
+            c.ClosePath();c.AddEllipseInRect(new CGRect(23,23,26,26));
+            c.DrawPath(CGPathDrawingMode.EOFill);
+            return images[key]=UIGraphics.GetImageFromCurrentImageContext();
+        }
+        finally{UIGraphics.EndImageContext();}
+    }
     internal UIImage? FileImage(string path)
     {
         if (!images.TryGetValue(path, out var image)) images[path] = image = File.Exists(path) ? UIImage.FromFile(path) : null;
