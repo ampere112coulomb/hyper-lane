@@ -29,6 +29,8 @@ internal sealed partial class MigrationStage : UIView
     private readonly IosVisuals visuals=new();
     private readonly UIImageView background=new(){ContentMode=UIViewContentMode.ScaleAspectFill,ClipsToBounds=true};
     private readonly UIView dim=new(){BackgroundColor=UIColor.Black,UserInteractionEnabled=false};
+    private readonly UIView filterShade=new(){UserInteractionEnabled=false,Hidden=true};
+    private readonly ParticleOverlay particleOverlay;
     private readonly CAGradientLayer feverLeft=new(),feverRight=new();
     private readonly IosLaneRenderer gpu;
     private readonly Overlay overlay;
@@ -44,11 +46,13 @@ internal sealed partial class MigrationStage : UIView
     private CGRect Viewport=>new(Origin.X,Origin.Y,1920*Scale,1080*Scale);
     private bool DefaultPlayBackground=>Media(Session?.Song,Session?.Song.Chart.Background).Length==0 && movieLayer?.Hidden!=false;
     private static double DefaultBrightness(double now){double phase=now%5;return .25+(phase<2?.075*(1-Math.Cos(Math.PI*phase)):0);}
+    internal bool SettingsFromPause=>settingsReturn==Screen.Paused;
     internal MobileSong? Selected=>Songs.Count==0?null:Songs[Math.Clamp(index,0,Songs.Count-1)];
     internal MobileDifficulty? SelectedDifficulty=>Selected?.Chart.Difficulties.ElementAtOrDefault(difficulty);
     internal MigrationStage()
     {
-        BackgroundColor=UIColor.Black;MultipleTouchEnabled=true;AddSubview(background);AddSubview(dim);
+        BackgroundColor=UIColor.Black;MultipleTouchEnabled=true;AddSubview(background);AddSubview(dim);AddSubview(filterShade);
+        particleOverlay=new ParticleOverlay(this){BackgroundColor=UIColor.Clear,Opaque=false,UserInteractionEnabled=false,Hidden=true};AddSubview(particleOverlay);
         CGColor[] feverColors=Enumerable.Range(0,5).Select(i=>Color(255,255,255,205/255.0*Math.Pow(1-i/4.0,2.2)).CGColor).ToArray();
         foreach(var layer in new[]{feverLeft,feverRight}){layer.Colors=feverColors;layer.StartPoint=new CGPoint(0,.5);layer.EndPoint=new CGPoint(1,.5);layer.Opacity=0;Layer.AddSublayer(layer);}feverRight.StartPoint=new CGPoint(1,.5);feverRight.EndPoint=new CGPoint(0,.5);
         Console.Error.WriteLine("HL startup: GPU initialization");
@@ -58,7 +62,9 @@ internal sealed partial class MigrationStage : UIView
     }
     private sealed class Overlay(MigrationStage owner):UIView
     {public override void Draw(CGRect rect){using var c=UIGraphics.GetCurrentContext();c.SaveState();c.TranslateCTM(owner.Origin.X,owner.Origin.Y);c.ScaleCTM(owner.Scale,owner.Scale);c.ClipToRect(new CGRect(0,0,1920,1080));owner.DrawScreen(c);c.RestoreState();}}
-    public override void LayoutSubviews(){base.LayoutSubviews();background.Frame=Viewport;dim.Frame=Viewport;gpu.View.Frame=Viewport;overlay.Frame=Bounds;if(movieLayer!=null)movieLayer.Frame=Viewport;feverLeft.Frame=new CGRect(Viewport.X,Viewport.Y,Viewport.Width*.14f,Viewport.Height);feverRight.Frame=new CGRect(Viewport.GetMaxX()-Viewport.Width*.14f,Viewport.Y,Viewport.Width*.14f,Viewport.Height);}
+    private sealed class ParticleOverlay(MigrationStage owner):UIView
+    {public override void Draw(CGRect rect){using var c=UIGraphics.GetCurrentContext();c.SaveState();c.TranslateCTM(owner.Origin.X,owner.Origin.Y);c.ScaleCTM(owner.Scale,owner.Scale);c.ClipToRect(new CGRect(0,0,1920,1080));owner.Particles(c,CAAnimation.CurrentMediaTime());c.RestoreState();}}
+    public override void LayoutSubviews(){base.LayoutSubviews();background.Frame=Viewport;dim.Frame=Viewport;filterShade.Frame=Viewport;particleOverlay.Frame=Bounds;gpu.View.Frame=Viewport;overlay.Frame=Bounds;if(movieLayer!=null)movieLayer.Frame=Viewport;feverLeft.Frame=new CGRect(Viewport.X,Viewport.Y,Viewport.Width*.14f,Viewport.Height);feverRight.Frame=new CGRect(Viewport.GetMaxX()-Viewport.Width*.14f,Viewport.Y,Viewport.Width*.14f,Viewport.Height);}
     internal void ClearTouches(){touches.Clear();gpu.Held=new HashSet<int>();}
     internal void SetSongs(IReadOnlyList<MobileSong> songs){Songs=songs;index=Math.Clamp(index,0,Math.Max(0,songs.Count-1));difficulty=0;loadedSong=null;RefreshRating();}
     internal void ShowSelect(){Page=Screen.Select;movie?.Pause();ClearTouches();}
@@ -66,18 +72,21 @@ internal sealed partial class MigrationStage : UIView
     internal void BeginLoading(MobileSong song,Action onReady){Page=Screen.Loading;Session=null;loadedSong=null;LoadSong(song);loadingAt=CAAnimation.CurrentMediaTime();exitAt=0;loadingReady=false;readyAction=onReady;}
     internal void LoadingReady()=>loadingReady=true;
     internal void CancelLoading(){readyAction=null;ShowSelect();}
-    internal void PauseVideo()=>movie?.Pause();internal void ResumeVideo()=>movie?.Play();
+    internal void PauseVideo()=>movie?.Pause();
+    internal void ResumeVideo(){if(movie==null)return;movie.Seek(CMTime.FromSeconds(Math.Max(0,Seconds+Settings.AudioOffsetMs/1000.0),600));movie.Play();}
     internal void Refresh(double now)
     {
         if(transitionAt>0){double e=now-transitionAt;if(e>=.5)Page=transitionTarget;if(e>=1)transitionAt=0;}
         if(Page==Screen.Loading&&loadingReady&&now-loadingAt>=2&&exitAt==0)exitAt=now;
-        if(Page==Screen.Loading&&exitAt>0&&now-exitAt>=.5){Page=Screen.Playing;readyAction?.Invoke();readyAction=null;movie?.Seek(CMTime.FromSeconds(0,600));movie?.Play();}
+        if(Page==Screen.Loading&&exitAt>0&&now-exitAt>=.5){Page=Screen.Playing;readyAction?.Invoke();readyAction=null;}
         bool play=Page is Screen.Playing or Screen.Paused;gpu.View.Hidden=!play;gpu.Session=play?Session:null;gpu.Settings=Settings;gpu.Seconds=Seconds;
         double pulse=0;if(play&&Session is {} current){double b=MobileChart.BeatAtSeconds(current.Difficulty,current.Song.Chart.Bpm,Seconds-current.Song.Chart.Offset);var f=current.Difficulty.FeverSections.FirstOrDefault(s=>b>=s.Start&&b<=s.End);if(f.End>f.Start){double relative=b-f.Start;pulse=Math.Pow(1-(relative-Math.Floor(relative)),2)*Settings.FeverAuraBrightness/100.0;}}
         CATransaction.Begin();CATransaction.DisableActions=true;feverLeft.Opacity=feverRight.Opacity=(float)pulse;CATransaction.Commit();
         if(movieLayer!=null)movieLayer.Hidden=!play;
+        particleOverlay.Hidden=!play||!DefaultPlayBackground;if(!particleOverlay.Hidden)particleOverlay.SetNeedsDisplay();filterShade.Hidden=true;
         if(play){gpu.View.Display();background.Image=visuals.FileImage(Media(Session?.Song,Session?.Song.Chart.Background))??visuals.Asset("skin/background.png");dim.Alpha=1-(nfloat)(Settings.BackgroundBrightness/100.0*(DefaultPlayBackground?DefaultBrightness(now):1));
-            if(Session is {} s){double beat=MobileChart.BeatAtSeconds(s.Difficulty,s.Song.Chart.Bpm,Seconds-s.Song.Chart.Offset);var filter=MobileFilters.At(s.Difficulty.FilterChanges,beat);if(filter is {Kind:"BRIGHTNESS",BackgroundOnly:true} f){var b=MobileFilters.BrightnessOverlay(f.Strength);dim.BackgroundColor=b.Tone==0?UIColor.Black:UIColor.White;dim.Alpha=(nfloat)(b.Alpha/255.0);}else dim.BackgroundColor=UIColor.Black;}}
+            dim.BackgroundColor=UIColor.Black;
+            if(Session is {} s){double beat=MobileChart.BeatAtSeconds(s.Difficulty,s.Song.Chart.Bpm,Seconds-s.Song.Chart.Offset);var filter=MobileFilters.At(s.Difficulty.FilterChanges,beat);if(filter is {Kind:"BRIGHTNESS",BackgroundOnly:true} f){var b=MobileFilters.BrightnessOverlay(f.Strength);filterShade.Hidden=false;filterShade.BackgroundColor=b.Tone==0?UIColor.Black:UIColor.White;filterShade.Alpha=(nfloat)(b.Alpha/255.0);}}}
         else{dim.BackgroundColor=UIColor.Black;background.Image=visuals.Asset("skin/background.png");dim.Alpha=(nfloat)(1-DefaultBrightness(now));}
         overlay.SetNeedsDisplay();
     }
@@ -100,7 +109,7 @@ internal sealed partial class MigrationStage : UIView
     internal void RefreshRating(){if(Rating==null)return;ratingTotal=Rating.TotalFor(Songs.SelectMany(s=>s.Chart.Difficulties.Select(d=>{var m=Meta(s,d);return(Key(s,d),m.Hash,m.Level);})));}
     private void DrawScreen(CGContext c)
     {
-        double now=CAAnimation.CurrentMediaTime();switch(Page){case Screen.Title:case Screen.Modes:Front(c,now);break;case Screen.Select:Select(c,now);break;case Screen.Loading:Loading(c,now);break;case Screen.Playing:case Screen.Paused:if(DefaultPlayBackground)Particles(c,now);Hud(c);if(Page==Screen.Paused)PauseBox(c);break;case Screen.Result:Result(c,now);break;case Screen.Settings:Select(c,now);SettingsScreen(c);break;case Screen.Best30:BestScreen(c);break;case Screen.Practice:PracticeScreen(c);break;case Screen.Dan:DanScreen(c);break;case Screen.DanResult:DanResultScreen(c,now);break;}
+        double now=CAAnimation.CurrentMediaTime();switch(Page){case Screen.Title:case Screen.Modes:Front(c,now);break;case Screen.Select:Select(c,now);break;case Screen.Loading:Loading(c,now);break;case Screen.Playing:case Screen.Paused:Hud(c);if(Page==Screen.Paused)PauseBox(c);break;case Screen.Result:Result(c,now);break;case Screen.Settings:Select(c,now);SettingsScreen(c);break;case Screen.Best30:BestScreen(c);break;case Screen.Practice:PracticeScreen(c);break;case Screen.Dan:DanScreen(c);break;case Screen.DanResult:DanResultScreen(c,now);break;}
         if(transitionAt>0){double e=now-transitionAt,p=e<.5?Ease(e/.5):Math.Clamp((e-.5)/.5,0,1);if(e>=.5)p=p*p*(3-2*p);double edge=-134.4+2188.8*p;c.SaveState();Polygon(c,e<.5?[0,0,edge+134.4,0,edge-134.4,1080,0,1080]:[edge+134.4,0,1920,0,1920,1080,edge-134.4,1080],clip:true);Image(visuals.Asset("FusumaSkin.png"),Rect(0,0,1920,1080),crop:true);c.RestoreState();}
         if(Page==Screen.Playing&&Session is {} s){double beat=MobileChart.BeatAtSeconds(s.Difficulty,s.Song.Chart.Bpm,Seconds-s.Song.Chart.Offset);if(MobileFilters.At(s.Difficulty.FilterChanges,beat) is {Kind:"BRIGHTNESS",BackgroundOnly:false} f){var b=MobileFilters.BrightnessOverlay(f.Strength);Fill(c,Rect(0,0,1920,1080),Color(b.Tone,b.Tone,b.Tone,b.Alpha/255.0));}}
     }

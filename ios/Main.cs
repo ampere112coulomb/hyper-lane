@@ -5,7 +5,8 @@ namespace HyperLane.iOS;
 
 internal static class Program
 {
-    private static void Main(string[] args) => UIApplication.Main(args, null, typeof(AppDelegate));
+    private static void Main(string[] args)
+    { Console.Error.WriteLine("HL startup: managed entry"); UIApplication.Main(args, null, typeof(AppDelegate)); }
 }
 
 [Register("AppDelegate")]

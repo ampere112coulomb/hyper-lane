@@ -61,6 +61,17 @@ internal sealed partial class GameController : UIViewController
         stage.SaveSettings = () => { settings.Save(SettingsPath); if(audio!=null)audio.Volume=settings.BgmVolume/100f; };
         stage.NameRequested = ShowName;
         stage.NumberRequested = NumberInput;
+        stage.PresetRequested = (slot,save) => {
+            string path=Path.Combine(documents,$"settings-preset-{slot}.json");
+            if(save)settings.Save(path);
+            else if(File.Exists(path)){
+                bool auto=settings.AutoPlay;
+                settings=IosSettings.Load(path);
+                if(stage.SettingsFromPause)settings.AutoPlay=auto;
+                stage.Settings=settings;settings.Save(SettingsPath);
+                if(audio!=null)audio.Volume=settings.BgmVolume/100f;
+            }
+        };
         stage.PracticeRequested = (s,d,beat) => { practice=true;practiceAnchor=beat;Start(s,d); };
         stage.DanRequested = OpenDan;stage.ReplayRequested = StartReplay;
         View.AddSubview(stage);
@@ -257,7 +268,7 @@ internal sealed partial class GameController : UIViewController
         rawStart=-settings.StartMarginMs/1000.0;
         if(practice){var timing=MobilePracticeTiming.At(session.Song.Chart,session.Difficulty,practiceAnchor,settings.AudioOffsetMs);rawStart=timing.StartRaw;audio.CurrentTime=Math.Max(0,rawStart);}
         startClock=CAAnimation.CurrentMediaTime();waitingForAudio=rawStart<0;running=true;
-        if(!waitingForAudio)audio.Play();else stage.PauseVideo();
+        if(!waitingForAudio){stage.Seconds=MobilePlaybackTiming.ChartSeconds(audio.CurrentTime,settings.AudioOffsetMs);audio.Play();stage.ResumeVideo();}else stage.PauseVideo();
         nextSound=0;while(nextSound<soundTimes.Length&&soundTimes[nextSound]<rawStart)nextSound++;
         BeginReplayRecording();
     }

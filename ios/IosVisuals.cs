@@ -12,7 +12,6 @@ internal sealed class IosVisuals : IDisposable
 {
     private readonly Dictionary<string, UIImage?> images = new(StringComparer.OrdinalIgnoreCase);
     internal readonly Dictionary<string, CGImage> Sprites = new();
-    private readonly CIContext filters = CIContext.Create();
     private static string? checkpointFace;
     internal IosVisuals()
     {
@@ -93,5 +92,23 @@ internal sealed class IosVisuals : IDisposable
         Polygon(c,[x+w/10,y,x+w*9/10,y,x+w,y+h/2,x+w*9/10,y+h,x+w/10,y+h,x,y+h/2],active?Color(46,24,65,.82*opacity):Color(5,4,9,.63*opacity));
         Text(label,r,size,center:true,opacity:opacity);
     }
-    public void Dispose() { foreach(var v in Sprites.Values)v.Dispose();foreach(var v in images.Values)v?.Dispose(); filters.Dispose(); }
+    internal static void TitleTwoLines(string text, CGRect rect, double size)
+    {
+        using var value=new NSString(text);using var font=UIFont.SystemFontOfSize((nfloat)size);
+        var attributes=new UIStringAttributes{Font=font};
+        if(value.GetSizeUsingAttributes(attributes).Width<=rect.Width){Text(text,rect,size);return;}
+        int split=0;double best=double.MaxValue;
+        for(int i=1;i<text.Length;i++)
+        {
+            if(char.IsLowSurrogate(text[i]))continue;
+            using var a=new NSString(text[..i]);using var b=new NSString(text[i..]);
+            double width=Math.Max((double)a.GetSizeUsingAttributes(attributes).Width,(double)b.GetSizeUsingAttributes(attributes).Width);
+            if(width<best){best=width;split=i;}
+        }
+        if(split==0){Text(text,rect,size);return;}
+        double fitted=size*Math.Min(1,(double)rect.Width/Math.Max(1,best));
+        Text(text[..split].Trim(),new CGRect(rect.X,rect.Y,rect.Width,rect.Height/2),fitted);
+        Text(text[split..].Trim(),new CGRect(rect.X,rect.Y+rect.Height/2,rect.Width,rect.Height/2),fitted);
+    }
+    public void Dispose() { foreach(var v in Sprites.Values)v.Dispose();foreach(var v in images.Values)v?.Dispose(); }
 }
