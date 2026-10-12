@@ -66,7 +66,7 @@ internal sealed class IosVisuals : IDisposable
     internal static void Image(UIImage? image, CGRect rect, double opacity = 1, bool crop = false)
     {
         if (image is null || opacity <= 0) return;
-        using var c = UIGraphics.GetCurrentContext(); c.SaveState(); c.ClipToRect(rect);
+        using var c = UIGraphics.GetCurrentContext(); c.SaveState(); if(crop)c.ClipToRect(rect);
         double fit = crop ? Math.Max((double)rect.Width / (double)image.Size.Width, (double)rect.Height / (double)image.Size.Height)
             : Math.Min((double)rect.Width / (double)image.Size.Width, (double)rect.Height / (double)image.Size.Height);
         double w = (double)image.Size.Width * fit, h = (double)image.Size.Height * fit;
@@ -75,6 +75,7 @@ internal sealed class IosVisuals : IDisposable
     internal static void Text(string text, CGRect r, double size, UIColor? color = null, bool center = false, double opacity = 1, bool decorative = false)
     {
         if (opacity <= 0 || text.Length == 0) return;
+        decorative |= text is "MASTER" or "EXPERT" or "HARD" or "NORMAL" or "EASY" or "SPECIAL";
         using var font = decorative&&checkpointFace!=null?UIFont.FromName(checkpointFace,(nfloat)size)??UIFont.SystemFontOfSize((nfloat)size):UIFont.SystemFontOfSize((nfloat)size);
         using var value = new NSString(text);
         var attr = new UIStringAttributes { Font = font, ForegroundColor = (color ?? Color(250,250,252)).ColorWithAlpha((nfloat)Math.Clamp(opacity,0,1)) };

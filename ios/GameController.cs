@@ -78,7 +78,7 @@ internal sealed partial class GameController : UIViewController
     }
 
     public override void ViewDidLayoutSubviews()
-    { base.ViewDidLayoutSubviews(); menu.Frame = View!.Bounds.Inset(35, 25); }
+    { base.ViewDidLayoutSubviews(); if (menu != null) menu.Frame = View!.Bounds.Inset(35, 25); }
 
     private void ClearMenu()
     { foreach (UIView view in menu.Subviews) { view.RemoveFromSuperview(); view.Dispose(); } menu.Hidden = false; }
