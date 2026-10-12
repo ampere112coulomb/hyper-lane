@@ -20,7 +20,7 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
     private readonly Dictionary<string,int[]> regions = new();
     private readonly Dictionary<int,double> released = new();
     private double[] depths = [];
-    private uint program, atlas;
+    private uint program, atlas, vertexBuffer;
     private bool reportedFrame;
     internal IosLaneRenderer(CGRect frame, IosVisuals visuals)
     {
@@ -28,6 +28,7 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
         EAGLContext.SetCurrentContext(context);
         program = Gl.Program("attribute vec4 pos;attribute vec2 uv;attribute vec4 col;varying vec2 tex;varying vec4 tint;void main(){gl_Position=pos;tex=uv;tint=col;}",
             "precision mediump float;varying vec2 tex;varying vec4 tint;uniform sampler2D image;uniform float textured;void main(){gl_FragColor=tint*mix(vec4(1.0),texture2D(image,tex),textured);}");
+        Gl.glGenBuffers(1,out vertexBuffer);
         using var json=System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(Foundation.NSBundle.MainBundle.BundlePath,"skin/skin.json")));
         foreach(var p in json.RootElement.GetProperty("sprites").EnumerateObject())regions[p.Name]=p.Value.EnumerateArray().Select(x=>x.GetInt32()).ToArray();
         var image=visuals.Asset("skin/atlas.png")!.CGImage!;
@@ -45,19 +46,20 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
     {
         EAGLContext.SetCurrentContext(context);
         Gl.glViewport(0,0,(int)view.DrawableWidth,(int)view.DrawableHeight);
-        Gl.glBindBuffer(34962,0);
+        Gl.glDisable(2884);Gl.glDisable(3089);Gl.glDisable(2960);Gl.glDepthMask(1);
+        Gl.glActiveTexture(33984);
         Gl.glClearColor(0,0,0,0);Gl.glClear(16384|256);if(Session is not {} s)return;
         geometry.Clear();sprites.Clear();Build(s);
         Gl.glUseProgram(program);Gl.glEnable(3042);Gl.glBlendFunc(1,771);Gl.glEnable(2929);Gl.glDepthFunc(515);
         Gl.glBindTexture(3553,atlas);Gl.glUniform1i(Gl.glGetUniformLocation(program,"image"),0);
-        Gl.Draw(program,geometry,false);Gl.glDepthMask(0);Gl.Draw(program,sprites,true);Gl.glDepthMask(1);
+        Gl.Draw(program,vertexBuffer,geometry,false);Gl.glDepthMask(0);Gl.Draw(program,vertexBuffer,sprites,true);Gl.glDepthMask(1);
         if(!reportedFrame && Environment.GetEnvironmentVariable("HL_VISUAL_QA")!=null){reportedFrame=true;Console.Error.WriteLine($"HL GPU frame: {view.DrawableWidth}x{view.DrawableHeight}, geometry={geometry.Count/10}, sprites={sprites.Count/10}, error={Gl.glGetError()}");}
         if(Settings.LaneCover>0)
         {
             geometry.Clear();double beat=MobileChart.BeatAtSeconds(s.Difficulty,s.Song.Chart.Bpm,Seconds-s.Song.Chart.Offset);
             var p=MobileProjection.At(s.Difficulty,beat);double cover=p.DepthAtScreenFraction(1-Settings.LaneCover/100.0);
             Quad(p,-1.15,1.15,cover,52,.085,98,66,161,170/255.0);Quad(p,-1.15,1.15,cover,Math.Min(52,cover+.085),.088,171,135,225,205/255.0);
-            Gl.Draw(program,geometry,false);
+            Gl.Draw(program,vertexBuffer,geometry,false);
         }
         Gl.glDisable(2929);
     }
@@ -139,7 +141,7 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
             v[at+6]=(float)(r/255.0*a);v[at+7]=(float)(g/255.0*a);v[at+8]=(float)(b/255.0*a);v[at+9]=(float)a;
         }
     }
-    protected override void Dispose(bool disposing){if(disposing){EAGLContext.SetCurrentContext(context);if(atlas!=0)Gl.glDeleteTextures(1,ref atlas);if(program!=0)Gl.glDeleteProgram(program);View.Delegate=null;View.Dispose();context.Dispose();}base.Dispose(disposing);}
+    protected override void Dispose(bool disposing){if(disposing){EAGLContext.SetCurrentContext(context);if(atlas!=0)Gl.glDeleteTextures(1,ref atlas);if(vertexBuffer!=0)Gl.glDeleteBuffers(1,ref vertexBuffer);if(program!=0)Gl.glDeleteProgram(program);View.Delegate=null;View.Dispose();context.Dispose();}base.Dispose(disposing);}
     private static class Gl
     {
         private const string Lib="/System/Library/Frameworks/OpenGLES.framework/OpenGLES";
@@ -147,6 +149,10 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
         [DllImport(Lib)]internal static extern void glClear(uint mask);
         [DllImport(Lib)]internal static extern void glViewport(int x,int y,int width,int height);
         [DllImport(Lib)]internal static extern void glBindBuffer(uint target,uint buffer);
+        [DllImport(Lib)]internal static extern void glGenBuffers(int count,out uint buffer);
+        [DllImport(Lib)]internal static extern void glDeleteBuffers(int count,ref uint buffer);
+        [DllImport(Lib)]internal static extern void glBufferData(uint target,nint size,IntPtr data,uint usage);
+        [DllImport(Lib)]internal static extern void glActiveTexture(uint texture);
         [DllImport(Lib)]internal static extern uint glGetError();
         [DllImport(Lib)]internal static extern void glEnable(uint cap);
         [DllImport(Lib)]internal static extern void glDisable(uint cap);
@@ -183,10 +189,10 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
             uint v=Compile(35633,vertex),f=Compile(35632,fragment),p=glCreateProgram();glAttachShader(p,v);glAttachShader(p,f);glLinkProgram(p);glGetProgramiv(p,35714,out int linked);glDeleteShader(v);glDeleteShader(f);if(linked==0)throw new InvalidOperationException("iOS lane shader link failed");return p;
         }
         internal static void Texture(int w,int h,byte[] pixels){var pin=GCHandle.Alloc(pixels,GCHandleType.Pinned);try{glTexImage2D(3553,0,6408,w,h,0,6408,5121,pin.AddrOfPinnedObject());}finally{pin.Free();}}
-        internal static void Draw(uint program,List<float> source,bool texture)
+        internal static void Draw(uint program,uint buffer,List<float> source,bool texture)
         {
             if(source.Count==0)return;float[] array=source.ToArray();var pin=GCHandle.Alloc(array,GCHandleType.Pinned);
-            try{IntPtr address=pin.AddrOfPinnedObject();string[] names=["pos","uv","col"];int[] sizes=[4,2,4],offsets=[0,16,24];for(int i=0;i<3;i++){uint at=(uint)glGetAttribLocation(program,names[i]);glEnableVertexAttribArray(at);glVertexAttribPointer(at,sizes[i],5126,0,40,address+offsets[i]);}glUniform1f(glGetUniformLocation(program,"textured"),texture?1:0);glDrawArrays(4,0,array.Length/10);}finally{pin.Free();}
+            try{glBindBuffer(34962,buffer);glBufferData(34962,array.Length*4,pin.AddrOfPinnedObject(),35040);string[] names=["pos","uv","col"];int[] sizes=[4,2,4],offsets=[0,16,24];for(int i=0;i<3;i++){uint at=(uint)glGetAttribLocation(program,names[i]);glEnableVertexAttribArray(at);glVertexAttribPointer(at,sizes[i],5126,0,40,(IntPtr)offsets[i]);}glUniform1f(glGetUniformLocation(program,"textured"),texture?1:0);glDrawArrays(4,0,array.Length/10);}finally{pin.Free();}
         }
     }
 }
