@@ -57,7 +57,7 @@ internal sealed partial class GameController : UIViewController
         stage.PauseRequested = Pause;
         stage.Settings = settings; stage.UserName = profile.UserName; stage.Rating = rating;
         stage.ImportRequested = Import; stage.StartRequested = (s,d) => { RestoreReplay();activeDan=null;practice=false; Start(s,d); };
-        stage.BackRequested = ShowSongs; stage.ResumeRequested = Resume;
+        stage.BackRequested = EndPlay; stage.ResumeRequested = Resume;stage.RetryRequested=RetryPlay;
         stage.SaveSettings = () => { settings.Save(SettingsPath); if(audio!=null)audio.Volume=settings.BgmVolume/100f; };
         stage.NameRequested = ShowName;
         stage.NumberRequested = NumberInput;
@@ -166,7 +166,7 @@ internal sealed partial class GameController : UIViewController
         if (!path.StartsWith(Path.GetFullPath(song.Folder) + Path.DirectorySeparatorChar, StringComparison.Ordinal))
         { Alert("音源エラー", "楽曲フォルダー外の音源は読み込めません。"); return; }
         audio?.Stop(); audio?.Dispose(); audio = null;
-        running=false;menu.Hidden=true;stage.BeginLoading(song, BeginPlayback);
+        running=false;menu.Hidden=true;stage.PracticePlaying=practice;stage.BeginLoading(song,difficulty, BeginPlayback);
         AVAudioPlayer? created = null;
         preparingAudio = true;
         menu.UserInteractionEnabled = false;
@@ -262,6 +262,21 @@ internal sealed partial class GameController : UIViewController
     internal void Pause()
     { if (running) { if(waitingForAudio)rawStart+=CAAnimation.CurrentMediaTime()-startClock;audio?.Pause(); noteSound?.Pause(); running = false; held.Clear(); stage.ClearTouches();stage.PauseVideo();stage.Page=MigrationStage.Screen.Paused; } }
     private void Resume(){try{noteSound?.Begin(settings.SeVolume);}catch(Exception e){Alert("SEエラー",e.Message);return;}stage.Page=MigrationStage.Screen.Playing;running=true;startClock=CAAnimation.CurrentMediaTime();if(!waitingForAudio){audio?.Play();stage.ResumeVideo();}}
+    private void RetryPlay()
+    {
+        if(session==null||preparingAudio)return;
+        running=false;audio?.Stop();noteSound?.Pause();held.Clear();stage.ClearTouches();
+        if(activeDan is {} course){BeginDan(course);return;}
+        if(replaying){StartReplay();return;}
+        Start(session.Song,session.Difficulty);
+    }
+    private void EndPlay()
+    {
+        running=false;audio?.Stop();noteSound?.Pause();held.Clear();stage.ClearTouches();stage.PauseVideo();
+        if(practice){stage.Page=MigrationStage.Screen.Practice;return;}
+        if(activeDan!=null){activeDan=null;stage.ActiveDan=null;OpenDan();return;}
+        ShowSongs();
+    }
     private void BeginPlayback()
     {
         if(audio==null||session==null)return;

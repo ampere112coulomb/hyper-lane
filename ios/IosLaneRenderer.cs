@@ -8,7 +8,7 @@ namespace HyperLane.iOS;
 
 // The atlas is uploaded once. Homogeneous vertices use the exact Android camera
 // and GPU perspective interpolation (including camera rotations and near clipping).
-internal sealed class IosLaneRenderer : GLKViewDelegate
+internal sealed partial class IosLaneRenderer : GLKViewDelegate
 {
     private readonly EAGLContext context = new(EAGLRenderingAPI.OpenGLES2);
     internal readonly GLKView View;
@@ -50,6 +50,7 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
         Gl.glClearDepthf(1);Gl.glDepthRangef(0,1);
         Gl.glActiveTexture(33984);
         Gl.glClearColor(0,0,0,0);Gl.glClear(16384|256);if(Session is not {} s)return;
+        BeginEffects((int)view.DrawableWidth,(int)view.DrawableHeight);
         geometry.Clear();sprites.Clear();Build(s);
         Gl.glUseProgram(program);Gl.glEnable(3042);Gl.glBlendFunc(1,771);Gl.glEnable(2929);Gl.glDepthFunc(515);
         if(Environment.GetEnvironmentVariable("HL_VISUAL_QA")=="playing-nodepth")Gl.glDisable(2929);
@@ -64,6 +65,7 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
             Gl.Draw(program,vertexBuffer,geometry,false);
         }
         Gl.glDisable(2929);
+        EndEffects();
     }
     private void Build(MobileSession s)
     {
@@ -143,8 +145,8 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
             v[at+6]=(float)(r/255.0*a);v[at+7]=(float)(g/255.0*a);v[at+8]=(float)(b/255.0*a);v[at+9]=(float)a;
         }
     }
-    protected override void Dispose(bool disposing){if(disposing){EAGLContext.SetCurrentContext(context);if(atlas!=0)Gl.glDeleteTextures(1,ref atlas);if(vertexBuffer!=0)Gl.glDeleteBuffers(1,ref vertexBuffer);if(program!=0)Gl.glDeleteProgram(program);View.Delegate=null;View.Dispose();context.Dispose();}base.Dispose(disposing);}
-    private static class Gl
+    protected override void Dispose(bool disposing){if(disposing){EAGLContext.SetCurrentContext(context);DisposeEffects();if(atlas!=0)Gl.glDeleteTextures(1,ref atlas);if(vertexBuffer!=0)Gl.glDeleteBuffers(1,ref vertexBuffer);if(program!=0)Gl.glDeleteProgram(program);View.Delegate=null;View.Dispose();context.Dispose();}base.Dispose(disposing);}
+    private static partial class Gl
     {
         private const string Lib="/System/Library/Frameworks/OpenGLES.framework/OpenGLES";
         [DllImport(Lib)]internal static extern void glClearColor(float r,float g,float b,float a);
@@ -198,7 +200,7 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
         internal static void Draw(uint program,uint buffer,List<float> source,bool texture)
         {
             if(source.Count==0)return;float[] array=source.ToArray();var pin=GCHandle.Alloc(array,GCHandleType.Pinned);
-            try{glBindBuffer(34962,buffer);glBufferData(34962,array.Length*4,pin.AddrOfPinnedObject(),35040);string[] names=["pos","uv","col"];int[] sizes=[4,2,4],offsets=[0,16,24];for(int i=0;i<3;i++){uint at=(uint)glGetAttribLocation(program,names[i]);glEnableVertexAttribArray(at);glVertexAttribPointer(at,sizes[i],5126,0,40,(IntPtr)offsets[i]);}glUniform1f(glGetUniformLocation(program,"textured"),texture?1:0);glDrawArrays(4,0,array.Length/10);}finally{pin.Free();}
+            try{glBindBuffer(34962,buffer);glBufferData(34962,array.Length*4,pin.AddrOfPinnedObject(),35040);string[] names=["pos","uv","col"];int[] sizes=[4,2,4],offsets=[0,16,24];for(int i=0;i<3;i++){int location=glGetAttribLocation(program,names[i]);if(location<0)continue;uint at=(uint)location;glEnableVertexAttribArray(at);glVertexAttribPointer(at,sizes[i],5126,0,40,(IntPtr)offsets[i]);}glUniform1f(glGetUniformLocation(program,"textured"),texture?1:0);glDrawArrays(4,0,array.Length/10);}finally{pin.Free();}
         }
     }
 }
