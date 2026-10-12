@@ -61,7 +61,7 @@ jobs:
           retention-days: 3
       - name: Build simulator visual check
         run: >-
-          dotnet build ios/864beat.iOS.csproj -c Release -r iossimulator-x64
+          dotnet build ios/864beat.iOS.csproj -c Release -r iossimulator-arm64
           -p:EnableCodeSigning=false -p:CodesignRequireProvisioningProfile=false
           -p:BuildIpa=false -p:RestoreConfigFile=${{ github.workspace }}/ios/NuGet.Config
       - name: Capture native iPad screens
@@ -72,7 +72,7 @@ jobs:
           udid=$(xcrun simctl list devices available -j | python3 -c 'import sys,json; d=json.load(sys.stdin); print(next(x["udid"] for a in d["devices"].values() for x in a if "iPad Pro" in x["name"]))')
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
-          app=$(find ios/bin/Release/net10.0-ios/iossimulator-x64 -maxdepth 1 -name '*.app' -type d -print -quit)
+          app=$(find ios/bin/Release/net10.0-ios/iossimulator-arm64 -maxdepth 1 -name '*.app' -type d -print -quit)
           xcrun simctl install "$udid" "$app"
           for screen in title modes select playing result settings; do
             SIMCTL_CHILD_HL_VISUAL_QA="$screen" xcrun simctl launch --console "$udid" com.ampere112coulomb.hyperlane.ios > "visual-check/$screen.log" 2>&1 &
@@ -80,6 +80,7 @@ jobs:
             xcrun simctl io "$udid" screenshot "visual-check/$screen.png"
             xcrun simctl terminate "$udid" com.ampere112coulomb.hyperlane.ios || true
           done
+          xcrun simctl spawn "$udid" log show --last 5m --style compact --predicate 'process CONTAINS "HyperLane"' > visual-check/system.log 2>&1 || true
       - name: Save visual checks
         if: always()
         uses: actions/upload-artifact@v4

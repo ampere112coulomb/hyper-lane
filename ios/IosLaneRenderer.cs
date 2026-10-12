@@ -23,7 +23,7 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
     private uint program, atlas;
     internal IosLaneRenderer(CGRect frame, IosVisuals visuals)
     {
-        View = new GLKView(frame, context) { Delegate = this, Opaque = false, BackgroundColor = UIKit.UIColor.Clear, UserInteractionEnabled = false };
+        View = new GLKView(frame, context) { Delegate = this, DrawableDepthFormat = GLKViewDrawableDepthFormat.Format16, Opaque = false, BackgroundColor = UIKit.UIColor.Clear, UserInteractionEnabled = false };
         EAGLContext.SetCurrentContext(context);
         program = Gl.Program("attribute vec4 pos;attribute vec2 uv;attribute vec4 col;varying vec2 tex;varying vec4 tint;void main(){gl_Position=pos;tex=uv;tint=col;}",
             "precision mediump float;varying vec2 tex;varying vec4 tint;uniform sampler2D image;uniform float textured;void main(){gl_FragColor=tint*mix(vec4(1.0),texture2D(image,tex),textured);}");
@@ -42,11 +42,11 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
     private readonly int atlasWidth,atlasHeight;
     public override void DrawInRect(GLKView view, CGRect rect)
     {
-        Gl.glClearColor(0,0,0,0);Gl.glClear(16384);if(Session is not {} s)return;
+        Gl.glClearColor(0,0,0,0);Gl.glClear(16384|256);if(Session is not {} s)return;
         geometry.Clear();sprites.Clear();Build(s);
-        Gl.glUseProgram(program);Gl.glEnable(3042);Gl.glBlendFunc(1,771);
+        Gl.glUseProgram(program);Gl.glEnable(3042);Gl.glBlendFunc(1,771);Gl.glEnable(2929);Gl.glDepthFunc(515);
         Gl.glBindTexture(3553,atlas);Gl.glUniform1i(Gl.glGetUniformLocation(program,"image"),0);
-        Gl.Draw(program,geometry,false);Gl.Draw(program,sprites,true);
+        Gl.Draw(program,geometry,false);Gl.glDepthMask(0);Gl.Draw(program,sprites,true);Gl.glDepthMask(1);
         if(Settings.LaneCover>0)
         {
             geometry.Clear();double beat=MobileChart.BeatAtSeconds(s.Difficulty,s.Song.Chart.Bpm,Seconds-s.Song.Chart.Offset);
@@ -54,6 +54,7 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
             Quad(p,-1.15,1.15,cover,52,.085,98,66,161,170/255.0);Quad(p,-1.15,1.15,cover,Math.Min(52,cover+.085),.088,171,135,225,205/255.0);
             Gl.Draw(program,geometry,false);
         }
+        Gl.glDisable(2929);
     }
     private void Build(MobileSession s)
     {
@@ -140,6 +141,9 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
         [DllImport(Lib)]internal static extern void glClearColor(float r,float g,float b,float a);
         [DllImport(Lib)]internal static extern void glClear(uint mask);
         [DllImport(Lib)]internal static extern void glEnable(uint cap);
+        [DllImport(Lib)]internal static extern void glDisable(uint cap);
+        [DllImport(Lib)]internal static extern void glDepthFunc(uint func);
+        [DllImport(Lib)]internal static extern void glDepthMask(byte enabled);
         [DllImport(Lib)]internal static extern void glBlendFunc(uint s,uint d);
         [DllImport(Lib)]internal static extern uint glCreateShader(uint type);
         [DllImport(Lib)]private static extern void glShaderSource(uint shader,int count,IntPtr source,IntPtr lengths);
