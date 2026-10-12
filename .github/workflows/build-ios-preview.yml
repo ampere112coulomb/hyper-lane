@@ -83,7 +83,19 @@ jobs:
           app=$(find ios/bin/Release/net10.0-ios/iossimulator-arm64 -maxdepth 1 -name '*.app' -type d -print -quit)
           # ARM simulators validate executable signatures even without a paid account.
           # This ad-hoc signature is ONLY for the disposable simulator app, not the device IPA.
-          codesign --force --deep --sign - "$app"
+          # Root-level .NET native dylibs are not necessarily visited by --deep.
+          # Give each Mach-O a fresh inode before signing to avoid stale page hashes.
+          find "$app" -type f -print0 > visual-check/binaries.list
+          while IFS= read -r -d '' binary; do
+            if file -b "$binary" | grep -q 'Mach-O'; then
+              cp "$binary" "$binary.signing-copy"
+              mv "$binary.signing-copy" "$binary"
+              codesign --force --sign - --timestamp=none "$binary"
+              codesign --verify --strict "$binary"
+              codesign -dv --verbose=4 "$binary" 2>> visual-check/signatures.log
+            fi
+          done < visual-check/binaries.list
+          codesign --force --deep --sign - --timestamp=none "$app"
           codesign --verify --deep --strict "$app"
           xcrun simctl install "$udid" "$app"
           failed=0
