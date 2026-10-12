@@ -16,10 +16,12 @@ internal sealed class IosVisuals : IDisposable
     private static string? checkpointFace;
     internal IosVisuals()
     {
+        Console.Error.WriteLine("HL startup: visual assets");
         foreach (string file in Directory.EnumerateFiles(Path.Combine(NSBundle.MainBundle.BundlePath, "fonts"), "*.otf"))
         { using var url = NSUrl.FromFilename(file); CTFontManager.RegisterFontsForUrl(url, CTFontManagerScope.Process);
           if(Path.GetFileName(file).Equals("Checkpoint.otf",StringComparison.OrdinalIgnoreCase)){using var provider=new CGDataProvider(file);using var font=CGFont.CreateFromProvider(provider);checkpointFace=font.PostScriptName;} }
         using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(NSBundle.MainBundle.BundlePath, "skin/skin.json")));
+        Console.Error.WriteLine("HL startup: fonts ready");
         CGImage? atlas = Asset("skin/atlas.png")?.CGImage;
         if (atlas is not null) foreach (var entry in json.RootElement.GetProperty("sprites").EnumerateObject())
         {

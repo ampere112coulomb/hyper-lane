@@ -42,15 +42,18 @@ internal sealed partial class GameController : UIViewController
     public override void ViewDidLoad()
     {
         base.ViewDidLoad();
+        Console.Error.WriteLine("HL startup: controller");
         Directory.CreateDirectory(documents);
         library = new MobileSongLibrary(documents);
         settings = IosSettings.Load(SettingsPath);
         profile = HyperLane.UserProfile.Load(Path.Combine(documents,"profile.json"));
         rating = new HyperLane.PlayerRating(Path.Combine(documents,"player-rating.json"));
         View!.BackgroundColor = UIColor.Black;
+        Console.Error.WriteLine("HL startup: constructing stage");
         try { stage = new MigrationStage { Frame = View.Bounds, AutoresizingMask = UIViewAutoresizing.FlexibleWidth | UIViewAutoresizing.FlexibleHeight }; }
         catch(Exception error){Console.Error.WriteLine(error);View.AddSubview(new UILabel(View.Bounds){Text=error.ToString(),TextColor=UIColor.Red,Lines=0,Font=UIFont.SystemFontOfSize(16)});return;}
         stage.InputChanged = InputChanged;
+        Console.Error.WriteLine("HL startup: stage ready");
         stage.PauseRequested = Pause;
         stage.Settings = settings; stage.UserName = profile.UserName; stage.Rating = rating;
         stage.ImportRequested = Import; stage.StartRequested = (s,d) => { RestoreReplay();activeDan=null;practice=false; Start(s,d); };

@@ -49,7 +49,9 @@ internal sealed partial class MigrationStage : UIView
         BackgroundColor=UIColor.Black;MultipleTouchEnabled=true;AddSubview(background);AddSubview(dim);
         CGColor[] feverColors=Enumerable.Range(0,5).Select(i=>Color(255,255,255,205/255.0*Math.Pow(1-i/4.0,2.2)).CGColor).ToArray();
         foreach(var layer in new[]{feverLeft,feverRight}){layer.Colors=feverColors;layer.StartPoint=new CGPoint(0,.5);layer.EndPoint=new CGPoint(1,.5);layer.Opacity=0;Layer.AddSublayer(layer);}feverRight.StartPoint=new CGPoint(1,.5);feverRight.EndPoint=new CGPoint(0,.5);
+        Console.Error.WriteLine("HL startup: GPU initialization");
         gpu=new IosLaneRenderer(CGRect.Empty,visuals);AddSubview(gpu.View);
+        Console.Error.WriteLine("HL startup: GPU ready");
         overlay=new Overlay(this){BackgroundColor=UIColor.Clear,Opaque=false,UserInteractionEnabled=false};AddSubview(overlay);
     }
     private sealed class Overlay(MigrationStage owner):UIView

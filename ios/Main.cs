@@ -14,6 +14,7 @@ public sealed class AppDelegate : UIApplicationDelegate
     public override UIWindow? Window { get; set; }
     public override bool FinishedLaunching(UIApplication application, NSDictionary launchOptions)
     {
+        Console.Error.WriteLine("HL startup: delegate");
         Window = new UIWindow(UIScreen.MainScreen.Bounds) { RootViewController = new GameController() };
         Window.MakeKeyAndVisible();
         application.IdleTimerDisabled = true;
