@@ -20,6 +20,8 @@ internal sealed partial class GameController
         if(name=="playing-overhead")notes+="\nCHANGE:0,CAMERA_ADV,(0,20,3),(-90,0,0)3,0";
         if(name=="playing-gimmicks")notes="5-8,1\n6W,2,SIZE=2\n7M,4,SIZE=3\n5-9G,6,#10b981,fade,0.6\nCHANGE:0,JUDGE_LINE,0;35;0;35;0;35,4,EASE_OUT\nFEVER:4.5-12";
         chart=MobileChart.Parse(text+notes+"\n");d=chart.Difficulties[0];var song=new MobileSong(path,folder,chart);stage.SetSongs([song]);stage.UserName="Visual QA";stage.Session=new MobileSession(song,d){AutoPlay=true};stage.Settings=settings;stage.Seconds=name=="playing-gimmicks"?2.3:2.2;
+        if(name=="playing-ui-hidden")d.UiVisibilityChanges.Add(new MobileVisibilityChange(0,0,0));
+        if(name=="playing-ui-half")d.UiVisibilityChanges.Add(new MobileVisibilityChange(0,.5,0));
         if(name.StartsWith("filter-")){string kind=name[7..].Replace("-background","").ToUpperInvariant();d.FilterChanges.Add(new MobileFilterChange(0,kind,75,100,false,name.EndsWith("-background")));}
         stage.ApplyVisualQa(name,song);
         File.WriteAllText(Path.Combine(folder,name+".ready"),name);

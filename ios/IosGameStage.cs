@@ -191,8 +191,13 @@ internal sealed partial class MigrationStage : UIView
     {
         if(Session is not {} s)return;
         double beat=MobileChart.BeatAtSeconds(s.Difficulty,s.Song.Chart.Bpm,Seconds-s.Song.Chart.Offset);
-        c.SaveState();c.SetAlpha((nfloat)IosLaneRenderer.Visibility(s.Difficulty.UiVisibilityChanges,beat));
-        Image(visuals.Asset("HUDPanel.png"),Rect(-34,38,576,324));Image(jacket,Rect(78,119,156,156),crop:true);
+        double uiOpacity=IosLaneRenderer.Visibility(s.Difficulty.UiVisibilityChanges,beat);
+        c.SaveState();c.SetAlpha((nfloat)uiOpacity);
+        // UIImage.Draw supplies its own alpha, so pass the HUD opacity explicitly.
+        // Reset the context alpha for these images to avoid applying a fade twice.
+        c.SaveState();c.SetAlpha(1);
+        Image(visuals.Asset("HUDPanel.png"),Rect(-34,38,576,324),uiOpacity);Image(jacket,Rect(78,119,156,156),uiOpacity,crop:true);
+        c.RestoreState();
         Stroke(c,Rect(78,119,156,156),Difficulty(s.Difficulty.Name),3);
         Text(s.Song.Chart.Title,Rect(258,141,530,49),40);Text(s.Song.Chart.Composer,Rect(255,192,520,25),16);
         Text("chart "+s.Song.Chart.ChartDesigner,Rect(247,223,520,25),16);
