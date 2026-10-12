@@ -177,6 +177,10 @@ internal sealed partial class MigrationStage : UIView
     private void Touch(NSSet changed,int phase)
     {
         foreach(UITouch touch in changed){var p=touch.LocationInView(this);float x=(float)((p.X-Origin.X)/Scale),y=(float)((p.Y-Origin.Y)/Scale);bool release=phase==2;
+            if(x<0||x>1920||y<0||y>1080){
+                if(Page==Screen.Playing){touches.Remove(touch);var remaining=touches.Values.Where(l=>l>0).ToHashSet();gpu.Held=remaining;InputChanged?.Invoke(remaining,touch.Timestamp);}
+                if(release)dragging=false;continue;
+            }
             if(Page==Screen.Playing){if(release&&x>1766&&y<130){PauseRequested?.Invoke();continue;}if(release||Settings.AutoPlay)touches.Remove(touch);else touches[touch]=TouchZones.HitTest(Session!.Difficulty.Lanes,x,y,1920,1080,Settings.TouchHeight)+1;var next=touches.Values.Where(l=>l>0).ToHashSet();gpu.Held=next;InputChanged?.Invoke(next,touch.Timestamp);continue;}
             if(Page==Screen.Settings){TouchSettings(x,y,phase);continue;}
             if(phase==0){downY=y;downPosition=Page==Screen.Practice?practiceBeat:position;dragging=Page==Screen.Select&&x<960&&y>80;}

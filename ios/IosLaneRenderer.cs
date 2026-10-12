@@ -21,6 +21,7 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
     private readonly Dictionary<int,double> released = new();
     private double[] depths = [];
     private uint program, atlas;
+    private bool reportedFrame;
     internal IosLaneRenderer(CGRect frame, IosVisuals visuals)
     {
         View = new GLKView(frame, context) { Delegate = this, DrawableDepthFormat = GLKViewDrawableDepthFormat.Format16, Opaque = false, BackgroundColor = UIKit.UIColor.Clear, UserInteractionEnabled = false };
@@ -42,11 +43,15 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
     private readonly int atlasWidth,atlasHeight;
     public override void DrawInRect(GLKView view, CGRect rect)
     {
+        EAGLContext.SetCurrentContext(context);
+        Gl.glViewport(0,0,(int)view.DrawableWidth,(int)view.DrawableHeight);
+        Gl.glBindBuffer(34962,0);
         Gl.glClearColor(0,0,0,0);Gl.glClear(16384|256);if(Session is not {} s)return;
         geometry.Clear();sprites.Clear();Build(s);
         Gl.glUseProgram(program);Gl.glEnable(3042);Gl.glBlendFunc(1,771);Gl.glEnable(2929);Gl.glDepthFunc(515);
         Gl.glBindTexture(3553,atlas);Gl.glUniform1i(Gl.glGetUniformLocation(program,"image"),0);
         Gl.Draw(program,geometry,false);Gl.glDepthMask(0);Gl.Draw(program,sprites,true);Gl.glDepthMask(1);
+        if(!reportedFrame && Environment.GetEnvironmentVariable("HL_VISUAL_QA")!=null){reportedFrame=true;Console.Error.WriteLine($"HL GPU frame: {view.DrawableWidth}x{view.DrawableHeight}, geometry={geometry.Count/10}, sprites={sprites.Count/10}, error={Gl.glGetError()}");}
         if(Settings.LaneCover>0)
         {
             geometry.Clear();double beat=MobileChart.BeatAtSeconds(s.Difficulty,s.Song.Chart.Bpm,Seconds-s.Song.Chart.Offset);
@@ -140,6 +145,9 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
         private const string Lib="/System/Library/Frameworks/OpenGLES.framework/OpenGLES";
         [DllImport(Lib)]internal static extern void glClearColor(float r,float g,float b,float a);
         [DllImport(Lib)]internal static extern void glClear(uint mask);
+        [DllImport(Lib)]internal static extern void glViewport(int x,int y,int width,int height);
+        [DllImport(Lib)]internal static extern void glBindBuffer(uint target,uint buffer);
+        [DllImport(Lib)]internal static extern uint glGetError();
         [DllImport(Lib)]internal static extern void glEnable(uint cap);
         [DllImport(Lib)]internal static extern void glDisable(uint cap);
         [DllImport(Lib)]internal static extern void glDepthFunc(uint func);

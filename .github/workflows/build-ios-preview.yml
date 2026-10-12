@@ -81,6 +81,7 @@ jobs:
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
           app=$(find ios/bin/Release/net10.0-ios/iossimulator-arm64 -maxdepth 1 -name '*.app' -type d -print -quit)
+          executable="$app/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Info.plist")"
           # ARM simulators validate executable signatures even without a paid account.
           # This ad-hoc signature is ONLY for the disposable simulator app, not the device IPA.
           # Root-level .NET native dylibs are not necessarily visited by --deep.
@@ -90,12 +91,15 @@ jobs:
             if file -b "$binary" | grep -q 'Mach-O'; then
               cp "$binary" "$binary.signing-copy"
               mv "$binary.signing-copy" "$binary"
-              codesign --force --sign - --timestamp=none "$binary"
-              codesign --verify --strict "$binary"
-              codesign -dv --verbose=4 "$binary" 2>> visual-check/signatures.log
+              if [ "$binary" != "$executable" ]; then
+                codesign --force --sign - --timestamp=none "$binary"
+                codesign --verify --strict "$binary"
+                codesign -dv --verbose=4 "$binary" 2>> visual-check/signatures.log
+              fi
             fi
           done < visual-check/binaries.list
-          codesign --force --deep --sign - --timestamp=none "$app"
+          # Sign the main executable exactly once, with the bundle identifier.
+          codesign --force --sign - --timestamp=none "$app"
           codesign --verify --deep --strict "$app"
           xcrun simctl install "$udid" "$app"
           failed=0
@@ -116,6 +120,7 @@ jobs:
               failed=1
             fi
             xcrun simctl terminate "$udid" com.ampere112coulomb.hyperlane.ios || true
+            if [ "$failed" -ne 0 ]; then break; fi
           done
           xcrun simctl spawn "$udid" log show --last 5m --style compact --predicate 'eventMessage CONTAINS[c] "hyperlane" OR eventMessage CONTAINS[c] "signature" OR eventMessage CONTAINS[c] "dyld"' > visual-check/system.log 2>&1 || true
           find "$HOME/Library/Logs/DiagnosticReports" -type f -iname '*hyperlane*' -exec cp {} visual-check/ \; || true
