@@ -209,7 +209,9 @@ internal sealed partial class MigrationStage : UIView
             }
             if(Page==Screen.Playing){if(PracticePlaying&&x<110&&y<88){if(release)RetryRequested?.Invoke();continue;}if(release&&x>1766&&y<130){PauseRequested?.Invoke();continue;}if(release||Settings.AutoPlay)touches.Remove(touch);else touches[touch]=TouchZones.HitTest(Session!.Difficulty.Lanes,x,y,1920,1080,Settings.TouchHeight)+1;var next=touches.Values.Where(l=>l>0).ToHashSet();gpu.Held=next;InputChanged?.Invoke(next,touch.Timestamp);continue;}
             if(Page==Screen.Settings){TouchSettings(x,y,phase);continue;}
+            if(Page==Screen.Practice){TouchPractice(x,y,phase);continue;}
             if(Page==Screen.Select&&x<95&&y<80){if(release)SearchRequested?.Invoke();continue;}
+            if(Page==Screen.Select&&mode==2&&release&&x>=1023&&x<=1361&&y>=945)practiceViewBeat=0;
             if(phase==0){downY=y;downPosition=Page==Screen.Practice?practiceBeat:position;dragging=Page==Screen.Select&&x<960&&y>80;}
             if(phase==1){if(dragging){position=downPosition+(downY-y)/92;if(Songs.Count>0){string name=SelectedDifficulty?.Name??"";int pos=(int)Math.Round(position);index=(pos%Songs.Count+Songs.Count)%Songs.Count;difficulty=Math.Max(0,Selected!.Chart.Difficulties.FindIndex(d=>d.Name.Equals(name,StringComparison.OrdinalIgnoreCase)));}}if(Page==Screen.Practice)practiceBeat=Math.Max(0,downPosition+(y-downY)/65);continue;}if(!release||transitionAt>0||Page==Screen.Loading)continue;
             if(Page==Screen.Title){if(UserProfile.ValidName(UserName))Transition(Screen.Modes);else NameRequested?.Invoke();}
@@ -223,6 +225,6 @@ internal sealed partial class MigrationStage : UIView
         }
     }
     public override void TouchesBegan(NSSet t,UIEvent? e)=>Touch(t,0);public override void TouchesMoved(NSSet t,UIEvent? e)=>Touch(t,1);public override void TouchesEnded(NSSet t,UIEvent? e)=>Touch(t,2);
-    public override void TouchesCancelled(NSSet t,UIEvent? e){ClearTouches();InputChanged?.Invoke(new HashSet<int>(),CAAnimation.CurrentMediaTime());dragging=false;}
+    public override void TouchesCancelled(NSSet t,UIEvent? e){ClearTouches();InputChanged?.Invoke(new HashSet<int>(),CAAnimation.CurrentMediaTime());dragging=false;practiceDragging=false;}
     protected override void Dispose(bool disposing){if(disposing){effectCanvas?.Dispose();effectVideo?.Dispose();movieOutput?.Dispose();movie?.Dispose();movieLayer?.Dispose();gpu.Dispose();visuals.Dispose();}base.Dispose(disposing);}
 }

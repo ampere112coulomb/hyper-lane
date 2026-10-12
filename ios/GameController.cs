@@ -62,6 +62,7 @@ internal sealed partial class GameController : UIViewController
         stage.SaveSettings = () => { settings.Save(SettingsPath); if(audio!=null)audio.Volume=settings.BgmVolume/100f; };
         stage.NameRequested = ShowName;
         stage.SearchRequested=SearchSongs;
+        stage.BeatRequested=BeatInput;
         stage.NumberRequested = NumberInput;
         stage.PresetRequested = (slot,save) => {
             string path=Path.Combine(documents,$"settings-preset-{slot}.json");
@@ -290,6 +291,13 @@ internal sealed partial class GameController : UIViewController
         if(!waitingForAudio){stage.Seconds=MobilePlaybackTiming.ChartSeconds(audio.CurrentTime,settings.AudioOffsetMs);audio.Play();stage.ResumeVideo();}else stage.PauseVideo();
         nextSound=0;while(nextSound<soundTimes.Length&&soundTimes[nextSound]<rawStart)nextSound++;
         BeginReplayRecording();
+    }
+    private void BeatInput(double value,Action<double> save)
+    {
+        var dialog=UIAlertController.Create("練習の開始拍",null,UIAlertControllerStyle.Alert);dialog.OverrideUserInterfaceStyle=UIUserInterfaceStyle.Dark;
+        dialog.AddTextField(t=>{t.Text=value.ToString("0.####",System.Globalization.CultureInfo.InvariantCulture);t.KeyboardType=UIKeyboardType.DecimalPad;});
+        dialog.AddAction(UIAlertAction.Create("決定",UIAlertActionStyle.Default,_=>{if(double.TryParse(dialog.TextFields![0].Text,System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out double beat)&&double.IsFinite(beat))save(Math.Max(0,beat));}));
+        dialog.AddAction(UIAlertAction.Create("キャンセル",UIAlertActionStyle.Cancel,null));PresentViewController(dialog,true,null);
     }
     private void SearchSongs()
     {

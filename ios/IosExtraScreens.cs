@@ -9,6 +9,9 @@ namespace HyperLane.iOS;
 internal sealed partial class MigrationStage
 {
     private double practiceBeat;
+    private double practiceViewBeat,practiceDragStart,practiceDownY;
+    private bool practiceDragging;
+    internal Action<double,Action<double>>? BeatRequested;
     private string[][] SettingLabels=>[["ノーツスピード","ゲーム時の楽曲音量","曲選択プレビュー音量","ノーツ効果音の音量","譜面補正（+でノーツを遅く）","オートプレイ","自動SE","タッチ判定の高さ"],["レーンの透明度","ゲーム背景の明るさ","プレビュー背景の明るさ","開始前の余白","フィーバーエフェクトの明るさ","MVを優先","キービームの透明度","キービームの長さ","レーンカバー"]];
     private double Value(int row)=>settingsTab==0?row switch{0=>Settings.NoteSpeed,1=>Settings.BgmVolume,2=>Settings.PreviewVolume,3=>Settings.SeVolume,4=>Settings.AudioOffsetMs,5=>Settings.AutoPlay?1:0,6=>Settings.AutoNoteSound?1:0,_=>Settings.TouchHeight}:row switch{0=>Settings.LaneTransparency,1=>Settings.BackgroundBrightness,2=>Settings.PreviewBackgroundBrightness,3=>Settings.StartMarginMs,4=>Settings.FeverAuraBrightness,5=>Settings.PreferMusicVideo?1:0,6=>Settings.KeyBeamOpacity,7=>Settings.KeyBeamLength,_=>Settings.LaneCover};
     private bool Slider(int row)=>settingsTab==0?row is 0 or 1 or 2 or 3 or 7:row is 0 or 1 or 2 or 4 or 6 or 7 or 8;
@@ -61,8 +64,25 @@ internal sealed partial class MigrationStage
     }
     private void PracticeScreen(CGContext c)
     {
-        Fill(c,Rect(0,0,1920,1080),Color(4,6,12,.9));if(SelectedDifficulty is not {} d)return;double laneW=800.0/d.Lanes;for(int i=0;i<=d.Lanes;i++)Fill(c,Rect(560+i*laneW,60,1,960),Color(40,55,76));for(int n=-1;n<=14;n++){double beat=Math.Floor(practiceBeat)+n,y=960-(beat-practiceBeat)*65;Fill(c,Rect(560,y,800,1),Color(45,58,78));Text($"{beat:0.##}",Rect(465,y-15,85,30),18);}
-        foreach(var n in d.Notes){double y=960-(n.Beat-practiceBeat)*65;if(y<50||y>1000)continue;var color=n.Kind switch{'H' or 'W'=>Color(218,172,35),'L'=>Color(185,130,255),'D'=>Color(255,75,90),'G'=>Color(16,185,129),'M'=>Color(111,168,139),_=>n.Lane%2==0?Color(79,163,255):UIColor.White};if(n.Kind is 'L' or 'G'){double end=960-(n.EndBeat-practiceBeat)*65;Fill(c,Rect(560+(n.Lane-1)*laneW+3,Math.Max(60,end),Math.Max(1,n.LaneSpan*laneW-6),Math.Max(1,y-Math.Max(60,end))),color.ColorWithAlpha(.5f));}Fill(c,Rect(560+(n.Lane-1)*laneW+3,y,Math.Max(1,n.LaneSpan*laneW-6),14),color);}
-        Button(c,"▶",Rect(30,920,180,120),50);Button(c,"←",Rect(1700,980,170,75),40);Text($"開始拍 {practiceBeat:0.##}",Rect(50,50,460,70),32);
+        Button(c,"曲選択へ戻る",Rect(40,30,250,66),28);Text((Selected?.Chart.Title??"")+" / "+DifficultyName(SelectedDifficulty?.Name??""),Rect(410,25,1100,80),32,center:true);
+        if(SelectedDifficulty is not {} d)return;var rect=Rect(650,130,620,750);Fill(c,rect,Color(8,11,18,245/255.0));double laneW=620.0/d.Lanes;double Y(double beat)=>880-(beat-practiceViewBeat)*58;
+        for(int i=0;i<=d.Lanes;i++)Fill(c,Rect(650+i*laneW,130,1,750),Color(110,115,135,75/255.0));
+        for(double beat=Math.Ceiling(practiceViewBeat);beat<=practiceViewBeat+750.0/58;beat++){double y=Y(beat);Fill(c,Rect(650,y,620,1),Color(110,115,135,75/255.0));Text($"{beat:0}",Rect(580,y-14,60,28),14,opacity:.7);}
+        c.SaveState();c.ClipToRect(rect);
+        foreach(var n in d.Notes){if(n.EndBeat<practiceViewBeat||n.Beat>practiceViewBeat+750.0/58)continue;int first=Math.Max(1,n.Lane),last=(int)Math.Min(d.Lanes,(long)n.Lane+n.LaneSpan-1);if(last<first)continue;double x=650+(first-1)*laneW+3,w=(last-first+1)*laneW-6,y=Y(n.Beat),end=Y(n.EndBeat);var color=n.Kind switch{'H' or 'W'=>Color(212,167,39),'L'=>Color(188,140,255),'D'=>Color(248,81,73),'G'=>Color(16,185,129),_=>n.LaneSpan>1?Color(111,168,139):n.Lane%2==1?UIColor.White:Color(88,166,255)};
+            if(!string.IsNullOrWhiteSpace(n.CustomColor))try{int rgb=Convert.ToInt32(n.CustomColor.TrimStart('#'),16);color=Color((rgb>>16)&255,(rgb>>8)&255,rgb&255);}catch{}
+            if(n.Kind is 'L' or 'G')Fill(c,Rect(x,Math.Min(y,end),w,Math.Abs(y-end)+5),color.ColorWithAlpha(.4f));Fill(c,Rect(x,y-5,w,10),color);if(n.Kind=='L')Fill(c,Rect(x,end-5,w,10),n.HoldEnd?Color(212,167,39):color);
+        }
+        Fill(c,Rect(650,Y(practiceBeat)-1,620,3),UIColor.Cyan);c.RestoreState();Button(c,"▶",Rect(42,950,210,90),42);Button(c,$"開始拍  {practiceBeat:0.####}",Rect(290,950,480,90),32);Text("上下スワイプ：移動   タップ：開始拍",Rect(820,946,1080,50),23,opacity:.8);Text("8拍の余白から開始・スコアとリプレイは保存しません",Rect(820,996,1080,50),23,opacity:.8);
+    }
+    private void TouchPractice(float x,float y,int phase)
+    {
+        if(phase==0){practiceDownY=y;practiceDragStart=practiceViewBeat;practiceDragging=x>=650&&x<=1270&&y>=130&&y<=880;}
+        if(phase==1&&practiceDragging){practiceViewBeat=Math.Max(0,practiceDragStart+(y-practiceDownY)/58);return;}
+        if(phase!=2)return;bool dragged=practiceDragging&&Math.Abs(y-practiceDownY)>20;practiceDragging=false;
+        if(x>=40&&x<=290&&y>=30&&y<=96)Page=Screen.Select;
+        else if(x>=42&&x<=252&&y>=950&&y<=1040&&Selected!=null&&SelectedDifficulty!=null)PracticeRequested?.Invoke(Selected,SelectedDifficulty,practiceBeat);
+        else if(x>=290&&x<=770&&y>=950&&y<=1040)BeatRequested?.Invoke(practiceBeat,value=>{practiceBeat=practiceViewBeat=Math.Max(0,value);});
+        else if(!dragged&&x>=650&&x<=1270&&y>=130&&y<=880)practiceBeat=Math.Max(0,Math.Round((practiceViewBeat+(880-y)/58)*4)/4);
     }
 }
