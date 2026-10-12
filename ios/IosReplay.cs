@@ -20,7 +20,7 @@ internal sealed partial class GameController
     private void AdvanceReplay(double seconds){if(!replaying||replay==null||session==null)return;while(replayIndex<replay.Inputs.Count&&replay.Inputs[replayIndex].Time<=seconds){var input=replay.Inputs[replayIndex++];if(input.Down){held.Add(input.Lane);session.Press(input.Lane,input.Time);}else{held.Remove(input.Lane);session.Release(input.Lane,input.Time);}}}
     private void SaveReplay()
     {
-        if(practice||replaying||settings.AutoPlay||session==null||activeDan!=null)return;string path=ReplayPath(session.Song,session.Difficulty);Directory.CreateDirectory(Path.GetDirectoryName(path)!);var data=new ReplayData{ChartHash=MigrationStage.Hash(session.Song),Title=session.Song.Chart.Title,Difficulty=session.Difficulty.Name,NoteSpeed=settings.NoteSpeed,AudioOffset=settings.AudioOffsetMs,Score=session.Score,MaxCombo=session.MaxCombo,Counts=(int[])session.Counts.Clone(),Inputs=recorded.OrderBy(i=>i.Time).ToList()};File.WriteAllText(path,JsonSerializer.Serialize(data));
+        if(!recordEligible||practice||replaying||settings.AutoPlay||session==null||activeDan!=null)return;string path=ReplayPath(session.Song,session.Difficulty);Directory.CreateDirectory(Path.GetDirectoryName(path)!);var data=new ReplayData{ChartHash=MigrationStage.Hash(session.Song),Title=session.Song.Chart.Title,Difficulty=session.Difficulty.Name,NoteSpeed=settings.NoteSpeed,AudioOffset=settings.AudioOffsetMs,Score=session.Score,MaxCombo=session.MaxCombo,Counts=(int[])session.Counts.Clone(),Inputs=recorded.OrderBy(i=>i.Time).ToList()};File.WriteAllText(path,JsonSerializer.Serialize(data));
     }
     private void NumberInput(string title,int value,Action<int> save)
     {

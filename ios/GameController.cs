@@ -34,6 +34,7 @@ internal sealed partial class GameController : UIViewController
     private HyperLane.PlayerRating rating = null!;
     private double startClock, rawStart;
     private bool waitingForAudio, practice;
+    private bool recordEligible;
     private double practiceAnchor;
     private string SettingsPath => Path.Combine(documents, "settings.json");
 
@@ -225,6 +226,7 @@ internal sealed partial class GameController : UIViewController
         while (nextSound < soundTimes.Length && soundTimes[nextSound] <= seconds)
         { nextSound++; if (MobileSoundPolicy.Scheduled(settings.AutoPlay, settings.AutoNoteSound)) PlaySe(); }
         session.AutoPlay=settings.AutoPlay;
+        recordEligible&=!settings.AutoPlay;if(activeDan!=null)danEligible&=!settings.AutoPlay;
         AdvanceReplay(seconds);
         if(!practice||!MobilePracticeTiming.At(session.Song.Chart,session.Difficulty,practiceAnchor,settings.AudioOffsetMs).IsPreroll(seconds))session.Advance(seconds, held);
         if(practice)audio.Volume=(float)(settings.BgmVolume/100.0*MobilePracticeTiming.At(session.Song.Chart,session.Difficulty,practiceAnchor,settings.AudioOffsetMs).Gain(seconds));
@@ -241,7 +243,7 @@ internal sealed partial class GameController : UIViewController
         noteSound?.Pause();stage.PauseVideo();
         if(practice){stage.Page=MigrationStage.Screen.Practice;return;}
         if(activeDan!=null){FinishDan();return;}
-        if(!settings.AutoPlay&&!replaying)rating.Update(MigrationStage.Key(session.Song,session.Difficulty),MigrationStage.Hash(session.Song),MigrationStage.Level(session.Difficulty),session.Score,session.Counts,session.MaxCombo);
+        if(recordEligible&&!replaying)rating.Update(MigrationStage.Key(session.Song,session.Difficulty),MigrationStage.Hash(session.Song),MigrationStage.Level(session.Difficulty),session.Score,session.Counts,session.MaxCombo);
         SaveReplay();stage.ShowResult();
     }
 
@@ -281,6 +283,7 @@ internal sealed partial class GameController : UIViewController
     private void BeginPlayback()
     {
         if(audio==null||session==null)return;
+        recordEligible=!settings.AutoPlay&&!replaying&&!practice;
         rawStart=-settings.StartMarginMs/1000.0;
         if(practice){var timing=MobilePracticeTiming.At(session.Song.Chart,session.Difficulty,practiceAnchor,settings.AudioOffsetMs);rawStart=timing.StartRaw;audio.CurrentTime=Math.Max(0,rawStart);}
         startClock=CAAnimation.CurrentMediaTime();waitingForAudio=rawStart<0;running=true;

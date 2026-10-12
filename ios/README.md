@@ -7,6 +7,7 @@ Androidと共通の判定・譜面処理を使う.NET for iOSプロジェクト�
 - `../shared/864beat.MobileCore.csproj`: Androidの譜面・判定・BPM/BS/NS・レイヤー・Large Notes/Hold・カメラ・判定線・ZIP・レート・リプレイ・タッチ範囲のソースを共有します。
 - `IosGameStage.cs`, `IosVisuals.cs`, `IosExtraScreens.cs`: 1920×1080基準のタイトル、モード、選曲、ロード、リザルト、設定、Best30、練習モード。背景・ロゴ・ふすま・ランク画像を既存資産から読み込みます。
 - `IosLaneRenderer.cs`: スキンアトラスとAndroidのカメラ計算を使うGLES描画。レーン、ノーツ、深度、判定線、キービーム、カバーを描画します。
+- `IosGpuEffects.cs`: GPU上の背景/画面全体合成。MONO / INVERT / MOSAIC / SCANLINE / BLOOM / GLITCHをAndroidのシェーダー計算に合わせて適用します。BRIGHTNESSは黒/白の合成を維持します。動画はAVPlayerItemVideoOutputからフレームを取得します。
 - `IosDan.cs`, `IosReplay.cs`: 段位選択・連続プレイ・条件ゲージ・リザルトとリプレイの接続。
 - `IosSettings.cs`: JSON設定保存と3枠のプリセット。
 - `IosNoteSound.cs`: 単一AVAudioEngineと8個の再利用ノード。0.1.2でSE負荷の改善をiPad実機確認済みです。この方式を維持します。
@@ -29,8 +30,8 @@ Android APK本体のソース・配布ファイル・端末は、この準備作
 
 ## 完全移植までの未完了項目
 
-- ARM iPadシミュレーターで正常起動し、タイトル・モード・選曲・設定・リザルトの描画を確認済み。3Dレーンの描画検証と、その後のiPad実機でのレイアウト、アイコン、動画、負荷の確認は未完了。
-- 明るさ以外のフィルター（MONO / INVERT / MOSAIC / SCANLINE / BLOOM / GLITCH）の描画。データ・時間計算は共通ですが、現在のiOSレンダラーでは未接続です。
+- ARM iPadシミュレーターで正常起動し、タイトル・モード・選曲・設定・リザルトと3Dレーンの面・縦線・ノーツの描画を確認済み。その後のiPad実機でのレイアウト、アイコン、動画、負荷の確認は未完了。
+- 全フィルターの描画コードを接続済み。Macでのコンパイルと各効果のシミュレーター画像を検証中です。実機の動画フレーム・背景のみ/全体の違い・負荷は別途確認が必要です。
 - 動画背景と音源の実機同期、復帰時の挙動、メモリ・フレーム時間の検証。
 - フォント、粒子、アニメーションの実画面比較による最終調整。現段階で「完全に同一」とは扱いません。
 

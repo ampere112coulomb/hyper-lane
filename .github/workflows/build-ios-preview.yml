@@ -103,7 +103,7 @@ jobs:
           codesign --verify --deep --strict "$app"
           xcrun simctl install "$udid" "$app"
           failed=0
-          for screen in title modes select playing playing-nodepth filter-mono filter-invert filter-mosaic filter-scanline filter-bloom filter-glitch filter-invert-background result settings; do
+          for screen in title modes select loading practice dan dan-result playing playing-nodepth filter-mono filter-invert filter-mosaic filter-scanline filter-bloom filter-glitch filter-invert-background result settings; do
             SIMCTL_CHILD_HL_VISUAL_QA="$screen" xcrun simctl launch --console "$udid" com.ampere112coulomb.hyperlane.ios > "visual-check/$screen.log" 2>&1 &
             container=$(xcrun simctl get_app_container "$udid" com.ampere112coulomb.hyperlane.ios data)
             for attempt in $(seq 1 24); do
