@@ -21,6 +21,7 @@ internal sealed partial class IosLaneRenderer
     private int sceneWidth,sceneHeight;
     private CGImage? uploadedBackground;
     private bool hasVideo;
+    private bool reportedEffect;
     private byte[] videoPixels=[];
     private readonly Dictionary<uint,(int Width,int Height,uint Format)> uploadSizes=new();
     private bool Effects=>ActiveFilter is {Kind:not "BRIGHTNESS"};
@@ -45,7 +46,7 @@ internal sealed partial class IosLaneRenderer
         // Uploaded bitmap and decoded movie buffers have opposite row origins.
         Fullscreen(backgroundTexture,-1,1,hasVideo,0,0,(float)BackgroundGain,true);
         if(ActiveFilter!.Value.BackgroundOnly)FilterBackground();
-        if(SceneUnderlay is {} underlay){Upload(ref underlayTexture,OverlayWidth,OverlayHeight,underlay);Gl.glEnable(3042);Gl.glBlendFunc(1,771);Fullscreen(underlayTexture,-1,1,false);}
+        if(SceneUnderlay is {} underlay){Upload(ref underlayTexture,OverlayWidth,OverlayHeight,underlay);Gl.glEnable(3042);Gl.glBlendFunc(1,771);Fullscreen(underlayTexture,-1,1,true);}
     }
     // Background-only filtering uses a separate full-size texture to avoid sampling
     // a texture while it is attached as the current draw destination.
@@ -64,9 +65,10 @@ internal sealed partial class IosLaneRenderer
         if(ActiveFilter!.Value.BackgroundOnly){Target(0,sceneWidth,sceneHeight,false);Gl.glDisable(3042);Fullscreen(sceneTexture,-1,1,false);}
         else
         {
-            if(SceneOverlay is {} pixels){Upload(ref overlayTexture,OverlayWidth,OverlayHeight,pixels);Target(sceneTexture,sceneWidth,sceneHeight,true);Gl.glEnable(3042);Gl.glBlendFunc(1,771);Fullscreen(overlayTexture,-1,1,false);}
+            if(SceneOverlay is {} pixels){Upload(ref overlayTexture,OverlayWidth,OverlayHeight,pixels);Target(sceneTexture,sceneWidth,sceneHeight,true);Gl.glEnable(3042);Gl.glBlendFunc(1,771);Fullscreen(overlayTexture,-1,1,true);}
             Filter(sceneTexture,0,ActiveFilter!.Value);
         }
+        if(!reportedEffect&&Environment.GetEnvironmentVariable("HL_VISUAL_QA")!=null){reportedEffect=true;Console.Error.WriteLine($"HL effect: {ActiveFilter.Value.Kind} strength={ActiveFilter.Value.Strength} background={ActiveFilter.Value.BackgroundOnly} size={sceneWidth}x{sceneHeight} texel={Gl.Uniform(effectProgram,"texel")} mode={Gl.Uniform(effectProgram,"mode")} intensity={Gl.Uniform(effectProgram,"intensity")} time={Gl.Uniform(effectProgram,"time")} error={Gl.glGetError()} center={Gl.Sample(sceneWidth/2,sceneHeight*430/1080)}");}
     }
     private void Filter(uint source,uint destination,MobileFilterChange filter)
     {
@@ -130,5 +132,7 @@ internal sealed partial class IosLaneRenderer
         [DllImport(Lib)]internal static extern void glFramebufferRenderbuffer(uint target,uint attachment,uint renderbufferTarget,uint buffer);
         [DllImport(Lib)]internal static extern void glUniform2f(int location,float x,float y);
         [DllImport(Lib)]internal static extern void glTexSubImage2D(uint target,int level,int x,int y,int width,int height,uint format,uint type,IntPtr pixels);
+        [DllImport(Lib)]private static extern void glGetUniformfv(uint program,int location,IntPtr values);
+        internal static string Uniform(uint program,string name){float[] values=new float[4];var pin=GCHandle.Alloc(values,GCHandleType.Pinned);try{int location=glGetUniformLocation(program,name);if(location<0)return "inactive";glGetUniformfv(program,location,pin.AddrOfPinnedObject());return string.Join(",",values);}finally{pin.Free();}}
     }
 }
