@@ -60,6 +60,7 @@ internal sealed partial class GameController : UIViewController
         stage.BackRequested = EndPlay; stage.ResumeRequested = Resume;stage.RetryRequested=RetryPlay;
         stage.SaveSettings = () => { settings.Save(SettingsPath); if(audio!=null)audio.Volume=settings.BgmVolume/100f; };
         stage.NameRequested = ShowName;
+        stage.SearchRequested=SearchSongs;
         stage.NumberRequested = NumberInput;
         stage.PresetRequested = (slot,save) => {
             string path=Path.Combine(documents,$"settings-preset-{slot}.json");
@@ -216,9 +217,8 @@ internal sealed partial class GameController : UIViewController
     [Export("tick:")]
     private void Tick(CADisplayLink link)
     {
-        stage.Refresh(CAAnimation.CurrentMediaTime());
         UpdatePreview();
-        if (!running || audio is null || session is null) return;
+        if (!running || audio is null || session is null){stage.Refresh(CAAnimation.CurrentMediaTime());return;}
         double raw=waitingForAudio?rawStart+CAAnimation.CurrentMediaTime()-startClock:audio.CurrentTime;
         if(waitingForAudio&&raw>=Math.Max(0,audio.CurrentTime)){waitingForAudio=false;audio.Play();stage.ResumeVideo();raw=audio.CurrentTime;}
         double seconds = MobilePlaybackTiming.ChartSeconds(raw, settings.AudioOffsetMs);
@@ -229,6 +229,7 @@ internal sealed partial class GameController : UIViewController
         if(!practice||!MobilePracticeTiming.At(session.Song.Chart,session.Difficulty,practiceAnchor,settings.AudioOffsetMs).IsPreroll(seconds))session.Advance(seconds, held);
         if(practice)audio.Volume=(float)(settings.BgmVolume/100.0*MobilePracticeTiming.At(session.Song.Chart,session.Difficulty,practiceAnchor,settings.AudioOffsetMs).Gain(seconds));
         stage.Seconds = seconds;
+        stage.Refresh(CAAnimation.CurrentMediaTime());
         if(seconds>Math.Max(audio.Duration,session.Difficulty.Notes.Select(n=>n.EndSeconds).DefaultIfEmpty(0).Max())+.2)Finish();
     }
 
@@ -267,7 +268,7 @@ internal sealed partial class GameController : UIViewController
         if(session==null||preparingAudio)return;
         running=false;audio?.Stop();noteSound?.Pause();held.Clear();stage.ClearTouches();
         if(activeDan is {} course){BeginDan(course);return;}
-        if(replaying){StartReplay();return;}
+        if(replaying){Start(session.Song,session.Difficulty);return;}
         Start(session.Song,session.Difficulty);
     }
     private void EndPlay()
@@ -286,6 +287,13 @@ internal sealed partial class GameController : UIViewController
         if(!waitingForAudio){stage.Seconds=MobilePlaybackTiming.ChartSeconds(audio.CurrentTime,settings.AudioOffsetMs);audio.Play();stage.ResumeVideo();}else stage.PauseVideo();
         nextSound=0;while(nextSound<soundTimes.Length&&soundTimes[nextSound]<rawStart)nextSound++;
         BeginReplayRecording();
+    }
+    private void SearchSongs()
+    {
+        var dialog=UIAlertController.Create("楽曲検索",null,UIAlertControllerStyle.Alert);dialog.OverrideUserInterfaceStyle=UIUserInterfaceStyle.Dark;
+        dialog.AddTextField(t=>{t.Text=stage.SongSearch;t.AutocorrectionType=UITextAutocorrectionType.No;});
+        dialog.AddAction(UIAlertAction.Create("検索",UIAlertActionStyle.Default,_=>stage.ApplySearch(dialog.TextFields![0].Text??"")));
+        dialog.AddAction(UIAlertAction.Create("キャンセル",UIAlertActionStyle.Cancel,null));PresentViewController(dialog,true,null);
     }
     private void ShowName()
     {

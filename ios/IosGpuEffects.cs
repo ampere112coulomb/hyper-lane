@@ -20,6 +20,8 @@ internal sealed partial class IosLaneRenderer
     private int sceneWidth,sceneHeight;
     private CGImage? uploadedBackground;
     private bool hasVideo;
+    private byte[] videoPixels=[];
+    private readonly Dictionary<uint,(int Width,int Height,uint Format)> uploadSizes=new();
     private bool Effects=>ActiveFilter is {Kind:not "BRIGHTNESS"};
     private void BeginEffects(int width,int height)
     {
@@ -30,7 +32,7 @@ internal sealed partial class IosLaneRenderer
         if(SceneVideo is {} video)
         {
             video.Lock(CVPixelBufferLock.ReadOnly);
-            try{int w=(int)video.Width,h=(int)video.Height,stride=(int)video.BytesPerRow;byte[] pixels=new byte[w*h*4];for(int y=0;y<h;y++)Marshal.Copy(video.BaseAddress+y*stride,pixels,y*w*4,w*4);Upload(ref backgroundTexture,w,h,pixels,32993);hasVideo=true;}
+            try{int w=(int)video.Width,h=(int)video.Height,stride=(int)video.BytesPerRow;if(videoPixels.Length!=w*h*4)videoPixels=new byte[w*h*4];for(int y=0;y<h;y++)Marshal.Copy(video.BaseAddress+y*stride,videoPixels,y*w*4,w*4);Upload(ref backgroundTexture,w,h,videoPixels,32993);hasVideo=true;}
             finally{video.Unlock(CVPixelBufferLock.ReadOnly);}
         }
         else if(hasVideo||!ReferenceEquals(uploadedBackground,SceneBackground))
@@ -94,7 +96,7 @@ internal sealed partial class IosLaneRenderer
         Gl.Draw(effectProgram,vertexBuffer,vertices,true);
     }
     private static void Allocate(ref uint texture,int w,int h){if(texture==0)Gl.glGenTextures(1,out texture);Gl.glBindTexture(3553,texture);Gl.glTexParameteri(3553,10241,9729);Gl.glTexParameteri(3553,10240,9729);Gl.glTexParameteri(3553,10242,33071);Gl.glTexParameteri(3553,10243,33071);Gl.glTexImage2D(3553,0,6408,w,h,0,6408,5121,IntPtr.Zero);}
-    private static void Upload(ref uint texture,int w,int h,byte[] pixels,uint format=6408){if(texture==0)Gl.glGenTextures(1,out texture);Gl.glBindTexture(3553,texture);Gl.glTexParameteri(3553,10241,9729);Gl.glTexParameteri(3553,10240,9729);Gl.glTexParameteri(3553,10242,33071);Gl.glTexParameteri(3553,10243,33071);var pin=GCHandle.Alloc(pixels,GCHandleType.Pinned);try{Gl.glTexImage2D(3553,0,6408,w,h,0,format,5121,pin.AddrOfPinnedObject());}finally{pin.Free();}}
+    private void Upload(ref uint texture,int w,int h,byte[] pixels,uint format=6408){if(texture==0)Gl.glGenTextures(1,out texture);Gl.glBindTexture(3553,texture);Gl.glTexParameteri(3553,10241,9729);Gl.glTexParameteri(3553,10240,9729);Gl.glTexParameteri(3553,10242,33071);Gl.glTexParameteri(3553,10243,33071);var pin=GCHandle.Alloc(pixels,GCHandleType.Pinned);try{if(uploadSizes.TryGetValue(texture,out var size)&&size==(w,h,format))Gl.glTexSubImage2D(3553,0,0,0,w,h,format,5121,pin.AddrOfPinnedObject());else{Gl.glTexImage2D(3553,0,6408,w,h,0,format,5121,pin.AddrOfPinnedObject());uploadSizes[texture]=(w,h,format);}}finally{pin.Free();}}
     private void DisposeEffects(){foreach(uint value in new[]{sceneTexture,bloomOne,bloomTwo,filteredBackground,backgroundTexture,overlayTexture})if(value!=0){uint t=value;Gl.glDeleteTextures(1,ref t);}if(effectProgram!=0)Gl.glDeleteProgram(effectProgram);if(effectFramebuffer!=0)Gl.glDeleteFramebuffers(1,ref effectFramebuffer);if(effectDepth!=0)Gl.glDeleteRenderbuffers(1,ref effectDepth);}
     private const string EffectFragment="""
       precision highp float;uniform sampler2D frameTex;uniform int mode;uniform float intensity,flip,time,gain;uniform vec2 texel;varying vec2 tex;
@@ -125,5 +127,6 @@ internal sealed partial class IosLaneRenderer
         [DllImport(Lib)]internal static extern void glRenderbufferStorage(uint target,uint format,int w,int h);
         [DllImport(Lib)]internal static extern void glFramebufferRenderbuffer(uint target,uint attachment,uint renderbufferTarget,uint buffer);
         [DllImport(Lib)]internal static extern void glUniform2f(int location,float x,float y);
+        [DllImport(Lib)]internal static extern void glTexSubImage2D(uint target,int level,int x,int y,int width,int height,uint format,uint type,IntPtr pixels);
     }
 }

@@ -43,7 +43,7 @@ internal sealed partial class MigrationStage
     private void BestScreen(CGContext c)
     {
         Fill(c,Rect(0,0,1920,1080),Color(5,3,15,.9));Text(UserName,Rect(70,15,600,70),45);Text($"RATE {ratingTotal:0.00}",Rect(1450,15,400,70),40);
-        var entries=Songs.SelectMany(s=>s.Chart.Difficulties.Select(d=>{var m=Meta(s,d);return(Song:s,Diff:d,Entry:Rating?.BestEntry(Key(s,d),m.Hash,m.Level));})).Where(e=>e.Entry!=null).OrderByDescending(e=>PlayerRating.ChartRating(e.Entry!.Level,e.Entry.Score)).Take(30).ToArray();
+        var entries=AllSongs.SelectMany(s=>s.Chart.Difficulties.Select(d=>{var m=Meta(s,d);return(Song:s,Diff:d,Entry:Rating?.BestEntry(Key(s,d),m.Hash,m.Level));})).Where(e=>e.Entry!=null).OrderByDescending(e=>PlayerRating.ChartRating(e.Entry!.Level,e.Entry.Score)).Take(30).ToArray();
         for(int i=0;i<entries.Length;i++)
         {
             var e=entries[i];double x=35+i%5*377,y=110+i/5*145;

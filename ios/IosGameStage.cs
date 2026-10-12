@@ -26,6 +26,9 @@ internal sealed partial class MigrationStage : UIView
     internal bool PracticePlaying;
     private MobileDifficulty? loadingDifficulty;
     internal IReadOnlyList<MobileSong> Songs=[];
+    internal IReadOnlyList<MobileSong> AllSongs=[];
+    internal string SongSearch="";
+    internal Action? SearchRequested;
     internal string UserName="";
     internal PlayerRating? Rating;
     private double ratingTotal;
@@ -73,7 +76,8 @@ internal sealed partial class MigrationStage : UIView
     {public override void Draw(CGRect rect){using var c=UIGraphics.GetCurrentContext();c.SaveState();c.TranslateCTM(owner.Origin.X,owner.Origin.Y);c.ScaleCTM(owner.Scale,owner.Scale);c.ClipToRect(new CGRect(0,0,1920,1080));owner.Particles(c,CAAnimation.CurrentMediaTime());c.RestoreState();}}
     public override void LayoutSubviews(){base.LayoutSubviews();background.Frame=Viewport;dim.Frame=Viewport;filterShade.Frame=Viewport;particleOverlay.Frame=Bounds;gpu.View.Frame=Viewport;overlay.Frame=Bounds;if(movieLayer!=null)movieLayer.Frame=Viewport;feverLeft.Frame=new CGRect(Viewport.X,Viewport.Y,Viewport.Width*.14f,Viewport.Height);feverRight.Frame=new CGRect(Viewport.GetMaxX()-Viewport.Width*.14f,Viewport.Y,Viewport.Width*.14f,Viewport.Height);}
     internal void ClearTouches(){touches.Clear();gpu.Held=new HashSet<int>();}
-    internal void SetSongs(IReadOnlyList<MobileSong> songs){Songs=songs;index=Math.Clamp(index,0,Math.Max(0,songs.Count-1));difficulty=0;loadedSong=null;RefreshRating();}
+    internal void SetSongs(IReadOnlyList<MobileSong> songs){AllSongs=songs;ApplySearch(SongSearch);RefreshRating();}
+    internal void ApplySearch(string search){SongSearch=search;Songs=AllSongs.Where(s=>(s.Chart.Title+" "+s.Chart.Composer).Contains(search,StringComparison.OrdinalIgnoreCase)).ToArray();index=0;position=0;difficulty=0;loadedSong=null;}
     internal void ShowSelect(){Page=Screen.Select;movie?.Pause();ClearTouches();}
     internal void ShowResult(){Page=Screen.Result;movie?.Pause();resultAt=CAAnimation.CurrentMediaTime();RefreshRating();}
     internal void BeginLoading(MobileSong song,MobileDifficulty difficulty,Action onReady){Page=Screen.Loading;Session=null;loadingDifficulty=difficulty;loadedSong=null;LoadSong(song);loadingAt=CAAnimation.CurrentMediaTime();exitAt=0;loadingReady=false;readyAction=onReady;}
@@ -127,7 +131,7 @@ internal sealed partial class MigrationStage : UIView
     private readonly Dictionary<string,(string Hash,int Level)> metadata=new();
     private (string Hash,int Level) Meta(MobileSong song,MobileDifficulty d){string key=Key(song,d);if(!metadata.TryGetValue(key,out var meta))metadata[key]=meta=(Hash(song),Level(d));return meta;}
     private int? Best(MobileSong song,MobileDifficulty d){var m=Meta(song,d);return Rating?.BestScore(Key(song,d),m.Hash,m.Level);}
-    internal void RefreshRating(){if(Rating==null)return;ratingTotal=Rating.TotalFor(Songs.SelectMany(s=>s.Chart.Difficulties.Select(d=>{var m=Meta(s,d);return(Key(s,d),m.Hash,m.Level);})));}
+    internal void RefreshRating(){if(Rating==null)return;ratingTotal=Rating.TotalFor(AllSongs.SelectMany(s=>s.Chart.Difficulties.Select(d=>{var m=Meta(s,d);return(Key(s,d),m.Hash,m.Level);})));}
     private void DrawScreen(CGContext c)
     {
         double now=CAAnimation.CurrentMediaTime();switch(Page){case Screen.Title:case Screen.Modes:Front(c,now);break;case Screen.Select:Select(c,now);break;case Screen.Loading:Loading(c,now);break;case Screen.Playing:case Screen.Paused:Hud(c);if(Page==Screen.Paused)PauseBox(c);break;case Screen.Result:Result(c,now);break;case Screen.Settings:Select(c,now);SettingsScreen(c);break;case Screen.Best30:BestScreen(c);break;case Screen.Practice:PracticeScreen(c);break;case Screen.Dan:DanScreen(c);break;case Screen.DanResult:DanResultScreen(c,now);break;}
@@ -157,7 +161,7 @@ internal sealed partial class MigrationStage : UIView
             Image(jacket,Rect(1152,82,582,582));Fill(c,Rect(1152,677,582,45),Color(5,4,9,.63));Text("HIGH SCORE  "+(SelectedDifficulty!=null&&Best(Selected!,SelectedDifficulty) is int high?high.ToString("N0"):"—"),Rect(1152,677,582,45),26,center:true);
             foreach(var p in Plates()){var r=p.Rect;double x=(double)r.X,y=(double)r.Y,w=(double)r.Width,h=(double)r.Height;double[] points=[x+w/4,y,x+w*3/4,y,x+w,y+h/2,x+w*3/4,y+h,x+w/4,y+h,x,y+h/2];Polygon(c,points,Color(0,0,0,p.Index<0?.59:.94));if(p.Index==difficulty){c.SaveState();c.SetStrokeColor(Difficulty(p.Name).CGColor);c.SetLineWidth(3);c.BeginPath();c.MoveTo((nfloat)points[0],(nfloat)points[1]);for(int i=2;i<points.Length;i+=2)c.AddLineToPoint((nfloat)points[i],(nfloat)points[i+1]);c.ClosePath();c.StrokePath();c.RestoreState();}Text(DifficultyName(p.Name).ToUpperInvariant(),Rect(x,y+h*.18,w,h*.36),Math.Min(25,w/7),Difficulty(p.Name),true,p.Index<0?.4:1);if(p.Index>=0)Text(Selected!.Chart.Difficulties[p.Index].Level,Rect(x,y+h*.48,w,h*.38),34,Difficulty(p.Name),true);}
         }else Text("楽曲ZIPを追加してください",Rect(100,430,690,100),32,center:true);
-        Button(c,"play",Rect(1023,945,338,107),57);Button(c,mode==2?"モード選択":"replay",Rect(1373,945,338,107),mode==2?34:57);Button(c,"⚙",Rect(1757,935,110,145),60);Button(c,"‹ 戻る",Rect(100,12,160,64),26);Button(c,"＋ 曲ZIPを取り込む",Rect(978,12,420,96),34);if(Settings.AutoPlay)Text("AUTO",Rect(970,900,150,40),19,UIColor.Yellow);Name(c,false);
+        Button(c,"play",Rect(1023,945,338,107),57);Button(c,mode==2?"モード選択":"replay",Rect(1373,945,338,107),mode==2?34:57);Button(c,"⚙",Rect(1757,935,110,145),60);Button(c,"‹ 戻る",Rect(100,12,160,64),26);Stroke(c,Rect(32,26,22,22),Color(187,178,210),2);Fill(c,Rect(54,50,3,15),Color(187,178,210));Button(c,"＋ 曲ZIPを取り込む",Rect(978,12,420,96),34);if(Settings.AutoPlay)Text("AUTO",Rect(970,900,150,40),19,UIColor.Yellow);Name(c,false);
     }
     private void Name(CGContext c,bool result){if(!UserProfile.ValidName(UserName))return;if(result){Fill(c,Rect(0,0,125,62),Color(5,3,12,.82));Polygon(c,[155,0,545,0,545,62,193,62],Color(5,3,12,.82));Text($"{ratingTotal:0.00}",Rect(4,0,117,62),27,center:true);Text(UserName,Rect(198,0,337,62),30);}else{Polygon(c,[0,1018,240,1018,278,1080,0,1080],Color(5,3,12,.82));Text(UserName,Rect(25,1018,208,62),29);}}
     private void Loading(CGContext c,double now)
@@ -205,6 +209,7 @@ internal sealed partial class MigrationStage : UIView
             }
             if(Page==Screen.Playing){if(PracticePlaying&&x<110&&y<88){if(release)RetryRequested?.Invoke();continue;}if(release&&x>1766&&y<130){PauseRequested?.Invoke();continue;}if(release||Settings.AutoPlay)touches.Remove(touch);else touches[touch]=TouchZones.HitTest(Session!.Difficulty.Lanes,x,y,1920,1080,Settings.TouchHeight)+1;var next=touches.Values.Where(l=>l>0).ToHashSet();gpu.Held=next;InputChanged?.Invoke(next,touch.Timestamp);continue;}
             if(Page==Screen.Settings){TouchSettings(x,y,phase);continue;}
+            if(Page==Screen.Select&&x<95&&y<80){if(release)SearchRequested?.Invoke();continue;}
             if(phase==0){downY=y;downPosition=Page==Screen.Practice?practiceBeat:position;dragging=Page==Screen.Select&&x<960&&y>80;}
             if(phase==1){if(dragging){position=downPosition+(downY-y)/92;if(Songs.Count>0){string name=SelectedDifficulty?.Name??"";int pos=(int)Math.Round(position);index=(pos%Songs.Count+Songs.Count)%Songs.Count;difficulty=Math.Max(0,Selected!.Chart.Difficulties.FindIndex(d=>d.Name.Equals(name,StringComparison.OrdinalIgnoreCase)));}}if(Page==Screen.Practice)practiceBeat=Math.Max(0,downPosition+(y-downY)/65);continue;}if(!release||transitionAt>0||Page==Screen.Loading)continue;
             if(Page==Screen.Title){if(UserProfile.ValidName(UserName))Transition(Screen.Modes);else NameRequested?.Invoke();}

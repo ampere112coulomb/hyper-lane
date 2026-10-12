@@ -183,10 +183,10 @@ internal sealed partial class IosLaneRenderer : GLKViewDelegate
         [DllImport(Lib)]internal static extern void glDeleteTextures(int count,ref uint texture);
         [DllImport(Lib)]internal static extern void glBindTexture(uint target,uint texture);
         [DllImport(Lib)]internal static extern void glTexParameteri(uint target,uint name,int value);
-        [DllImport(Lib)]private static extern void glTexImage2D(uint target,int level,int format,int w,int h,int border,uint layout,uint type,IntPtr pixels);
+        [DllImport(Lib)]internal static extern void glTexImage2D(uint target,int level,int format,int w,int h,int border,uint layout,uint type,IntPtr pixels);
         [DllImport(Lib)]internal static extern int glGetUniformLocation(uint p,string name);
         [DllImport(Lib)]internal static extern void glUniform1i(int location,int value);
-        [DllImport(Lib)]private static extern void glUniform1f(int location,float value);
+        [DllImport(Lib)]internal static extern void glUniform1f(int location,float value);
         [DllImport(Lib)]private static extern int glGetAttribLocation(uint p,string name);
         [DllImport(Lib)]private static extern void glEnableVertexAttribArray(uint index);
         [DllImport(Lib)]private static extern void glVertexAttribPointer(uint index,int size,uint type,byte normalized,int stride,IntPtr pointer);
