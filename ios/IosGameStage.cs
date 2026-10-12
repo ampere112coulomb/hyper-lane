@@ -56,7 +56,7 @@ internal sealed partial class MigrationStage : UIView
     internal void SetSongs(IReadOnlyList<MobileSong> songs){Songs=songs;index=Math.Clamp(index,0,Math.Max(0,songs.Count-1));difficulty=0;loadedSong=null;RefreshRating();}
     internal void ShowSelect(){Page=Screen.Select;movie?.Pause();ClearTouches();}
     internal void ShowResult(){Page=Screen.Result;movie?.Pause();resultAt=CAAnimation.CurrentMediaTime();RefreshRating();}
-    internal void BeginLoading(MobileSong song,Action onReady){Page=Screen.Loading;loadedSong=null;LoadSong(song);loadingAt=CAAnimation.CurrentMediaTime();exitAt=0;loadingReady=false;readyAction=onReady;}
+    internal void BeginLoading(MobileSong song,Action onReady){Page=Screen.Loading;Session=null;loadedSong=null;LoadSong(song);loadingAt=CAAnimation.CurrentMediaTime();exitAt=0;loadingReady=false;readyAction=onReady;}
     internal void LoadingReady()=>loadingReady=true;
     internal void CancelLoading(){readyAction=null;ShowSelect();}
     internal void PauseVideo()=>movie?.Pause();internal void ResumeVideo()=>movie?.Play();
@@ -66,8 +66,10 @@ internal sealed partial class MigrationStage : UIView
         if(Page==Screen.Loading&&loadingReady&&now-loadingAt>=2&&exitAt==0)exitAt=now;
         if(Page==Screen.Loading&&exitAt>0&&now-exitAt>=.5){Page=Screen.Playing;readyAction?.Invoke();readyAction=null;movie?.Seek(CMTime.FromSeconds(0,600));movie?.Play();}
         bool play=Page is Screen.Playing or Screen.Paused;gpu.View.Hidden=!play;gpu.Session=play?Session:null;gpu.Settings=Settings;gpu.Seconds=Seconds;
-        if(play){gpu.View.Display();background.Image=visuals.FileImage(Media(Session?.Song,Session?.Song.Chart.Background))??visuals.Asset("skin/background.png");dim.Alpha=1-(nfloat)(Settings.BackgroundBrightness/100.0);}
-        else{background.Image=visuals.Asset("skin/background.png");double phase=now%5;dim.Alpha=(nfloat)(1-(.25+(phase<2?.075*(1-Math.Cos(Math.PI*phase)):0)));}
+        if(movieLayer!=null)movieLayer.Hidden=!play;
+        if(play){gpu.View.Display();background.Image=visuals.FileImage(Media(Session?.Song,Session?.Song.Chart.Background))??visuals.Asset("skin/background.png");dim.Alpha=1-(nfloat)(Settings.BackgroundBrightness/100.0);
+            if(Session is {} s){double beat=MobileChart.BeatAtSeconds(s.Difficulty,s.Song.Chart.Bpm,Seconds-s.Song.Chart.Offset);var filter=MobileFilters.At(s.Difficulty.FilterChanges,beat);if(filter is {Kind:"BRIGHTNESS",BackgroundOnly:true}){var b=MobileFilters.BrightnessOverlay(filter.Strength);dim.BackgroundColor=b.Tone==0?UIColor.Black:UIColor.White;dim.Alpha=(nfloat)(b.Alpha/255.0);}else dim.BackgroundColor=UIColor.Black;}}
+        else{dim.BackgroundColor=UIColor.Black;background.Image=visuals.Asset("skin/background.png");double phase=now%5;dim.Alpha=(nfloat)(1-(.25+(phase<2?.075*(1-Math.Cos(Math.PI*phase)):0)));}
         overlay.SetNeedsDisplay();
     }
     internal static string Media(MobileSong? song,string? name)
@@ -91,6 +93,7 @@ internal sealed partial class MigrationStage : UIView
     {
         double now=CAAnimation.CurrentMediaTime();switch(Page){case Screen.Title:case Screen.Modes:Front(c,now);break;case Screen.Select:Select(c,now);break;case Screen.Loading:Loading(c,now);break;case Screen.Playing:case Screen.Paused:Hud(c);if(Page==Screen.Paused)PauseBox(c);break;case Screen.Result:Result(c,now);break;case Screen.Settings:Select(c,now);SettingsScreen(c);break;case Screen.Best30:BestScreen(c);break;case Screen.Practice:PracticeScreen(c);break;case Screen.Dan:DanScreen(c);break;case Screen.DanResult:DanResultScreen(c,now);break;}
         if(transitionAt>0){double e=now-transitionAt,p=e<.5?Ease(e/.5):Math.Clamp((e-.5)/.5,0,1);if(e>=.5)p=p*p*(3-2*p);double edge=-134.4+2188.8*p;c.SaveState();Polygon(c,e<.5?[0,0,edge+134.4,0,edge-134.4,1080,0,1080]:[edge+134.4,0,1920,0,1920,1080,edge-134.4,1080],clip:true);Image(visuals.Asset("FusumaSkin.png"),Rect(0,0,1920,1080),crop:true);c.RestoreState();}
+        if(Page==Screen.Playing&&Session is {} s){double beat=MobileChart.BeatAtSeconds(s.Difficulty,s.Song.Chart.Bpm,Seconds-s.Song.Chart.Offset);if(MobileFilters.At(s.Difficulty.FilterChanges,beat) is {Kind:"BRIGHTNESS",BackgroundOnly:false} f){var b=MobileFilters.BrightnessOverlay(f.Strength);Fill(c,Rect(0,0,1920,1080),Color(b.Tone,b.Tone,b.Tone,b.Alpha/255.0));}}
     }
     private void Particles(CGContext c,double now)
     {

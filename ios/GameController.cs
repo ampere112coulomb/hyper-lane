@@ -228,8 +228,9 @@ internal sealed partial class GameController : UIViewController
 
     private void InputChanged(IReadOnlySet<int> next, double timestamp)
     {
-        if (!running || audio is null || session is null || settings.AutoPlay) return;
-        double seconds = MobilePlaybackTiming.ChartSeconds(audio.CurrentTime, settings.AudioOffsetMs)
+        if (!running || audio is null || session is null || settings.AutoPlay || replaying) return;
+        double raw=waitingForAudio?rawStart+CAAnimation.CurrentMediaTime()-startClock:audio.CurrentTime;
+        double seconds = MobilePlaybackTiming.ChartSeconds(raw, settings.AudioOffsetMs)
             - Math.Clamp(CAAnimation.CurrentMediaTime() - timestamp, 0, .25);
         foreach (int lane in held.Except(next).ToArray()) session.Release(lane, seconds);
         foreach (int lane in next.Except(held).ToArray()) session.Press(lane, seconds);

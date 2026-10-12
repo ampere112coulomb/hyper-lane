@@ -16,7 +16,7 @@ internal sealed class IosVisuals : IDisposable
     internal IosVisuals()
     {
         foreach (string file in Directory.EnumerateFiles(Path.Combine(NSBundle.MainBundle.BundlePath, "fonts"), "*.otf"))
-        { using var url = NSUrl.FromFilename(file); CTFontManager.RegisterFontsForUrl(url, CTFontManagerScope.Process, out _); }
+        { using var url = NSUrl.FromFilename(file); CTFontManager.RegisterFontsForUrl(url, CTFontManagerScope.Process); }
         using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(NSBundle.MainBundle.BundlePath, "skin/skin.json")));
         CGImage? atlas = Asset("skin/atlas.png")?.CGImage;
         if (atlas is not null) foreach (var entry in json.RootElement.GetProperty("sprites").EnumerateObject())
