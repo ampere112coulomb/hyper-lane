@@ -75,7 +75,7 @@ internal sealed partial class GameController : UIViewController
                 if(audio!=null)audio.Volume=settings.BgmVolume/100f;
             }
         };
-        stage.PracticeRequested = (s,d,beat) => { practice=true;practiceAnchor=beat;Start(s,d); };
+        stage.PracticeRequested = (s,d,beat) => { RestoreReplay();activeDan=null;practice=true;practiceAnchor=beat;Start(s,d); };
         stage.DanRequested = OpenDan;stage.ReplayRequested = StartReplay;
         View.AddSubview(stage);
         menu = new UIView { BackgroundColor = UIColor.FromRGB(8, 15, 27) };
@@ -156,7 +156,7 @@ internal sealed partial class GameController : UIViewController
         {
             if (urls.Length == 0) return;
             bool scoped = urls[0].StartAccessingSecurityScopedResource();
-            try { using var stream = File.OpenRead(urls[0].Path!); owner.library.ImportZip(stream, Path.GetFileName(urls[0].Path)); owner.ShowSongs(); }
+            try { bool dan=owner.stage.Page==MigrationStage.Screen.Dan;using var stream = File.OpenRead(urls[0].Path!); owner.library.ImportZip(stream, Path.GetFileName(urls[0].Path)); owner.ShowSongs();if(dan)owner.OpenDan(); }
             catch (Exception error) { owner.Alert("取り込み失敗", error.Message); }
             finally { if (scoped) urls[0].StopAccessingSecurityScopedResource(); }
         }
@@ -280,7 +280,7 @@ internal sealed partial class GameController : UIViewController
         running=false;audio?.Stop();noteSound?.Pause();held.Clear();stage.ClearTouches();stage.PauseVideo();
         if(practice){stage.Page=MigrationStage.Screen.Practice;return;}
         if(activeDan!=null){activeDan=null;stage.ActiveDan=null;OpenDan();return;}
-        ShowSongs();
+        RestoreReplay();ShowSongs();
     }
     private void BeginPlayback()
     {

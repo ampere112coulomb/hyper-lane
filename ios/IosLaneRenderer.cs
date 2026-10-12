@@ -22,6 +22,7 @@ internal sealed partial class IosLaneRenderer : GLKViewDelegate
     private double[] depths = [];
     private uint program, atlas, vertexBuffer;
     private bool reportedFrame;
+    private bool reportedReady;
     internal IosLaneRenderer(CGRect frame, IosVisuals visuals)
     {
         View = new GLKView(frame, context) { Delegate = this, DrawableDepthFormat = GLKViewDrawableDepthFormat.Format16, Opaque = false, BackgroundColor = UIKit.UIColor.Clear, UserInteractionEnabled = false };
@@ -66,6 +67,13 @@ internal sealed partial class IosLaneRenderer : GLKViewDelegate
         }
         Gl.glDisable(2929);
         EndEffects();
+        // Configuration alone is not a rendered frame. Shader pipelines can take
+        // several seconds to compile on a cold simulator; QA must await presentation.
+        string? qa=Environment.GetEnvironmentVariable("HL_VISUAL_QA");
+        if(!reportedReady&&qa!=null&&(!qa.StartsWith("filter-")||qa.StartsWith("filter-brightness")||Effects)){
+            reportedReady=true;
+            File.WriteAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),"visual-qa",qa+".rendered"),qa);
+        }
     }
     private void Build(MobileSession s)
     {
