@@ -134,7 +134,7 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
     {
         if(far<=near||right<=left||a<=0)return;float[] v=new float[40];
         Put(0,left,far,0,0);Put(1,right,far,1,0);Put(2,right,near,1,1);Put(3,left,near,0,1);
-        var target=region==null?geometry:sprites;foreach(int i in new[]{0,1,2,0,2,3})for(int j=0;j<10;j++)target.Add(v[i*10+j]);
+        var target=region==null?geometry:sprites;HyperLane.MobileNearClip.AppendQuad(v,target);
         void Put(int index,double x,double z,int u,int t)
         {
             int at=index*10;p.Clip(x,y,z,v.AsSpan(at,4));
