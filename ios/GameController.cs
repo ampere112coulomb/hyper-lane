@@ -18,8 +18,9 @@ internal sealed class GameController : UIViewController
     private IReadOnlyList<MobileSong> songs = [];
     private MobileSession? session;
     private AVAudioPlayer? audio;
-    private readonly List<AVAudioPlayer> seVoices = [];
-    private int seVoice, nextSound;
+    private IosNoteSound? noteSound;
+    private string? noteSoundError;
+    private int nextSound;
     private double[] soundTimes = [];
     private CADisplayLink? displayLink;
     private MigrationStage stage = null!;
@@ -49,11 +50,9 @@ internal sealed class GameController : UIViewController
         AVAudioSession.SharedInstance().SetCategory(AVAudioSession.CategoryPlayback, out _);
         AVAudioSession.SharedInstance().SetActive(true, out _);
         string? se = NSBundle.MainBundle.PathForResource("SE", "wav");
-        if (se is not null) for (int i = 0; i < 16; i++)
-        {
-            var voice = AVAudioPlayer.FromUrl(NSUrl.FromFilename(se), out _);
-            if (voice is not null) { voice.PrepareToPlay(); seVoices.Add(voice); }
-        }
+        if (se is not null)
+            try { noteSound = new IosNoteSound(se); }
+            catch (Exception error) { noteSoundError = error.Message; }
         displayLink = CADisplayLink.Create(this, new ObjCRuntime.Selector("tick:"));
         displayLink.AddToRunLoop(NSRunLoop.Main, NSRunLoopMode.Common);
         ShowSongs();
@@ -75,7 +74,7 @@ internal sealed class GameController : UIViewController
 
     private void ShowSongs()
     {
-        running = false; audio?.Stop(); held.Clear(); stage.ClearTouches(); ClearMenu();
+        running = false; audio?.Stop(); noteSound?.Pause(); held.Clear(); stage.ClearTouches(); ClearMenu();
         songs = library.Scan();
         var title = new UILabel(new CGRect(20, 15, 800, 45)) { Text = "Hyper Lane — iOS移植確認用", TextColor = UIColor.White, Font = UIFont.SystemFontOfSize(26) };
         menu.AddSubview(title);
@@ -158,11 +157,15 @@ internal sealed class GameController : UIViewController
             preparingLabel.RemoveFromSuperview(); preparingLabel.Dispose();
         }
         audio = created; audio.Volume = settings.BgmVolume / 100f; audio.PrepareToPlay();
+        try { noteSound?.Begin(settings.SeVolume); }
+        catch (Exception error) { noteSoundError = error.Message; }
+        if (noteSoundError is not null)
+        { Alert("SEエラー", noteSoundError); noteSoundError = null; return; }
         audio.FinishedPlaying += (_, _) => BeginInvokeOnMainThread(Finish);
         session = new MobileSession(song, difficulty) { AutoPlay = settings.AutoPlay };
         session.NoteSound += (_, _) => { if (MobileSoundPolicy.OnJudgement(settings.AutoPlay, settings.AutoNoteSound)) PlaySe(); };
         soundTimes = difficulty.Notes.Where(n => n.Kind is not ('D' or 'G')).SelectMany(n => n.Kind == 'L'
-            ? new[] { n.StartSeconds, n.EndSeconds } : new[] { n.StartSeconds }).Order().ToArray();
+            ? new[] { n.StartSeconds, n.EndSeconds } : new[] { n.StartSeconds }).Distinct().Order().ToArray();
         nextSound = 0; held.Clear(); stage.ClearTouches(); menu.Hidden = true;
         stage.Session = session; stage.Settings = settings; running = true; audio.Play();
     }
@@ -197,16 +200,19 @@ internal sealed class GameController : UIViewController
     }
     private void PlaySe()
     {
-        if (settings.SeVolume <= 0 || seVoices.Count == 0) return;
-        AVAudioPlayer voice = seVoices[seVoice++ % seVoices.Count];
-        voice.CurrentTime = 0; voice.Volume = settings.SeVolume / 100f; voice.Play();
+        if (settings.SeVolume > 0) noteSound?.Play();
     }
     internal void Pause()
-    { if (running) { audio?.Pause(); running = false; held.Clear(); stage.ClearTouches(); ShowPause(); } }
+    { if (running) { audio?.Pause(); noteSound?.Pause(); running = false; held.Clear(); stage.ClearTouches(); ShowPause(); } }
     private void ShowPause()
     {
         ClearMenu();
-        Button("再開", 20, 40, 200, () => { menu.Hidden = true; running = true; audio?.Play(); });
+        Button("再開", 20, 40, 200, () =>
+        {
+            try { noteSound?.Begin(settings.SeVolume); }
+            catch (Exception error) { Alert("SEエラー", error.Message); return; }
+            menu.Hidden = true; running = true; audio?.Play();
+        });
         Button("曲選択", 20, 105, 200, ShowSongs);
     }
     private void ShowSettings()
@@ -230,7 +236,7 @@ internal sealed class GameController : UIViewController
     { var dialog = UIAlertController.Create(title, text, UIAlertControllerStyle.Alert); dialog.AddAction(UIAlertAction.Create("OK", UIAlertActionStyle.Default, null)); PresentViewController(dialog, true, null); }
     protected override void Dispose(bool disposing)
     {
-        if (disposing) { displayLink?.Invalidate(); displayLink?.Dispose(); audio?.Dispose(); foreach (var voice in seVoices) voice.Dispose(); }
+        if (disposing) { displayLink?.Invalidate(); displayLink?.Dispose(); audio?.Dispose(); noteSound?.Dispose(); }
         base.Dispose(disposing);
     }
 }
