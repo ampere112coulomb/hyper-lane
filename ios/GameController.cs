@@ -72,6 +72,7 @@ internal sealed partial class GameController : UIViewController
         displayLink.AddToRunLoop(NSRunLoop.Main, NSRunLoopMode.Common);
         ShowSongs();
         stage.Page=MigrationStage.Screen.Title;
+        ConfigureVisualQa();
     }
 
     public override void ViewDidLayoutSubviews()

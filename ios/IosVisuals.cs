@@ -13,10 +13,12 @@ internal sealed class IosVisuals : IDisposable
     private readonly Dictionary<string, UIImage?> images = new(StringComparer.OrdinalIgnoreCase);
     internal readonly Dictionary<string, CGImage> Sprites = new();
     private readonly CIContext filters = CIContext.Create();
+    private static string? checkpointFace;
     internal IosVisuals()
     {
         foreach (string file in Directory.EnumerateFiles(Path.Combine(NSBundle.MainBundle.BundlePath, "fonts"), "*.otf"))
-        { using var url = NSUrl.FromFilename(file); CTFontManager.RegisterFontsForUrl(url, CTFontManagerScope.Process); }
+        { using var url = NSUrl.FromFilename(file); CTFontManager.RegisterFontsForUrl(url, CTFontManagerScope.Process);
+          if(Path.GetFileName(file).Equals("Checkpoint.otf",StringComparison.OrdinalIgnoreCase)){using var provider=new CGDataProvider(file);using var font=CGFont.CreateFromProvider(provider);checkpointFace=font.PostScriptName;} }
         using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(NSBundle.MainBundle.BundlePath, "skin/skin.json")));
         CGImage? atlas = Asset("skin/atlas.png")?.CGImage;
         if (atlas is not null) foreach (var entry in json.RootElement.GetProperty("sprites").EnumerateObject())
@@ -70,14 +72,15 @@ internal sealed class IosVisuals : IDisposable
         double w = (double)image.Size.Width * fit, h = (double)image.Size.Height * fit;
         image.Draw(new CGRect((double)rect.GetMidX() - w/2, (double)rect.GetMidY() - h/2, w,h), CGBlendMode.Normal, (nfloat)Math.Clamp(opacity,0,1)); c.RestoreState();
     }
-    internal static void Text(string text, CGRect r, double size, UIColor? color = null, bool center = false, double opacity = 1)
+    internal static void Text(string text, CGRect r, double size, UIColor? color = null, bool center = false, double opacity = 1, bool decorative = false)
     {
         if (opacity <= 0 || text.Length == 0) return;
-        using var font = UIFont.SystemFontOfSize((nfloat)size);
+        using var font = decorative&&checkpointFace!=null?UIFont.FromName(checkpointFace,(nfloat)size)??UIFont.SystemFontOfSize((nfloat)size):UIFont.SystemFontOfSize((nfloat)size);
         using var value = new NSString(text);
         var attr = new UIStringAttributes { Font = font, ForegroundColor = (color ?? Color(250,250,252)).ColorWithAlpha((nfloat)Math.Clamp(opacity,0,1)) };
         CGSize measured = value.GetSizeUsingAttributes(attr);
-        using var fitted = UIFont.SystemFontOfSize((nfloat)(size * Math.Min(1, (double)r.Width / Math.Max(1,(double)measured.Width))));
+        nfloat fittedSize=(nfloat)(size*Math.Min(1,(double)r.Width/Math.Max(1,(double)measured.Width)));
+        using var fitted = decorative&&checkpointFace!=null?UIFont.FromName(checkpointFace,fittedSize)??UIFont.SystemFontOfSize(fittedSize):UIFont.SystemFontOfSize(fittedSize);
         attr.Font = fitted; measured = value.GetSizeUsingAttributes(attr);
         value.DrawString(new CGPoint(center ? r.GetMidX() - measured.Width/2 : r.X, r.GetMidY() - measured.Height/2), attr);
     }

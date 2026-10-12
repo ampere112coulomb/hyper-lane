@@ -68,7 +68,7 @@ internal sealed partial class MigrationStage : UIView
         bool play=Page is Screen.Playing or Screen.Paused;gpu.View.Hidden=!play;gpu.Session=play?Session:null;gpu.Settings=Settings;gpu.Seconds=Seconds;
         if(movieLayer!=null)movieLayer.Hidden=!play;
         if(play){gpu.View.Display();background.Image=visuals.FileImage(Media(Session?.Song,Session?.Song.Chart.Background))??visuals.Asset("skin/background.png");dim.Alpha=1-(nfloat)(Settings.BackgroundBrightness/100.0);
-            if(Session is {} s){double beat=MobileChart.BeatAtSeconds(s.Difficulty,s.Song.Chart.Bpm,Seconds-s.Song.Chart.Offset);var filter=MobileFilters.At(s.Difficulty.FilterChanges,beat);if(filter is {Kind:"BRIGHTNESS",BackgroundOnly:true}){var b=MobileFilters.BrightnessOverlay(filter.Strength);dim.BackgroundColor=b.Tone==0?UIColor.Black:UIColor.White;dim.Alpha=(nfloat)(b.Alpha/255.0);}else dim.BackgroundColor=UIColor.Black;}}
+            if(Session is {} s){double beat=MobileChart.BeatAtSeconds(s.Difficulty,s.Song.Chart.Bpm,Seconds-s.Song.Chart.Offset);var filter=MobileFilters.At(s.Difficulty.FilterChanges,beat);if(filter is {Kind:"BRIGHTNESS",BackgroundOnly:true} f){var b=MobileFilters.BrightnessOverlay(f.Strength);dim.BackgroundColor=b.Tone==0?UIColor.Black:UIColor.White;dim.Alpha=(nfloat)(b.Alpha/255.0);}else dim.BackgroundColor=UIColor.Black;}}
         else{dim.BackgroundColor=UIColor.Black;background.Image=visuals.Asset("skin/background.png");double phase=now%5;dim.Alpha=(nfloat)(1-(.25+(phase<2?.075*(1-Math.Cos(Math.PI*phase)):0)));}
         overlay.SetNeedsDisplay();
     }
@@ -102,7 +102,7 @@ internal sealed partial class MigrationStage : UIView
     private void Front(CGContext c,double now)
     {
         Particles(c,now);Polygon(c,[0,0,1280,0,960,1080,0,1080],Color(12,3,23,.12));var logo=visuals.Asset("skin/title_logo.png");double w=1920*(Page==Screen.Title?.78:.56),h=logo==null?200:w*(double)logo.Size.Height/(double)logo.Size.Width,x=(1920-w)/2,y=(Page==Screen.Title?540:285)-h/2;
-        double phase=(now-started)%9.7;double Dip(double at,double width,double depth){double d=Math.Abs(phase-at)/width;return d>=1?0:depth*.5*(1+Math.Cos(Math.PI*d));}double a=1-Dip(2.3,.1,.72)-Dip(2.55,.07,.8)-Dip(6.8,.13,.65);
+        double phase=(now-started)%9.7;double Dip(double at,double width,double depth){double d=Math.Abs(phase-at)/width;return d>=1?0:depth*.5*(1+Math.Cos(Math.PI*d));}double a=Math.Clamp(.97-Dip(2.5,.38,.58)-Dip(3.18,.22,.32)-Dip(7.2,.62,.72),.2,1);
         if(Page==Screen.Title)c.SetShadow(new CGSize(0,0),28,Color(255,255,255,.45).CGColor);Image(logo,Rect(x,y,w,h),a);c.SetShadow(new CGSize(0,0),0,UIColor.Clear.CGColor);
         if(Page==Screen.Title)Text("PRESS ANY KEY",Rect(0,988,1920,65),30,center:true);else{Fill(c,Rect(680,450,560,2),Color(100,220,235,.47));string[] labels=["free play","Dan mode","Practice Mode"];for(int i=0;i<3;i++)Button(c,labels[i],Rect(650,510+i*120,620,96),35,i==mode);Button(c,"戻る",Rect(40,30,250,66),30);}
     }
