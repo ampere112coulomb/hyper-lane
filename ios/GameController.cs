@@ -28,6 +28,7 @@ internal sealed class GameController : UIViewController
     private UIDocumentPickerViewController? picker;
     private ImportDelegate? importDelegate;
     private bool running;
+    private bool preparingAudio;
     private string SettingsPath => Path.Combine(documents, "settings.json");
 
     public override bool PrefersStatusBarHidden() => true;
@@ -119,15 +120,43 @@ internal sealed class GameController : UIViewController
         }
     }
 
-    private void Start(MobileSong song, MobileDifficulty difficulty)
+    private async void Start(MobileSong song, MobileDifficulty difficulty)
     {
+        if (preparingAudio) return;
         if (!TouchZones.Supports(difficulty.Lanes)) { Alert("未対応", "このレーン数はタッチ範囲に未対応です。"); return; }
         string path = Path.GetFullPath(Path.Combine(song.Folder, song.Chart.Audio));
         if (!path.StartsWith(Path.GetFullPath(song.Folder) + Path.DirectorySeparatorChar, StringComparison.Ordinal))
         { Alert("音源エラー", "楽曲フォルダー外の音源は読み込めません。"); return; }
         audio?.Stop(); audio?.Dispose(); audio = null;
-        var created = AVAudioPlayer.FromUrl(NSUrl.FromFilename(path), out var error);
-        if (created is null) { Alert("音源エラー", error?.LocalizedDescription ?? "iOSで読み込めない音源形式です。OGG等のデコーダーは未移植です。"); return; }
+        AVAudioPlayer? created = null;
+        preparingAudio = true;
+        menu.UserInteractionEnabled = false;
+        var preparingLabel = new UILabel(new CGRect(20, 120, 850, 50))
+        { Text = "音源を準備中…（初回はM4Aへ変換します）", TextColor = UIColor.White };
+        menu.AddSubview(preparingLabel);
+        try
+        {
+            if (Path.GetExtension(path).Equals(".ogg", StringComparison.OrdinalIgnoreCase))
+                path = await IosAudioConverter.ToM4aAsync(path, Path.Combine(documents, "audio-cache"));
+            created = AVAudioPlayer.FromUrl(NSUrl.FromFilename(path), out _);
+            if (created is null)
+            {
+                path = await IosAudioConverter.ToM4aAsync(path, Path.Combine(documents, "audio-cache"));
+                created = AVAudioPlayer.FromUrl(NSUrl.FromFilename(path), out var error);
+                if (created is null) throw new InvalidDataException(error?.LocalizedDescription ?? "変換後の音源を読み込めません。");
+            }
+        }
+        catch (Exception error)
+        {
+            created?.Dispose();
+            Alert("音源エラー", $"{Path.GetFileName(song.Chart.Audio)}\n{error.Message}");
+            return;
+        }
+        finally
+        {
+            preparingAudio = false; menu.UserInteractionEnabled = true;
+            preparingLabel.RemoveFromSuperview(); preparingLabel.Dispose();
+        }
         audio = created; audio.Volume = settings.BgmVolume / 100f; audio.PrepareToPlay();
         audio.FinishedPlaying += (_, _) => BeginInvokeOnMainThread(Finish);
         session = new MobileSession(song, difficulty) { AutoPlay = settings.AutoPlay };

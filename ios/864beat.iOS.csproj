@@ -7,12 +7,14 @@
     <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
     <ApplicationId>com.ampere112coulomb.hyperlane.ios</ApplicationId>
     <ApplicationTitle>Hyper Lane</ApplicationTitle>
-    <ApplicationDisplayVersion>0.1.0</ApplicationDisplayVersion>
-    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>0.1.1</ApplicationDisplayVersion>
+    <ApplicationVersion>2</ApplicationVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="NVorbis" Version="0.10.5" />
+    <Compile Remove="tests\**\*.cs" />
     <ProjectReference Include="..\shared\864beat.MobileCore.csproj" />
     <BundleResource Include="..\assets\skin\atlas.png" LogicalName="skin/atlas.png" />
     <BundleResource Include="..\assets\skin\skin.json" LogicalName="skin/skin.json" />
@@ -24,5 +26,6 @@
     <BundleResource Include="..\assets\fonts\*.otf" LogicalName="fonts/%(Filename)%(Extension)" />
     <BundleResource Include="..\assets\fonts\*.txt" LogicalName="fonts/%(Filename)%(Extension)" />
     <BundleResource Include="..\assets\hyper-lane-icon.png" LogicalName="hyper-lane-icon.png" />
+    <BundleResource Include="NVorbis-LICENSE.txt" LogicalName="licenses/NVorbis-LICENSE.txt" />
   </ItemGroup>
 </Project>

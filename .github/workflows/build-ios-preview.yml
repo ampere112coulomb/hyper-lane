@@ -28,6 +28,7 @@ jobs:
           dotnet build ios/864beat.iOS.csproj -c Release -r ios-arm64
           -p:EnableCodeSigning=false -p:CodesignRequireProvisioningProfile=false
           -p:BuildIpa=false -bl:ios-preview.binlog
+          -p:RestoreConfigFile=${{ github.workspace }}/ios/NuGet.Config
       - name: Package for local re-signing
         shell: bash
         run: |
