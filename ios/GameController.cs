@@ -10,7 +10,7 @@ namespace HyperLane.iOS;
 
 // Migration harness: native menus and a projection-check renderer are deliberately
 // separate from the final PC-skin/Metal renderer, which requires a Mac to verify.
-internal sealed class GameController : UIViewController
+internal sealed partial class GameController : UIViewController
 {
     private readonly string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
     private MobileSongLibrary library = null!;
@@ -30,6 +30,11 @@ internal sealed class GameController : UIViewController
     private ImportDelegate? importDelegate;
     private bool running;
     private bool preparingAudio;
+    private HyperLane.UserProfile profile = null!;
+    private HyperLane.PlayerRating rating = null!;
+    private double startClock, rawStart;
+    private bool waitingForAudio, practice;
+    private double practiceAnchor;
     private string SettingsPath => Path.Combine(documents, "settings.json");
 
     public override bool PrefersStatusBarHidden() => true;
@@ -40,10 +45,20 @@ internal sealed class GameController : UIViewController
         Directory.CreateDirectory(documents);
         library = new MobileSongLibrary(documents);
         settings = IosSettings.Load(SettingsPath);
+        profile = HyperLane.UserProfile.Load(Path.Combine(documents,"profile.json"));
+        rating = new HyperLane.PlayerRating(Path.Combine(documents,"player-rating.json"));
         View!.BackgroundColor = UIColor.Black;
         stage = new MigrationStage { Frame = View.Bounds, AutoresizingMask = UIViewAutoresizing.FlexibleWidth | UIViewAutoresizing.FlexibleHeight };
         stage.InputChanged = InputChanged;
         stage.PauseRequested = Pause;
+        stage.Settings = settings; stage.UserName = profile.UserName; stage.Rating = rating;
+        stage.ImportRequested = Import; stage.StartRequested = (s,d) => { RestoreReplay();activeDan=null;practice=false; Start(s,d); };
+        stage.BackRequested = ShowSongs; stage.ResumeRequested = Resume;
+        stage.SaveSettings = () => { settings.Save(SettingsPath); if(audio!=null)audio.Volume=settings.BgmVolume/100f; };
+        stage.NameRequested = ShowName;
+        stage.NumberRequested = NumberInput;
+        stage.PracticeRequested = (s,d,beat) => { practice=true;practiceAnchor=beat;Start(s,d); };
+        stage.DanRequested = OpenDan;stage.ReplayRequested = StartReplay;
         View.AddSubview(stage);
         menu = new UIView { BackgroundColor = UIColor.FromRGB(8, 15, 27) };
         View.AddSubview(menu);
@@ -56,6 +71,7 @@ internal sealed class GameController : UIViewController
         displayLink = CADisplayLink.Create(this, new ObjCRuntime.Selector("tick:"));
         displayLink.AddToRunLoop(NSRunLoop.Main, NSRunLoopMode.Common);
         ShowSongs();
+        stage.Page=MigrationStage.Screen.Title;
     }
 
     public override void ViewDidLayoutSubviews()
@@ -74,8 +90,13 @@ internal sealed class GameController : UIViewController
 
     private void ShowSongs()
     {
+        RestoreReplay();
+        activeDan=null;
         running = false; audio?.Stop(); noteSound?.Pause(); held.Clear(); stage.ClearTouches(); ClearMenu();
         songs = library.Scan();
+        stage.SetSongs(songs);stage.ShowSelect();menu.Hidden=true;
+        return;
+#pragma warning disable CS0162
         var title = new UILabel(new CGRect(20, 15, 800, 45)) { Text = "Hyper Lane — iOS移植確認用", TextColor = UIColor.White, Font = UIFont.SystemFontOfSize(26) };
         menu.AddSubview(title);
         Button("楽曲ZIPを取り込む", 20, 70, 220, Import);
@@ -90,6 +111,7 @@ internal sealed class GameController : UIViewController
             button.TouchUpInside += (_, _) => ChooseDifficulty(song); scroll.AddSubview(button);
         }
         scroll.ContentSize = new CGSize(800, songs.Count * 58);
+#pragma warning restore CS0162
     }
 
     private void ChooseDifficulty(MobileSong song)
@@ -127,6 +149,7 @@ internal sealed class GameController : UIViewController
         if (!path.StartsWith(Path.GetFullPath(song.Folder) + Path.DirectorySeparatorChar, StringComparison.Ordinal))
         { Alert("音源エラー", "楽曲フォルダー外の音源は読み込めません。"); return; }
         audio?.Stop(); audio?.Dispose(); audio = null;
+        running=false;menu.Hidden=true;stage.BeginLoading(song, BeginPlayback);
         AVAudioPlayer? created = null;
         preparingAudio = true;
         menu.UserInteractionEnabled = false;
@@ -148,6 +171,7 @@ internal sealed class GameController : UIViewController
         catch (Exception error)
         {
             created?.Dispose();
+            stage.CancelLoading();
             Alert("音源エラー", $"{Path.GetFileName(song.Chart.Audio)}\n{error.Message}");
             return;
         }
@@ -160,24 +184,34 @@ internal sealed class GameController : UIViewController
         try { noteSound?.Begin(settings.SeVolume); }
         catch (Exception error) { noteSoundError = error.Message; }
         if (noteSoundError is not null)
-        { Alert("SEエラー", noteSoundError); noteSoundError = null; return; }
+        { stage.CancelLoading(); Alert("SEエラー", noteSoundError); noteSoundError = null; return; }
         audio.FinishedPlaying += (_, _) => BeginInvokeOnMainThread(Finish);
         session = new MobileSession(song, difficulty) { AutoPlay = settings.AutoPlay };
+        ConfigureDanSession();
+        if(practice)MobilePracticeTiming.At(song.Chart,difficulty,practiceAnchor,settings.AudioOffsetMs).SkipPreviousNotes(difficulty);
         session.NoteSound += (_, _) => { if (MobileSoundPolicy.OnJudgement(settings.AutoPlay, settings.AutoNoteSound)) PlaySe(); };
         soundTimes = difficulty.Notes.Where(n => n.Kind is not ('D' or 'G')).SelectMany(n => n.Kind == 'L'
             ? new[] { n.StartSeconds, n.EndSeconds } : new[] { n.StartSeconds }).Distinct().Order().ToArray();
         nextSound = 0; held.Clear(); stage.ClearTouches(); menu.Hidden = true;
-        stage.Session = session; stage.Settings = settings; running = true; audio.Play();
+        stage.Session = session; stage.Settings = settings;stage.Seconds=0;stage.LoadingReady();
     }
 
     [Export("tick:")]
     private void Tick(CADisplayLink link)
     {
+        stage.Refresh(CAAnimation.CurrentMediaTime());
         if (!running || audio is null || session is null) return;
-        double seconds = MobilePlaybackTiming.ChartSeconds(audio.CurrentTime, settings.AudioOffsetMs);
+        double raw=waitingForAudio?rawStart+CAAnimation.CurrentMediaTime()-startClock:audio.CurrentTime;
+        if(waitingForAudio&&raw>=Math.Max(0,audio.CurrentTime)){waitingForAudio=false;audio.Play();stage.ResumeVideo();raw=audio.CurrentTime;}
+        double seconds = MobilePlaybackTiming.ChartSeconds(raw, settings.AudioOffsetMs);
         while (nextSound < soundTimes.Length && soundTimes[nextSound] <= seconds)
         { nextSound++; if (MobileSoundPolicy.Scheduled(settings.AutoPlay, settings.AutoNoteSound)) PlaySe(); }
-        session.Advance(seconds, held); stage.Seconds = seconds; stage.SetNeedsDisplay();
+        session.AutoPlay=settings.AutoPlay;
+        AdvanceReplay(seconds);
+        if(!practice||!MobilePracticeTiming.At(session.Song.Chart,session.Difficulty,practiceAnchor,settings.AudioOffsetMs).IsPreroll(seconds))session.Advance(seconds, held);
+        if(practice)audio.Volume=(float)(settings.BgmVolume/100.0*MobilePracticeTiming.At(session.Song.Chart,session.Difficulty,practiceAnchor,settings.AudioOffsetMs).Gain(seconds));
+        stage.Seconds = seconds;
+        if(seconds>Math.Max(audio.Duration,session.Difficulty.Notes.Select(n=>n.EndSeconds).DefaultIfEmpty(0).Max())+.2)Finish();
     }
 
     private void Finish()
@@ -185,8 +219,11 @@ internal sealed class GameController : UIViewController
         if (session is null || audio is null || !running) return;
         session.Advance(Math.Max(audio.Duration, session.Difficulty.Notes.Select(n => n.EndSeconds).DefaultIfEmpty(0).Max()) + .2, held);
         running = false;
-        string result = $"SCORE {session.Score:N0}\nMAX COMBO {session.MaxCombo}";
-        ShowSongs(); Alert("RESULT（移植確認用）", result);
+        noteSound?.Pause();stage.PauseVideo();
+        if(practice){stage.Page=MigrationStage.Screen.Practice;return;}
+        if(activeDan!=null){FinishDan();return;}
+        if(!settings.AutoPlay&&!replaying)rating.Update(MigrationStage.Key(session.Song,session.Difficulty),MigrationStage.Hash(session.Song),MigrationStage.Level(session.Difficulty),session.Score,session.Counts,session.MaxCombo);
+        SaveReplay();stage.ShowResult();
     }
 
     private void InputChanged(IReadOnlySet<int> next, double timestamp)
@@ -196,6 +233,7 @@ internal sealed class GameController : UIViewController
             - Math.Clamp(CAAnimation.CurrentMediaTime() - timestamp, 0, .25);
         foreach (int lane in held.Except(next).ToArray()) session.Release(lane, seconds);
         foreach (int lane in next.Except(held).ToArray()) session.Press(lane, seconds);
+        RecordInput(next,seconds);
         held.Clear(); held.UnionWith(next);
     }
     private void PlaySe()
@@ -203,7 +241,23 @@ internal sealed class GameController : UIViewController
         if (settings.SeVolume > 0) noteSound?.Play();
     }
     internal void Pause()
-    { if (running) { audio?.Pause(); noteSound?.Pause(); running = false; held.Clear(); stage.ClearTouches(); ShowPause(); } }
+    { if (running) { audio?.Pause(); noteSound?.Pause(); running = false; held.Clear(); stage.ClearTouches();stage.PauseVideo();stage.Page=MigrationStage.Screen.Paused; } }
+    private void Resume(){try{noteSound?.Begin(settings.SeVolume);}catch(Exception e){Alert("SEエラー",e.Message);return;}stage.Page=MigrationStage.Screen.Playing;running=true;audio?.Play();stage.ResumeVideo();}
+    private void BeginPlayback()
+    {
+        if(audio==null||session==null)return;
+        rawStart=-settings.StartMarginMs/1000.0;
+        if(practice){var timing=MobilePracticeTiming.At(session.Song.Chart,session.Difficulty,practiceAnchor,settings.AudioOffsetMs);rawStart=timing.StartRaw;audio.CurrentTime=Math.Max(0,rawStart);}
+        startClock=CAAnimation.CurrentMediaTime();waitingForAudio=rawStart<0;running=true;
+        if(!waitingForAudio)audio.Play();else stage.PauseVideo();
+        nextSound=0;while(nextSound<soundTimes.Length&&soundTimes[nextSound]<rawStart)nextSound++;
+        BeginReplayRecording();
+    }
+    private void ShowName()
+    {
+        var dialog=UIAlertController.Create("ユーザーネームを設定してください。","1～10文字",UIAlertControllerStyle.Alert);dialog.AddTextField(t=>t.Text=profile.UserName);
+        dialog.AddAction(UIAlertAction.Create("決定",UIAlertActionStyle.Default,_=>{string name=(dialog.TextFields![0].Text??"").Trim();if(!HyperLane.UserProfile.ValidName(name)){ShowName();return;}profile.UserName=name;profile.Save(Path.Combine(documents,"profile.json"));stage.UserName=name;stage.Page=MigrationStage.Screen.Title;}));PresentViewController(dialog,true,null);
+    }
     private void ShowPause()
     {
         ClearMenu();

@@ -7,7 +7,7 @@ namespace HyperLane.iOS;
 
 // Geometry/touch verification only. Do not describe this solid-color renderer
 // as the final PC-equivalent skin, video, or post-processing implementation.
-internal sealed class MigrationStage : UIView
+internal sealed class LegacyMigrationStage : UIView
 {
     internal MobileSession? Session;
     internal IosSettings Settings = new();
@@ -17,7 +17,7 @@ internal sealed class MigrationStage : UIView
     private readonly Dictionary<UITouch, int> touches = new();
     private nfloat Scale => (nfloat)Math.Min((double)Bounds.Width / 1920, (double)Bounds.Height / 1080);
     private CGPoint Origin => new((Bounds.Width - 1920 * Scale) / 2, (Bounds.Height - 1080 * Scale) / 2);
-    internal MigrationStage() { BackgroundColor = UIColor.Black; MultipleTouchEnabled = true; }
+    internal LegacyMigrationStage() { BackgroundColor = UIColor.Black; MultipleTouchEnabled = true; }
     internal void ClearTouches() => touches.Clear();
     public override void Draw(CGRect rect)
     {

@@ -20,6 +20,7 @@ internal sealed class IosSettings
     public int PreviewBackgroundBrightness { get; set; } = 100;
     public int StartMarginMs { get; set; } = 1300;
     public int FeverAuraBrightness { get; set; } = 100;
+    public int TouchHeight { get; set; } = 50;
     internal static IosSettings Load(string path)
     {
         try { return JsonSerializer.Deserialize<IosSettings>(File.ReadAllText(path)) ?? new(); }
