@@ -47,10 +47,12 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
         EAGLContext.SetCurrentContext(context);
         Gl.glViewport(0,0,(int)view.DrawableWidth,(int)view.DrawableHeight);
         Gl.glDisable(2884);Gl.glDisable(3089);Gl.glDisable(2960);Gl.glDepthMask(1);
+        Gl.glClearDepthf(1);Gl.glDepthRangef(0,1);
         Gl.glActiveTexture(33984);
         Gl.glClearColor(0,0,0,0);Gl.glClear(16384|256);if(Session is not {} s)return;
         geometry.Clear();sprites.Clear();Build(s);
         Gl.glUseProgram(program);Gl.glEnable(3042);Gl.glBlendFunc(1,771);Gl.glEnable(2929);Gl.glDepthFunc(515);
+        if(Environment.GetEnvironmentVariable("HL_VISUAL_QA")=="playing-nodepth")Gl.glDisable(2929);
         Gl.glBindTexture(3553,atlas);Gl.glUniform1i(Gl.glGetUniformLocation(program,"image"),0);
         Gl.Draw(program,vertexBuffer,geometry,false);Gl.glDepthMask(0);Gl.Draw(program,vertexBuffer,sprites,true);Gl.glDepthMask(1);
         if(!reportedFrame && Environment.GetEnvironmentVariable("HL_VISUAL_QA")!=null){reportedFrame=true;Console.Error.WriteLine($"HL GPU frame: {view.DrawableWidth}x{view.DrawableHeight}, geometry={geometry.Count/10}, sprites={sprites.Count/10}, error={Gl.glGetError()}");}
@@ -147,6 +149,8 @@ internal sealed class IosLaneRenderer : GLKViewDelegate
         private const string Lib="/System/Library/Frameworks/OpenGLES.framework/OpenGLES";
         [DllImport(Lib)]internal static extern void glClearColor(float r,float g,float b,float a);
         [DllImport(Lib)]internal static extern void glClear(uint mask);
+        [DllImport(Lib)]internal static extern void glClearDepthf(float depth);
+        [DllImport(Lib)]internal static extern void glDepthRangef(float near,float far);
         [DllImport(Lib)]internal static extern void glViewport(int x,int y,int width,int height);
         [DllImport(Lib)]internal static extern void glBindBuffer(uint target,uint buffer);
         [DllImport(Lib)]internal static extern void glGenBuffers(int count,out uint buffer);
