@@ -44,6 +44,9 @@ internal sealed class IosVisuals : IDisposable
         int[] argb=new int[w*h];for(int i=0;i<argb.Length;i++)argb[i]=unchecked((int)0xff000000)|(pixels[i*4]<<16)|(pixels[i*4+1]<<8)|pixels[i*4+2];
         int[] blurred=HyperLane.MobileBlurPixels.Create(argb,w,h);byte[] rgba=new byte[1920*1080*4];for(int i=0;i<blurred.Length;i++){rgba[i*4]=(byte)(blurred[i]>>16);rgba[i*4+1]=(byte)(blurred[i]>>8);rgba[i*4+2]=(byte)blurred[i];rgba[i*4+3]=255;}
         using var target=new CGBitmapContext(rgba,1920,1080,8,1920*4,space,CGImageAlphaInfo.PremultipliedLast);using var image=target.ToImage();
+        // The stage may still reference a previous image during its crossfade.
+        // Drop cache ownership rather than disposing an image still being drawn.
+        foreach(string old in images.Keys.Where(k=>k.StartsWith("blur:",StringComparison.Ordinal)).Take(Math.Max(0,images.Keys.Count(k=>k.StartsWith("blur:",StringComparison.Ordinal))-2)).ToArray())images.Remove(old);
         return images["blur:"+key]=image==null?null:UIImage.FromImage(image);
     }
     internal static CGRect Rect(double x, double y, double w, double h) => new(x, y, w, h);

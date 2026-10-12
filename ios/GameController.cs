@@ -8,8 +8,8 @@ using UniformTypeIdentifiers;
 
 namespace HyperLane.iOS;
 
-// Migration harness: native menus and a projection-check renderer are deliberately
-// separate from the final PC-skin/Metal renderer, which requires a Mac to verify.
+// Native iOS audio/input lifecycle, connected to the shared chart/session core
+// and the skin-based visual stage. Simulator and device checks remain separate.
 internal sealed partial class GameController : UIViewController
 {
     private readonly string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
