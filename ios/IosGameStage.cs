@@ -45,6 +45,8 @@ internal sealed partial class MigrationStage : UIView
     private CVPixelBuffer? effectVideo;
     private byte[]? effectOverlay;
     private CGBitmapContext? effectCanvas;
+    private byte[]? effectUnderlay;
+    private CGBitmapContext? underlayCanvas;
     private readonly Dictionary<UITouch,int> touches=new();
     private MobileSong? loadedSong;private UIImage? jacket,selectionBackground,previousBackground;
     private int index,difficulty,mode,settingsTab;
@@ -104,6 +106,7 @@ internal sealed partial class MigrationStage : UIView
         overlay.Hidden=gpuEffects&&active?.BackgroundOnly==false;
         if(gpuEffects){gpu.SceneBackground=background.Image?.CGImage;gpu.BackgroundGain=1-(double)dim.Alpha;
             if(movieOutput!=null&&movie!=null){var time=movie.CurrentTime;if(movieOutput.HasNewPixelBufferForItemTime(time)){var displayed=CoreMedia.CMTime.Zero;var buffer=movieOutput.CopyPixelBuffer(time,ref displayed);if(buffer!=null){effectVideo?.Dispose();effectVideo=buffer;}}}gpu.SceneVideo=effectVideo;
+            RenderEffectUnderlay(now);gpu.SceneUnderlay=effectUnderlay;
             if(active?.BackgroundOnly==false){RenderEffectOverlay(now);gpu.SceneOverlay=effectOverlay;}else gpu.SceneOverlay=null;
         }
         if(play)gpu.View.Display();overlay.SetNeedsDisplay();
@@ -112,7 +115,14 @@ internal sealed partial class MigrationStage : UIView
     {
         if(effectCanvas==null){effectOverlay=new byte[1920*1080*4];using var space=CGColorSpace.CreateDeviceRGB();effectCanvas=new CGBitmapContext(effectOverlay,1920,1080,8,1920*4,space,CGImageAlphaInfo.PremultipliedLast);}
         var c=effectCanvas;c.ClearRect(new CGRect(0,0,1920,1080));c.SaveState();c.TranslateCTM(0,1080);c.ScaleCTM(1,-1);UIGraphics.PushContext(c);
-        try{if(DefaultPlayBackground)Particles(c,now);double pulse=feverLeft.Opacity;if(pulse>0)for(int i=0;i<24;i++){double a=i/24.0,b=(i+1)/24.0;Fill(c,Rect(1920*.14*a,0,1920*.14/24,1080),Color(255,255,255,205/255.0*pulse*Math.Pow(1-a,2.2)));Fill(c,Rect(1920*(1-.14*b),0,1920*.14/24,1080),Color(255,255,255,205/255.0*pulse*Math.Pow(1-a,2.2)));}Hud(c);if(Page==Screen.Paused)PauseBox(c);}
+        try{Hud(c);if(Page==Screen.Paused)PauseBox(c);}
+        finally{UIGraphics.PopContext();c.RestoreState();}
+    }
+    private void RenderEffectUnderlay(double now)
+    {
+        if(underlayCanvas==null){effectUnderlay=new byte[1920*1080*4];using var space=CGColorSpace.CreateDeviceRGB();underlayCanvas=new CGBitmapContext(effectUnderlay,1920,1080,8,1920*4,space,CGImageAlphaInfo.PremultipliedLast);}
+        var c=underlayCanvas;c.ClearRect(new CGRect(0,0,1920,1080));c.SaveState();c.TranslateCTM(0,1080);c.ScaleCTM(1,-1);UIGraphics.PushContext(c);
+        try{if(DefaultPlayBackground)Particles(c,now);double pulse=feverLeft.Opacity;if(pulse>0)for(int i=0;i<24;i++){double a=i/24.0,b=(i+1)/24.0;Fill(c,Rect(1920*.14*a,0,1920*.14/24,1080),Color(255,255,255,205/255.0*pulse*Math.Pow(1-a,2.2)));Fill(c,Rect(1920*(1-.14*b),0,1920*.14/24,1080),Color(255,255,255,205/255.0*pulse*Math.Pow(1-a,2.2)));}}
         finally{UIGraphics.PopContext();c.RestoreState();}
     }
     internal static string Media(MobileSong? song,string? name)
@@ -226,5 +236,5 @@ internal sealed partial class MigrationStage : UIView
     }
     public override void TouchesBegan(NSSet t,UIEvent? e)=>Touch(t,0);public override void TouchesMoved(NSSet t,UIEvent? e)=>Touch(t,1);public override void TouchesEnded(NSSet t,UIEvent? e)=>Touch(t,2);
     public override void TouchesCancelled(NSSet t,UIEvent? e){ClearTouches();InputChanged?.Invoke(new HashSet<int>(),CAAnimation.CurrentMediaTime());dragging=false;practiceDragging=false;}
-    protected override void Dispose(bool disposing){if(disposing){effectCanvas?.Dispose();effectVideo?.Dispose();movieOutput?.Dispose();movie?.Dispose();movieLayer?.Dispose();gpu.Dispose();visuals.Dispose();}base.Dispose(disposing);}
+    protected override void Dispose(bool disposing){if(disposing){effectCanvas?.Dispose();underlayCanvas?.Dispose();effectVideo?.Dispose();movieOutput?.Dispose();movie?.Dispose();movieLayer?.Dispose();gpu.Dispose();visuals.Dispose();}base.Dispose(disposing);}
 }

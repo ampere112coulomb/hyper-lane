@@ -8,7 +8,7 @@
     <ApplicationId>com.ampere112coulomb.hyperlane.ios</ApplicationId>
     <ApplicationTitle>Hyper Lane</ApplicationTitle>
     <ApplicationDisplayVersion>0.2.0</ApplicationDisplayVersion>
-    <ApplicationVersion>11</ApplicationVersion>
+    <ApplicationVersion>12</ApplicationVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>

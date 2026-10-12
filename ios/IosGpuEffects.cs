@@ -14,8 +14,9 @@ internal sealed partial class IosLaneRenderer
     internal CVPixelBuffer? SceneVideo;
     internal double BackgroundGain=1;
     internal byte[]? SceneOverlay;
+    internal byte[]? SceneUnderlay;
     internal int OverlayWidth=1920,OverlayHeight=1080;
-    private uint effectProgram,sceneTexture,effectFramebuffer,effectDepth,backgroundTexture,overlayTexture,bloomOne,bloomTwo;
+    private uint effectProgram,sceneTexture,effectFramebuffer,effectDepth,backgroundTexture,overlayTexture,underlayTexture,bloomOne,bloomTwo;
     private uint screenFramebuffer;
     private int sceneWidth,sceneHeight;
     private CGImage? uploadedBackground;
@@ -44,6 +45,7 @@ internal sealed partial class IosLaneRenderer
         // Uploaded bitmap and decoded movie buffers have opposite row origins.
         Fullscreen(backgroundTexture,-1,1,hasVideo,0,0,(float)BackgroundGain,true);
         if(ActiveFilter!.Value.BackgroundOnly)FilterBackground();
+        if(SceneUnderlay is {} underlay){Upload(ref underlayTexture,OverlayWidth,OverlayHeight,underlay);Gl.glEnable(3042);Gl.glBlendFunc(1,771);Fullscreen(underlayTexture,-1,1,false);}
     }
     // Background-only filtering uses a separate full-size texture to avoid sampling
     // a texture while it is attached as the current draw destination.
@@ -97,7 +99,7 @@ internal sealed partial class IosLaneRenderer
     }
     private static void Allocate(ref uint texture,int w,int h){if(texture==0)Gl.glGenTextures(1,out texture);Gl.glBindTexture(3553,texture);Gl.glTexParameteri(3553,10241,9729);Gl.glTexParameteri(3553,10240,9729);Gl.glTexParameteri(3553,10242,33071);Gl.glTexParameteri(3553,10243,33071);Gl.glTexImage2D(3553,0,6408,w,h,0,6408,5121,IntPtr.Zero);}
     private void Upload(ref uint texture,int w,int h,byte[] pixels,uint format=6408){if(texture==0)Gl.glGenTextures(1,out texture);Gl.glBindTexture(3553,texture);Gl.glTexParameteri(3553,10241,9729);Gl.glTexParameteri(3553,10240,9729);Gl.glTexParameteri(3553,10242,33071);Gl.glTexParameteri(3553,10243,33071);var pin=GCHandle.Alloc(pixels,GCHandleType.Pinned);try{if(uploadSizes.TryGetValue(texture,out var size)&&size==(w,h,format))Gl.glTexSubImage2D(3553,0,0,0,w,h,format,5121,pin.AddrOfPinnedObject());else{Gl.glTexImage2D(3553,0,6408,w,h,0,format,5121,pin.AddrOfPinnedObject());uploadSizes[texture]=(w,h,format);}}finally{pin.Free();}}
-    private void DisposeEffects(){foreach(uint value in new[]{sceneTexture,bloomOne,bloomTwo,filteredBackground,backgroundTexture,overlayTexture})if(value!=0){uint t=value;Gl.glDeleteTextures(1,ref t);}if(effectProgram!=0)Gl.glDeleteProgram(effectProgram);if(effectFramebuffer!=0)Gl.glDeleteFramebuffers(1,ref effectFramebuffer);if(effectDepth!=0)Gl.glDeleteRenderbuffers(1,ref effectDepth);}
+    private void DisposeEffects(){foreach(uint value in new[]{sceneTexture,bloomOne,bloomTwo,filteredBackground,backgroundTexture,overlayTexture,underlayTexture})if(value!=0){uint t=value;Gl.glDeleteTextures(1,ref t);}if(effectProgram!=0)Gl.glDeleteProgram(effectProgram);if(effectFramebuffer!=0)Gl.glDeleteFramebuffers(1,ref effectFramebuffer);if(effectDepth!=0)Gl.glDeleteRenderbuffers(1,ref effectDepth);}
     private const string EffectFragment="""
       precision highp float;uniform sampler2D frameTex;uniform int mode;uniform float intensity,flip,time,gain;uniform vec2 texel;varying vec2 tex;
       float rnd(float n){return fract(sin(n*127.1)*43758.5453);}
