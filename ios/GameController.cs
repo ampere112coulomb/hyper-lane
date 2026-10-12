@@ -23,6 +23,7 @@ internal sealed partial class GameController : UIViewController
     private int nextSound;
     private double[] soundTimes = [];
     private CADisplayLink? displayLink;
+    private int displayRate=-1;
     private MigrationStage stage = null!;
     private UIView menu = null!;
     private readonly HashSet<int> held = new();
@@ -220,6 +221,8 @@ internal sealed partial class GameController : UIViewController
     [Export("tick:")]
     private void Tick(CADisplayLink link)
     {
+        int rate=stage.Page==MigrationStage.Screen.Playing?0:60;
+        if(displayRate!=rate){displayRate=rate;link.PreferredFramesPerSecond=rate;}
         UpdatePreview();
         if (!running || audio is null || session is null){stage.Refresh(CAAnimation.CurrentMediaTime());return;}
         double raw=waitingForAudio?rawStart+CAAnimation.CurrentMediaTime()-startClock:audio.CurrentTime;

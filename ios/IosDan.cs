@@ -53,7 +53,7 @@ internal sealed partial class MigrationStage
         if(Courses.Count>0){var course=Courses[danIndex];Text(course.Definition.Title,Rect(1010,110,820,75),46);double row=Math.Min(110,400.0/course.Tracks.Count);for(int i=0;i<course.Tracks.Count;i++){var t=course.Tracks[i];bool visible=Visible(course,i);double y=210+i*row,side=Math.Min(82,row-16);if(visible)Image(visuals.FileImage(Media(t.Song,t.Song.Chart.Jacket)),Rect(1010,y+5,side,side),crop:true);string ordinal=i==0?"1st":i==1?"2nd":i==2?"3rd":$"{i+1}th";Text(ordinal+"  "+(visible?t.Song.Chart.Title:"???"),Rect(1110,y,725,row*.44),Math.Min(30,row*.33));Text(DifficultyName(t.Diff.Name)+" Lv."+t.Diff.Level,Rect(1110,y+row*.44,710,row*.28),22);if(course.Definition.Tracks[i].Conditions is {} own)Text(string.Join(" / ",own.Descriptions()),Rect(1110,y+row*.75,710,row*.22),16);}
             Text("合格条件",Rect(1010,620,820,45),30);int line=0;foreach(var condition in course.Definition.Conditions.Descriptions())Text(condition,Rect(1010,675+line++*40,820,40),24);Text(course.Definition.CarryGauge?"曲別ゲージ引き継ぎ ON":"曲別ゲージ引き継ぎ OFF",Rect(1010,885,800,28),20);}
         else Text("段位ZIPを取り込んでください",Rect(1010,300,800,80),32);
-        Button(c,"play",Rect(1023,945,338,107),42);Button(c,"modes",Rect(1373,945,338,107),42);Button(c,"＋ 段位ZIPを取り込む",Rect(978,12,420,96),30);if(Settings.AutoPlay)Text("AUTO使用中のため記録は保存されません。",Rect(1010,915,830,25),20,UIColor.Yellow);Name(c,false);
+        Button(c,"play",Rect(1023,945,338,107),42);Button(c,"←",Rect(100,12,160,64),32);Button(c,"＋ 段位ZIPを取り込む",Rect(978,12,420,96),30);if(Settings.AutoPlay)Text("AUTO使用中のため記録は保存されません。",Rect(1010,915,830,25),20,UIColor.Yellow);Name(c,false);
     }
     private sealed record Meter(double Value,double Limit,bool Minimum,bool Exclusive=false,bool Percent=false);
     private static List<Meter> Meters(DanConditions c,int[] n,IReadOnlyList<double> g)
@@ -77,6 +77,6 @@ internal sealed partial class MigrationStage
     private void TouchDan(float x,float y)
     {
         if(Page==Screen.DanResult){if(CAAnimation.CurrentMediaTime()-resultAt<4.4)return;if(x>=1300&&y>=985&&ActiveDan!=null)DanStart?.Invoke(ActiveDan);else if(x>=1300&&y>=900)Page=Screen.Dan;return;}
-        if(x>=978&&x<=1398&&y<108)ImportRequested?.Invoke();else if(x>=1373&&y>=945)Transition(Screen.Modes);else if(x>=1023&&x<=1361&&y>=945&&Courses.Count>0)DanStart?.Invoke(Courses[danIndex]);else if(x<960&&Courses.Count>0){int move=Math.Abs(y-downY)>35?(int)Math.Round((downY-y)/92):(int)Math.Round((y-501.5)/92);danIndex=Math.Clamp(danIndex+move,0,Courses.Count-1);}
+        if(x>=978&&x<=1398&&y<108)ImportRequested?.Invoke();else if(x>=100&&x<=260&&y<76)Transition(Screen.Modes);else if(x>=1023&&x<=1361&&y>=945&&Courses.Count>0)DanStart?.Invoke(Courses[danIndex]);else if(x<960&&Courses.Count>0){int move=Math.Abs(y-downY)>35?(int)Math.Round((downY-y)/92):(int)Math.Round((y-501.5)/92);danIndex=Math.Clamp(danIndex+move,0,Courses.Count-1);}
     }
 }

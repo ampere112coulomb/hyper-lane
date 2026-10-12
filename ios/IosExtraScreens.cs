@@ -64,7 +64,7 @@ internal sealed partial class MigrationStage
     }
     private void PracticeScreen(CGContext c)
     {
-        Button(c,"曲選択へ戻る",Rect(40,30,250,66),28);Text((Selected?.Chart.Title??"")+" / "+DifficultyName(SelectedDifficulty?.Name??""),Rect(410,25,1100,80),32,center:true);
+        Button(c,"←",Rect(40,30,250,66),28);Text((Selected?.Chart.Title??"")+" / "+DifficultyName(SelectedDifficulty?.Name??""),Rect(410,25,1100,80),32,center:true);
         if(SelectedDifficulty is not {} d)return;var rect=Rect(650,130,620,750);Fill(c,rect,Color(8,11,18,245/255.0));double laneW=620.0/d.Lanes;double Y(double beat)=>880-(beat-practiceViewBeat)*58;
         for(int i=0;i<=d.Lanes;i++)Fill(c,Rect(650+i*laneW,130,1,750),Color(110,115,135,75/255.0));
         for(double beat=Math.Ceiling(practiceViewBeat);beat<=practiceViewBeat+750.0/58;beat++){double y=Y(beat);Fill(c,Rect(650,y,620,1),Color(110,115,135,75/255.0));Text($"{beat:0}",Rect(580,y-14,60,28),14,opacity:.7);}

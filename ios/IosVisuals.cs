@@ -11,6 +11,22 @@ namespace HyperLane.iOS;
 internal sealed class IosVisuals : IDisposable
 {
     private readonly Dictionary<string, UIImage?> images = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string,UIImage> textImages=new();
+    internal void CachedText(string text,CGRect rect,double size,bool center=false,double opacity=1)
+    {
+        if(string.IsNullOrEmpty(text))return;
+        string key=$"{text}\n{rect.Width}:{rect.Height}:{size}:{center}";
+        if(!textImages.TryGetValue(key,out var image))
+        {
+            UIGraphics.BeginImageContextWithOptions(rect.Size,false,1);
+            try{Text(text,new CGRect(0,0,rect.Width,rect.Height),size,center:center);image=UIGraphics.GetImageFromCurrentImageContext();}
+            finally{UIGraphics.EndImageContext();}
+            if(image==null)return;
+            if(textImages.Count>=96){string oldest=textImages.Keys.First();textImages[oldest].Dispose();textImages.Remove(oldest);}
+            textImages[key]=image;
+        }
+        Image(image,rect,opacity);
+    }
     internal readonly Dictionary<string, CGImage> Sprites = new();
     private static string? checkpointFace;
     internal IosVisuals()
@@ -59,7 +75,8 @@ internal sealed class IosVisuals : IDisposable
     {
         if (source?.CGImage is null) return null;
         if (images.TryGetValue("blur:" + key, out var cached)) return cached;
-        int w=(int)source.CGImage.Width,h=(int)source.CGImage.Height;byte[] pixels=new byte[w*h*4];
+        // Downsample before reading pixels: the blur only consumes a small proxy.
+        int w=240,h=136;byte[] pixels=new byte[w*h*4];
         using var space=CGColorSpace.CreateDeviceRGB();
         using(var bitmap=new CGBitmapContext(pixels,w,h,8,w*4,space,CGImageAlphaInfo.PremultipliedLast))bitmap.DrawImage(new CGRect(0,0,w,h),source.CGImage);
         int[] argb=new int[w*h];for(int i=0;i<argb.Length;i++)argb[i]=unchecked((int)0xff000000)|(pixels[i*4]<<16)|(pixels[i*4+1]<<8)|pixels[i*4+2];
@@ -134,5 +151,5 @@ internal sealed class IosVisuals : IDisposable
         Text(text[..split].Trim(),new CGRect(rect.X,rect.Y,rect.Width,rect.Height/2),fitted);
         Text(text[split..].Trim(),new CGRect(rect.X,rect.Y+rect.Height/2,rect.Width,rect.Height/2),fitted);
     }
-    public void Dispose() { foreach(var v in Sprites.Values)v.Dispose();foreach(var v in images.Values)v?.Dispose(); }
+    public void Dispose() { foreach(var v in Sprites.Values)v.Dispose();foreach(var v in images.Values)v?.Dispose();foreach(var v in textImages.Values)v.Dispose(); }
 }
