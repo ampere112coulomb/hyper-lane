@@ -76,6 +76,8 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
                 case "open-audio": Pick("audio"); break;
                 case "resolve-song": requestedSong = root.GetProperty("name").GetString() ?? ""; await ResolveSong(); break;
                 case "save-chart": await Save(root.GetProperty("text").GetString() ?? "", root.GetProperty("filename").GetString() ?? "chart.2d"); break;
+                case "native-test": await Eval("startTestPlay(false);"); break;
+                case "native-video": Alert("MP4書き出しはPC版エディタで行ってください。iOS版ではエディタ内のテストプレイを利用できます。"); break;
                 case "load-se": await SendAudio(Path.Combine(NSBundle.MainBundle.BundlePath, "SE.wav"), "SE.wav", true); break;
                 case "audio-error": await Status("音源を読み込めません。音源を選び直してください。"); break;
                 case "finish": await Status("ホーム画面に戻るには、端末のホーム操作を使用してください。"); break;
