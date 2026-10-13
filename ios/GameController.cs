@@ -60,7 +60,7 @@ internal sealed partial class GameController : UIViewController
         stage.Settings = settings; stage.UserName = profile.UserName; stage.Rating = rating;
         stage.ImportRequested = Import; stage.StartRequested = (s,d) => { RestoreReplay();activeDan=null;practice=false; Start(s,d); };
         stage.BackRequested = EndPlay; stage.ResumeRequested = Resume;stage.RetryRequested=RetryPlay;
-        stage.SaveSettings = () => { settings.Save(SettingsPath); if(audio!=null)audio.Volume=settings.BgmVolume/100f; };
+        stage.SaveSettings = () => { settings.Save(SettingsPath); ApplyAudioBuffer(); if(audio!=null)audio.Volume=settings.BgmVolume/100f; };
         stage.NameRequested = ShowName;
         stage.SearchRequested=SearchSongs;
         stage.BeatRequested=BeatInput;
@@ -72,7 +72,7 @@ internal sealed partial class GameController : UIViewController
                 bool auto=settings.AutoPlay;
                 settings=IosSettings.Load(path);
                 if(stage.SettingsFromPause)settings.AutoPlay=auto;
-                stage.Settings=settings;settings.Save(SettingsPath);
+                stage.Settings=settings;settings.Save(SettingsPath);ApplyAudioBuffer();
                 if(audio!=null)audio.Volume=settings.BgmVolume/100f;
             }
         };
@@ -82,7 +82,9 @@ internal sealed partial class GameController : UIViewController
         menu = new UIView { BackgroundColor = UIColor.FromRGB(8, 15, 27) };
         View.AddSubview(menu);
         AVAudioSession.SharedInstance().SetCategory(AVAudioSession.CategoryPlayback, out _);
+        ApplyAudioBuffer();
         AVAudioSession.SharedInstance().SetActive(true, out _);
+        UpdateAudioBufferStatus();
         string? se = NSBundle.MainBundle.PathForResource("SE", "wav");
         if (se is not null)
             try { noteSound = new IosNoteSound(se); }

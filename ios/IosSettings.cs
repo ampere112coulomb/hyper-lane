@@ -6,6 +6,7 @@ internal sealed class IosSettings
 {
     public double NoteSpeed { get; set; } = 1.6;
     public int AudioOffsetMs { get; set; }
+    public int AudioBufferFrames { get; set; } = 512;
     public int BgmVolume { get; set; } = 80;
     public int SeVolume { get; set; } = 80;
     public bool AutoPlay { get; set; }
