@@ -317,8 +317,25 @@ internal sealed partial class GameController : UIViewController
         popup.AddSubview(new UILabel(new CGRect(20,20,w-40,50)){Text="ユーザーネームを設定してください。",TextColor=UIColor.White,Font=UIFont.SystemFontOfSize(24),TextAlignment=UITextAlignment.Center,AdjustsFontSizeToFitWidth=true});
         var hint=new UILabel(new CGRect(20,75,w-40,30)){Text="1～10文字",TextColor=UIColor.White,TextAlignment=UITextAlignment.Center};popup.AddSubview(hint);
         var input=new UITextField(new CGRect(30,118,w-60,65)){Text=profile.UserName,TextColor=UIColor.White,BackgroundColor=UIColor.FromRGBA(35,31,44,220),Font=UIFont.SystemFontOfSize(28),AutocorrectionType=UITextAutocorrectionType.No};input.Layer.BorderWidth=2;input.Layer.BorderColor=UIColor.Yellow.CGColor;popup.AddSubview(input);
-        var confirm=UIButton.FromType(UIButtonType.System);confirm.Frame=new CGRect(w/2-90,204,180,50);confirm.SetTitle("決定",UIControlState.Normal);confirm.SetTitleColor(UIColor.White,UIControlState.Normal);confirm.BackgroundColor=UIColor.FromRGB(46,24,65);popup.AddSubview(confirm);
-        confirm.TouchUpInside+=(_,_)=>{string name=(input.Text??"").Trim();if(!HyperLane.UserProfile.ValidName(name)){hint.Text="1～10文字で入力してください。";hint.TextColor=UIColor.Red;return;}profile.UserName=name;profile.Save(Path.Combine(documents,"profile.json"));stage.UserName=name;menu.EndEditing(true);menu.Hidden=true;stage.Page=MigrationStage.Screen.Title;};input.BecomeFirstResponder();
+        void FinishName(string name)
+        {
+            if(!HyperLane.UserProfile.ValidName(name)){hint.Text="1～10文字で入力してください。";hint.TextColor=UIColor.Red;return;}
+            profile.UserName=name;profile.Save(Path.Combine(documents,"profile.json"));stage.UserName=name;
+            input.ResignFirstResponder();View!.EndEditing(true);
+            ClearMenu();menu.Hidden=true;stage.Page=MigrationStage.Screen.Title;stage.SetNeedsDisplay();
+        }
+        var confirm=UIButton.FromType(UIButtonType.System);confirm.Frame=new CGRect(30,204,(w-75)/2,50);confirm.SetTitle("決定",UIControlState.Normal);confirm.SetTitleColor(UIColor.White,UIControlState.Normal);confirm.BackgroundColor=UIColor.FromRGB(46,24,65);popup.AddSubview(confirm);
+        var skip=UIButton.FromType(UIButtonType.System);skip.Frame=new CGRect(45+(w-75)/2,204,(w-75)/2,50);skip.SetTitle("スキップ",UIControlState.Normal);skip.SetTitleColor(UIColor.White,UIControlState.Normal);skip.BackgroundColor=UIColor.FromRGB(35,31,44);popup.AddSubview(skip);
+        confirm.TouchUpInside+=(_,_)=>FinishName((input.Text??"").Trim());
+        skip.TouchUpInside+=(_,_)=>FinishName("GUEST");
+        input.ReturnKeyType=UIReturnKeyType.Done;
+        input.ShouldReturn=_=>{FinishName((input.Text??"").Trim());return true;};
+        // Keep actions reachable even when the landscape keyboard covers the popup.
+        var keyboardActions=new UIView(new CGRect(0,0,View!.Bounds.Width,48)){BackgroundColor=UIColor.FromRGB(20,16,30)};
+        var keyboardSkip=UIButton.FromType(UIButtonType.System);keyboardSkip.Frame=new CGRect(12,0,140,48);keyboardSkip.SetTitle("スキップ",UIControlState.Normal);keyboardSkip.SetTitleColor(UIColor.White,UIControlState.Normal);keyboardSkip.TouchUpInside+=(_,_)=>FinishName("GUEST");keyboardActions.AddSubview(keyboardSkip);
+        var keyboardDone=UIButton.FromType(UIButtonType.System);keyboardDone.Frame=new CGRect(View.Bounds.Width-152,0,140,48);keyboardDone.SetTitle("決定",UIControlState.Normal);keyboardDone.SetTitleColor(UIColor.White,UIControlState.Normal);keyboardDone.TouchUpInside+=(_,_)=>FinishName((input.Text??"").Trim());keyboardActions.AddSubview(keyboardDone);
+        input.InputAccessoryView=keyboardActions;
+        // Open the keyboard only after tapping the field, so skipping needs no typing.
     }
     private void ShowPause()
     {
