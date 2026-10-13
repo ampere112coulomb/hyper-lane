@@ -10,6 +10,8 @@ namespace HyperLane.Editor.iOS;
 public sealed class EditorController : UIViewController, IWKScriptMessageHandler
 {
     WKWebView web = null!;
+    DialogDelegate dialogs = null!;
+    NavigationDelegate navigation = null!;
     readonly List<NSUrl> grants = [];
     UIDocumentPickerViewController? picker;
     UIDocumentPickerDelegate? pickerDelegate;
@@ -26,10 +28,11 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
         AVAudioSession.SharedInstance().SetActive(true, out _);
         var configuration = new WKWebViewConfiguration { AllowsInlineMediaPlayback = true, MediaTypesRequiringUserActionForPlayback = WKAudiovisualMediaTypes.None };
         configuration.UserContentController.AddScriptMessageHandler(this, "editor");
-        web = new WKWebView(View!.Bounds, configuration) { AutoresizingMask = UIViewAutoresizing.FlexibleWidth | UIViewAutoresizing.FlexibleHeight, UIDelegate = new DialogDelegate(this), NavigationDelegate = new NavigationDelegate(this) };
+        dialogs = new DialogDelegate(this); navigation = new NavigationDelegate(this);
+        web = new WKWebView(View!.Bounds, configuration) { AutoresizingMask = UIViewAutoresizing.FlexibleWidth | UIViewAutoresizing.FlexibleHeight, UIDelegate = dialogs, NavigationDelegate = navigation };
         web.ScrollView.ScrollEnabled = false; web.ScrollView.Bounces = false;
         View.AddSubview(web);
-        string root = Path.Combine(NSBundle.MainBundle.BundlePath, "editor");
+        string root = NSBundle.MainBundle.BundlePath;
         string html = File.ReadAllText(Path.Combine(root, "editor.html"))
             .Replace("const LANE_WIDTH = 50;", "let LANE_WIDTH = 50;")
             .Replace("function saveEditorBackupNow() {", "function saveEditorBackupNow() { return;")
@@ -55,7 +58,8 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
         return completion.Task;
     }
     public void Pause() => _ = Eval("if(testPlay.active)exitTestPlay();if(isPlaying)togglePlayback();");
-    async Task Status(string text) => await Eval($"mobileStatus({JsonSerializer.Serialize(text)});");
+    static string J(string value) => "\"" + JsonEncodedText.Encode(value).ToString() + "\"";
+    async Task Status(string text) => await Eval($"mobileStatus({J(text)});");
     void Alert(string message)
     {
         var alert = UIAlertController.Create("Hyper Lane Editor", message, UIAlertControllerStyle.Alert);
@@ -72,7 +76,7 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
                 case "open-audio": Pick("audio"); break;
                 case "resolve-song": requestedSong = root.GetProperty("name").GetString() ?? ""; await ResolveSong(); break;
                 case "save-chart": await Save(root.GetProperty("text").GetString() ?? "", root.GetProperty("filename").GetString() ?? "chart.2d"); break;
-                case "load-se": await SendAudio(Path.Combine(NSBundle.MainBundle.BundlePath, "editor", "SE.wav"), "SE.wav", true); break;
+                case "load-se": await SendAudio(Path.Combine(NSBundle.MainBundle.BundlePath, "SE.wav"), "SE.wav", true); break;
                 case "audio-error": await Status("音源を読み込めません。音源を選び直してください。"); break;
                 case "finish": await Status("ホーム画面に戻るには、端末のホーム操作を使用してください。"); break;
                 case "qa-report":
@@ -107,7 +111,7 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
                 if (!Path.GetExtension(path).Equals(".2d", StringComparison.OrdinalIgnoreCase)) throw new IOException("chart.2dなどの.2d譜面を選択してください。");
                 if (new FileInfo(path).Length > 16_777_216) throw new IOException("譜面が大きすぎます。");
                 string text = await File.ReadAllTextAsync(path); owner.chartPath = path; owner.audioGeneration++;
-                await owner.Eval($"audioBuffer=null;waveformData=[];document.getElementById('meta-song').value='';importChartText({JsonSerializer.Serialize(text)},{JsonSerializer.Serialize(Path.GetFileName(path))});mobileStatus('譜面を読み込みました');AndroidEditor.postMessage(JSON.stringify({{type:'resolve-song',name:document.getElementById('meta-song').value}}));");
+                await owner.Eval($"audioBuffer=null;waveformData=[];document.getElementById('meta-song').value='';importChartText({J(text)},{J(Path.GetFileName(path))});mobileStatus('譜面を読み込みました');AndroidEditor.postMessage(JSON.stringify({{type:'resolve-song',name:document.getElementById('meta-song').value}}));");
             }
             catch (Exception e) { owner.Alert(e.Message); }
         }
@@ -137,15 +141,15 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
         string ready = Path.GetExtension(path).Equals(".ogg", StringComparison.OrdinalIgnoreCase)
             ? await HyperLane.iOS.IosAudioConverter.ToM4aAsync(path, Path.Combine(cache, "audio")) : path;
         if (generation != audioGeneration) return;
-        if (manual) await Eval($"document.getElementById('meta-song').value={JsonSerializer.Serialize(Path.GetFileName(path))};markEditorDirty();");
+        if (manual) await Eval($"document.getElementById('meta-song').value={J(Path.GetFileName(path))};markEditorDirty();");
         await SendAudio(ready, Path.GetFileName(path), false);
     }
     async Task SendAudio(string path, string name, bool se)
     {
-        await Eval(se ? "beginNativeSE();" : $"beginNativeAudio({JsonSerializer.Serialize(name)});");
+        await Eval(se ? "beginNativeSE();" : $"beginNativeAudio({J(name)});");
         using var file = File.OpenRead(path); byte[] buffer = new byte[48 * 1024]; int count;
         while ((count = await file.ReadAsync(buffer)) > 0)
-            await Eval($"{(se ? "appendNativeSEChunk" : "appendNativeAudioChunk")}({JsonSerializer.Serialize(Convert.ToBase64String(buffer, 0, count))});");
+            await Eval($"{(se ? "appendNativeSEChunk" : "appendNativeAudioChunk")}({J(Convert.ToBase64String(buffer, 0, count))});");
         await Eval(se ? "void finishNativeSE();" : "void finishNativeAudio();");
     }
     async Task Save(string text, string name)
@@ -175,7 +179,7 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
     async void Ready()
     {
         if (Environment.GetEnvironmentVariable("HL_EDITOR_QA") is not { Length: > 0 } phase) return;
-        try { await Task.Delay(1000); await Eval($"void iosEditorQa({JsonSerializer.Serialize(phase)});"); }
+        try { await Task.Delay(1000); await Eval($"void iosEditorQa({J(phase)});"); }
         catch (Exception e) { Console.Error.WriteLine("Editor QA: " + e); }
     }
     sealed class NavigationDelegate(EditorController owner) : WKNavigationDelegate
