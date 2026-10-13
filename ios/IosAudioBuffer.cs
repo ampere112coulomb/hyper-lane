@@ -5,15 +5,19 @@ namespace HyperLane.iOS;
 internal sealed partial class GameController
 {
     private int appliedBufferFrames = -1;
+    private double appliedBufferRate;
     private void ApplyAudioBuffer()
     {
         settings.AudioBufferFrames = Math.Clamp(settings.AudioBufferFrames, 64, 4096);
         var audioSession = AVAudioSession.SharedInstance();
-        if (appliedBufferFrames != settings.AudioBufferFrames)
+        double rate = audioSession.SampleRate > 0 ? audioSession.SampleRate : 48000;
+        if (appliedBufferFrames != settings.AudioBufferFrames || appliedBufferRate != rate)
         {
-            double rate = audioSession.SampleRate > 0 ? audioSession.SampleRate : 48000;
             if (audioSession.SetPreferredIOBufferDuration(settings.AudioBufferFrames / rate, out var error))
+            {
                 appliedBufferFrames = settings.AudioBufferFrames;
+                appliedBufferRate = rate;
+            }
             else
                 Console.Error.WriteLine("HL buffer request failed: " + error?.LocalizedDescription);
         }

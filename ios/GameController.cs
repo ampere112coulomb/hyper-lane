@@ -84,7 +84,7 @@ internal sealed partial class GameController : UIViewController
         AVAudioSession.SharedInstance().SetCategory(AVAudioSession.CategoryPlayback, out _);
         ApplyAudioBuffer();
         AVAudioSession.SharedInstance().SetActive(true, out _);
-        UpdateAudioBufferStatus();
+        ApplyAudioBuffer();
         string? se = NSBundle.MainBundle.PathForResource("SE", "wav");
         if (se is not null)
             try { noteSound = new IosNoteSound(se); }
