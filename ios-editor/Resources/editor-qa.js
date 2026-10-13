@@ -25,6 +25,8 @@ async function iosEditorQa(phase){
     check(Math.abs(results.INVERT[0]-55)<3,'inversion pixel');
     check(Math.abs(results.MONO[0]-results.MONO[1])<3,'monochrome pixel');
     changeEvents=[{type:'FILTER',beat:0,val:'BRIGHTNESS,100,4,RAMP,BACKGROUND'}];
+    layerData(currentDifficulty,currentLayer).notes=notes;
+    layerData(currentDifficulty,currentLayer).changeEvents=changeEvents;
     const events=mobileFilterEvents();check(mobileFilterAt(events,1).strength===25,'filter ramp');
     check(mobileFilterAt(events,1).background,'background-only targeting');
     const send=AndroidEditor.postMessage;let saved;
@@ -42,6 +44,7 @@ async function iosEditorQa(phase){
       check(mobileMenuItems.filter(i=>!i.button.hidden).every(i=>i.testOnly),'test-only menu');
       changeEvents=[{type:'FILTER',beat:0,val:'MONO,75,20,INSTANT,ALL'}];testPlay.filterEvents=mobileFilterEvents();
     }else if(phase==='filter'){
+      document.getElementById('dialog-type').value='FILTER';
       openGimmickDialog(1);
     }
     await new Promise(resolve=>setTimeout(resolve,500));
