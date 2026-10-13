@@ -1,0 +1,10 @@
+OGG fallback bundle: @wasm-audio-decoders/ogg-vorbis 0.1.20.
+Copyright 2021-2025 Ethan Halsall. Original code is MIT licensed.
+https://github.com/eshaz/wasm-audio-decoders/tree/6fe55b9a29543d0a5a2d896338c39199a81d9a58
+
+The unmodified distributable contains these third-party components:
+- codec-parser 2.5.0, LGPL-3.0-or-later. Complete package source and LICENSE are supplied in source/codec-parser-2.5.0.tgz.
+- libogg and libvorbis, BSD-style; see ogg-LICENSE.txt and vorbis-LICENSE.txt.
+- puff (zlib), license and source in puff-source.c.
+
+Original decoder package and common package source, and the exact upstream source archive including build scripts, are supplied under source/. Source submodule versions can be inspected in the exact source commit above. Rebuild instructions are in its README and Makefile. This bundle has not been modified. You may replace/rebuild the decoder bundle; the game does not require integrity signatures or restrict replacement.

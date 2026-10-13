@@ -1,5 +1,5 @@
 const cacheName='hyperlane-web-port-v3';
-const shell=['./','index.html','style.css','layout.css','transitions.css','app.mjs','core.mjs','motion.mjs','effects.mjs','gpu.mjs','audio.mjs','dan.mjs','library.mjs','settings.mjs','practice.mjs','vendor/fflate.mjs','manifest.webmanifest','assets/atlas.png','assets/skin.json','assets/SE.wav','assets/FusumaSkin.png','assets/rank_box.png','../hyper-lane-background.png','../hyper-lane-logo.png','../hyper-lane-icon.png'];
+const shell=['./','index.html','style.css','layout.css','transitions.css','app.mjs','core.mjs','motion.mjs','effects.mjs','gpu.mjs','audio.mjs','decoder.mjs','vendor/ogg-vorbis-decoder.min.js','dan.mjs','library.mjs','settings.mjs','practice.mjs','vendor/fflate.mjs','manifest.webmanifest','assets/atlas.png','assets/skin.json','assets/SE.wav','assets/FusumaSkin.png','assets/rank_box.png','../hyper-lane-background.png','../hyper-lane-logo.png','../hyper-lane-icon.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(cacheName).then(c=>c.addAll(shell))));
 // Activate on the next launch, never replace running game code midway through play.
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('hyperlane-web-port-')&&k!==cacheName).map(k=>caches.delete(k))))));
