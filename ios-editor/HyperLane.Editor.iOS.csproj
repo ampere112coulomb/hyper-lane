@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-ios</TargetFramework><OutputType>Exe</OutputType>
+    <AssemblyName>HyperLane.Editor.iOS</AssemblyName><RootNamespace>HyperLane.Editor.iOS</RootNamespace>
+    <ApplicationId>com.ampere112coulomb.hyperlane.editor.ios</ApplicationId>
+    <ApplicationTitle>Hyper Lane Editor</ApplicationTitle><ApplicationDisplayVersion>0.1.0</ApplicationDisplayVersion><ApplicationVersion>1</ApplicationVersion>
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NVorbis" Version="0.10.5" />
+    <Compile Include="../ios/IosAudioConverter.cs" Link="IosAudioConverter.cs" />
+    <Compile Include="../ios/VorbisWave.cs" Link="VorbisWave.cs" />
+    <BundleResource Include="Resources/*" LogicalName="editor/%(Filename)%(Extension)" />
+    <BundleResource Include="../ios/NVorbis-LICENSE.txt" LogicalName="licenses/NVorbis-LICENSE.txt" />
+    <ImageAsset Include="Assets.xcassets/AppIcon.appiconset/*" />
+  </ItemGroup>
+</Project>

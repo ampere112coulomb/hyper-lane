@@ -1,0 +1,51 @@
+name: Build iOS editor
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ios-editor
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 40
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.0.1.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.100'
+      - run: dotnet workload install ios --version 10.0.100
+      - name: Prepare editor icon
+        run: sips -z 1024 1024 ios-editor/Resources/editor-icon.png --out ios-editor/Assets.xcassets/AppIcon.appiconset/icon-1024.png
+      - name: Build unsigned device editor
+        run: >-
+          dotnet build ios-editor/HyperLane.Editor.iOS.csproj -c Release -r ios-arm64
+          -p:EnableCodeSigning=false -p:CodesignRequireProvisioningProfile=false -p:BuildIpa=false
+          -p:RestoreConfigFile=${{ github.workspace }}/ios/NuGet.Config -bl:ios-editor.binlog
+      - name: Package IPA for local signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          app=$(find ios-editor/bin/Release/net10.0-ios/ios-arm64 -maxdepth 1 -name '*.app' -type d -print -quit)
+          test -n "$app"
+          mkdir -p editor-preview/Payload
+          cp -R "$app" editor-preview/Payload/
+          cd editor-preview
+          ditto -c -k --sequesterRsrc --keepParent Payload HyperLane-Editor-iOS-unsigned.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HyperLane-Editor-iOS-unsigned
+          path: editor-preview/HyperLane-Editor-iOS-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
+      - name: Save diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iOS-editor-build-diagnostics
+          path: ios-editor.binlog
+          if-no-files-found: ignore
+          retention-days: 7
