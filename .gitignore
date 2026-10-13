@@ -1,0 +1,4 @@
+.local-build/
+ios-editor/bin/
+ios-editor/obj/
+ios-editor/Assets.xcassets/AppIcon.appiconset/icon-1024.png

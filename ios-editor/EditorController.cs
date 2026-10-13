@@ -12,7 +12,7 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
     WKWebView web = null!;
     readonly List<NSUrl> grants = [];
     UIDocumentPickerViewController? picker;
-    PickerDelegate? pickerDelegate;
+    UIDocumentPickerDelegate? pickerDelegate;
     string chartPath = "", folderPath = "", requestedSong = "";
     int audioGeneration;
     readonly string cache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EditorCache");
@@ -22,11 +22,11 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
     {
         base.ViewDidLoad();
         Directory.CreateDirectory(cache);
-        AVAudioSession.SharedInstance().SetCategory(AVAudioSessionCategory.Playback, out _);
+        AVAudioSession.SharedInstance().SetCategory(AVAudioSession.CategoryPlayback, out _);
         AVAudioSession.SharedInstance().SetActive(true, out _);
         var configuration = new WKWebViewConfiguration { AllowsInlineMediaPlayback = true, MediaTypesRequiringUserActionForPlayback = WKAudiovisualMediaTypes.None };
         configuration.UserContentController.AddScriptMessageHandler(this, "editor");
-        web = new WKWebView(View!.Bounds, configuration) { AutoresizingMask = UIViewAutoresizing.FlexibleWidth | UIViewAutoresizing.FlexibleHeight, UIDelegate = new DialogDelegate(this), NavigationDelegate = new NavigationDelegate() };
+        web = new WKWebView(View!.Bounds, configuration) { AutoresizingMask = UIViewAutoresizing.FlexibleWidth | UIViewAutoresizing.FlexibleHeight, UIDelegate = new DialogDelegate(this), NavigationDelegate = new NavigationDelegate(this) };
         web.ScrollView.ScrollEnabled = false; web.ScrollView.Bounces = false;
         View.AddSubview(web);
         string root = Path.Combine(NSBundle.MainBundle.BundlePath, "editor");
@@ -41,10 +41,10 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
             .Replace("((audioCtx?.currentTime||testPlay.clockAt) - testPlay.clockAt)", "((audioCtx ? mobileOutputTime(audioCtx) : testPlay.clockAt) - testPlay.clockAt)")
             .Replace("<head>", "<head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover\"><script src=\"ios-editor.js\"></script>")
             .Replace("</head>", "<link rel=\"stylesheet\" href=\"mobile-editor.css\"></head>")
-            .Replace("</body>", "<script src=\"mobile-editor.js\"></script></body>");
+            .Replace("</body>", "<script src=\"mobile-editor.js\"></script><script src=\"editor-qa.js\"></script></body>");
         // Stable file origin retains editor preferences between launches.
         string www = Path.Combine(cache, "www"); Directory.CreateDirectory(www);
-        foreach (string asset in new[] { "ios-editor.js", "mobile-editor.js", "mobile-editor.css" }) File.Copy(Path.Combine(root, asset), Path.Combine(www, asset), true);
+        foreach (string asset in new[] { "ios-editor.js", "mobile-editor.js", "mobile-editor.css", "editor-qa.js" }) File.Copy(Path.Combine(root, asset), Path.Combine(www, asset), true);
         File.WriteAllText(Path.Combine(www, "editor.html"), html);
         web.LoadFileUrl(NSUrl.FromFilename(Path.Combine(www, "editor.html")), NSUrl.FromFilename(www));
     }
@@ -75,6 +75,14 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
                 case "load-se": await SendAudio(Path.Combine(NSBundle.MainBundle.BundlePath, "editor", "SE.wav"), "SE.wav", true); break;
                 case "audio-error": await Status("音源を読み込めません。音源を選び直してください。"); break;
                 case "finish": await Status("ホーム画面に戻るには、端末のホーム操作を使用してください。"); break;
+                case "qa-report":
+                    if (Environment.GetEnvironmentVariable("HL_EDITOR_QA") is { Length: > 0 } phase)
+                    {
+                        string qa = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "editor-qa"); Directory.CreateDirectory(qa);
+                        await File.WriteAllTextAsync(Path.Combine(qa, phase + ".json"), root.GetProperty("report").GetRawText());
+                        await File.WriteAllTextAsync(Path.Combine(qa, phase + ".ready"), "ready");
+                    }
+                    break;
             }
         }
         catch (Exception e) { Alert(e.Message); }
@@ -164,8 +172,15 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
             await owner.Eval("markEditorSaved();mobileStatus('保存しました');");
         }
     }
-    sealed class NavigationDelegate : WKNavigationDelegate
+    async void Ready()
     {
+        if (Environment.GetEnvironmentVariable("HL_EDITOR_QA") is not { Length: > 0 } phase) return;
+        try { await Task.Delay(1000); await Eval($"void iosEditorQa({JsonSerializer.Serialize(phase)});"); }
+        catch (Exception e) { Console.Error.WriteLine("Editor QA: " + e); }
+    }
+    sealed class NavigationDelegate(EditorController owner) : WKNavigationDelegate
+    {
+        public override void DidFinishNavigation(WKWebView view, WKNavigation navigation) => owner.Ready();
         public override void DecidePolicy(WKWebView view, WKNavigationAction action, Action<WKNavigationActionPolicy> decision) => decision(action.Request.Url?.IsFileUrl == true ? WKNavigationActionPolicy.Allow : WKNavigationActionPolicy.Cancel);
     }
     sealed class DialogDelegate(EditorController owner) : WKUIDelegate

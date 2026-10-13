@@ -49,3 +49,50 @@ jobs:
           path: ios-editor.binlog
           if-no-files-found: ignore
           retention-days: 7
+      - name: Build simulator editor
+        run: >-
+          dotnet build ios-editor/HyperLane.Editor.iOS.csproj -c Release -r iossimulator-arm64
+          -p:EnableCodeSigning=false -p:CodesignRequireProvisioningProfile=false -p:BuildIpa=false
+          -p:RestoreConfigFile=${{ github.workspace }}/ios/NuGet.Config
+      - name: Verify native iPad WebKit editor
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p editor-visual-check
+          udid=$(xcrun simctl list devices available -j | python3 -c 'import sys,json; d=json.load(sys.stdin); print(next(x["udid"] for a in d["devices"].values() for x in a if "iPad Pro" in x["name"]))')
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          app=$(find ios-editor/bin/Release/net10.0-ios/iossimulator-arm64 -maxdepth 1 -name '*.app' -type d -print -quit)
+          executable="$app/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Info.plist")"
+          find "$app" -type f -print0 > editor-visual-check/binaries.list
+          while IFS= read -r -d '' binary; do
+            if file -b "$binary" | grep -q 'Mach-O'; then
+              cp "$binary" "$binary.signing-copy"
+              mv "$binary.signing-copy" "$binary"
+              if [ "$binary" != "$executable" ]; then codesign --force --sign - --timestamp=none "$binary"; fi
+            fi
+          done < editor-visual-check/binaries.list
+          codesign --force --sign - --timestamp=none "$app"
+          xcrun simctl install "$udid" "$app"
+          for phase in editing filter test; do
+            SIMCTL_CHILD_HL_EDITOR_QA="$phase" xcrun simctl launch --console "$udid" com.ampere112coulomb.hyperlane.editor.ios > "editor-visual-check/$phase.log" 2>&1 &
+            container=$(xcrun simctl get_app_container "$udid" com.ampere112coulomb.hyperlane.editor.ios data)
+            marker="$container/Documents/editor-qa/$phase.ready"
+            for attempt in $(seq 1 30); do
+              sleep 2
+              if [ -f "$marker" ]; then break; fi
+            done
+            xcrun simctl io "$udid" screenshot "editor-visual-check/$phase.png"
+            test -f "$marker"
+            cp "$container/Documents/editor-qa/$phase.json" "editor-visual-check/$phase.json"
+            python3 -c 'import sys,json; d=json.load(open(sys.argv[1])); print(d); assert d["pass"]' "editor-visual-check/$phase.json"
+            xcrun simctl terminate "$udid" com.ampere112coulomb.hyperlane.editor.ios || true
+          done
+      - name: Save iPad checks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iOS-editor-visual-check
+          path: editor-visual-check/
+          if-no-files-found: ignore
+          retention-days: 7

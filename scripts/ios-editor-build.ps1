@@ -1,0 +1,38 @@
+param([ValidateSet('start','status','download')][string]$Action='status',[long]$RunId=0)
+$ErrorActionPreference='Stop'
+$credential="protocol=https`nhost=github.com`nusername=ampere112coulomb`n`n" | git -c credential.interactive=never credential fill 2>$null
+$passwordLine=@($credential | Where-Object { $_ -like 'password=*' })
+if(!$passwordLine.Count){throw 'GitHub credential unavailable'}
+$headers=@{Authorization='Bearer '+$passwordLine[0].Substring(9);Accept='application/vnd.github+json';'User-Agent'='HyperLane-iOS-editor'}
+$base='https://api.github.com/repos/ampere112coulomb/hyper-lane'
+if($Action -eq 'start'){
+ Invoke-RestMethod -Method Post "$base/actions/workflows/build-ios-editor.yml/dispatches" -Headers $headers -ContentType 'application/json' -Body '{"ref":"main"}' | Out-Null
+ Write-Output 'Dispatched iOS editor build';exit
+}
+if(!$RunId){$runs=Invoke-RestMethod "$base/actions/workflows/build-ios-editor.yml/runs?per_page=3" -Headers $headers;$RunId=$runs.workflow_runs[0].id}
+$run=Invoke-RestMethod "$base/actions/runs/$RunId" -Headers $headers
+Write-Output "Run $RunId $($run.status) $($run.conclusion) $($run.head_sha)"
+if($Action -eq 'status'){
+ $jobs=Invoke-RestMethod "$base/actions/runs/$RunId/jobs" -Headers $headers
+ $jobs.jobs | ForEach-Object {$_.steps | Select-Object name,status,conclusion} | Format-Table -AutoSize
+ if($run.conclusion -eq 'failure'){
+  $zip=Join-Path $PSScriptRoot "../.local-build/run-$RunId-logs.zip"
+  New-Item -ItemType Directory -Force (Split-Path $zip) | Out-Null
+  Invoke-WebRequest "$base/actions/runs/$RunId/logs" -Headers $headers -OutFile $zip
+  $out=Join-Path $PSScriptRoot "../.local-build/run-$RunId-logs"
+  Expand-Archive $zip $out -Force
+  Get-ChildItem $out -Recurse -Filter '*.txt' | Select-String 'error CS|error :|Build FAILED' | ForEach-Object {$_.Line}
+ }
+}
+if($Action -eq 'download'){
+ if($run.conclusion -ne 'success'){throw 'Build not successful'}
+ $artifacts=Invoke-RestMethod "$base/actions/runs/$RunId/artifacts" -Headers $headers
+ $artifact=$artifacts.artifacts | Where-Object name -eq 'HyperLane-Editor-iOS-unsigned'
+ if(!$artifact){throw 'IPA artifact not found'}
+ $out=Join-Path $PSScriptRoot '../.local-build/ipa'
+ New-Item -ItemType Directory -Force $out | Out-Null
+ $zip=Join-Path $out 'editor-artifact.zip'
+ Invoke-WebRequest $artifact.archive_download_url -Headers $headers -OutFile $zip
+ Expand-Archive $zip $out -Force
+ Get-ChildItem $out -Filter '*.ipa' | Select-Object FullName,Length
+}
