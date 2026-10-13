@@ -23,6 +23,7 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
     public override void ViewDidLoad()
     {
         base.ViewDidLoad();
+        Console.Error.WriteLine("HL Editor ViewDidLoad");
         Directory.CreateDirectory(cache);
         AVAudioSession.SharedInstance().SetCategory(AVAudioSession.CategoryPlayback, out _);
         AVAudioSession.SharedInstance().SetActive(true, out _);
@@ -32,6 +33,7 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
         web = new WKWebView(View!.Bounds, configuration) { AutoresizingMask = UIViewAutoresizing.FlexibleWidth | UIViewAutoresizing.FlexibleHeight, UIDelegate = dialogs, NavigationDelegate = navigation };
         web.ScrollView.ScrollEnabled = false; web.ScrollView.Bounces = false;
         View.AddSubview(web);
+        Console.Error.WriteLine("HL Editor WebKit created");
         string root = NSBundle.MainBundle.BundlePath;
         string html = File.ReadAllText(Path.Combine(root, "editor.html"))
             .Replace("const LANE_WIDTH = 50;", "let LANE_WIDTH = 50;")
@@ -50,6 +52,7 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
         foreach (string asset in new[] { "ios-editor.js", "mobile-editor.js", "mobile-editor.css", "editor-qa.js" }) File.Copy(Path.Combine(root, asset), Path.Combine(www, asset), true);
         File.WriteAllText(Path.Combine(www, "editor.html"), html);
         web.LoadFileUrl(NSUrl.FromFilename(Path.Combine(www, "editor.html")), NSUrl.FromFilename(www));
+        Console.Error.WriteLine("HL Editor local page requested");
     }
     Task Eval(string script)
     {
@@ -180,6 +183,7 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
     }
     async void Ready()
     {
+        Console.Error.WriteLine("HL Editor page loaded");
         if (Environment.GetEnvironmentVariable("HL_EDITOR_QA") is not { Length: > 0 } phase) return;
         try { await Task.Delay(1000); await Eval($"void iosEditorQa({J(phase)});"); }
         catch (Exception e) { Console.Error.WriteLine("Editor QA: " + e); }

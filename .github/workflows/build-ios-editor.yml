@@ -1,6 +1,11 @@
 name: Build iOS editor
 on:
   workflow_dispatch:
+    inputs:
+      visual_only:
+        description: Run simulator checks without rebuilding device IPA
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -21,11 +26,13 @@ jobs:
       - name: Prepare editor icon
         run: sips -z 1024 1024 ios-editor/Resources/editor-icon.png --out ios-editor/Assets.xcassets/AppIcon.appiconset/icon-1024.png
       - name: Build unsigned device editor
+        if: ${{ !inputs.visual_only }}
         run: >-
           dotnet build ios-editor/HyperLane.Editor.iOS.csproj -c Release -r ios-arm64
           -p:EnableCodeSigning=false -p:CodesignRequireProvisioningProfile=false -p:BuildIpa=false
           -p:RestoreConfigFile=${{ github.workspace }}/ios/NuGet.Config -bl:ios-editor.binlog
       - name: Package IPA for local signing
+        if: ${{ !inputs.visual_only }}
         shell: bash
         run: |
           set -euo pipefail
@@ -36,6 +43,7 @@ jobs:
           cd editor-preview
           ditto -c -k --sequesterRsrc --keepParent Payload HyperLane-Editor-iOS-unsigned.ipa
       - uses: actions/upload-artifact@v4
+        if: ${{ !inputs.visual_only }}
         with:
           name: HyperLane-Editor-iOS-unsigned
           path: editor-preview/HyperLane-Editor-iOS-unsigned.ipa
@@ -75,7 +83,7 @@ jobs:
           codesign --force --sign - --timestamp=none "$app"
           xcrun simctl install "$udid" "$app"
           for phase in editing filter test; do
-            SIMCTL_CHILD_HL_EDITOR_QA="$phase" xcrun simctl launch --console "$udid" com.ampere112coulomb.hyperlane.editor.ios > "editor-visual-check/$phase.log" 2>&1 &
+            SIMCTL_CHILD_HL_EDITOR_QA="$phase" xcrun simctl launch "$udid" com.ampere112coulomb.hyperlane.editor.ios > "editor-visual-check/$phase.log" 2>&1
             container=$(xcrun simctl get_app_container "$udid" com.ampere112coulomb.hyperlane.editor.ios data)
             marker="$container/Documents/editor-qa/$phase.ready"
             for attempt in $(seq 1 30); do
@@ -83,6 +91,8 @@ jobs:
               if [ -f "$marker" ]; then break; fi
             done
             xcrun simctl io "$udid" screenshot "editor-visual-check/$phase.png"
+            xcrun simctl spawn "$udid" log show --last 3m --style compact --predicate 'process CONTAINS[c] "HyperLane" OR eventMessage CONTAINS[c] "HL Editor" OR eventMessage CONTAINS[c] "signature"' > "editor-visual-check/$phase-system.log" 2>&1 || true
+            find "$HOME/Library/Logs/DiagnosticReports" -type f -iname '*hyperlane*' -exec cp {} editor-visual-check/ \; || true
             test -f "$marker"
             cp "$container/Documents/editor-qa/$phase.json" "editor-visual-check/$phase.json"
             python3 -c 'import sys,json; d=json.load(open(sys.argv[1])); print(d); assert d["pass"]' "editor-visual-check/$phase.json"
