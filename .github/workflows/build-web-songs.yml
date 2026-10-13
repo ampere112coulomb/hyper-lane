@@ -2,7 +2,7 @@ name: Publish Web song catalog
 on:
   push:
     branches: [main]
-    paths: ['song/**', 'scripts/build-web-catalog.mjs']
+    paths: ['song/**', 'Dan/**', 'docs/play/**', 'scripts/build-web-catalog.mjs', 'scripts/web-tests.mjs', '.github/workflows/build-web-songs.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -23,6 +23,7 @@ jobs:
         with:
           node-version: '24'
       - run: node scripts/web-tests.mjs
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: node scripts/build-web-catalog.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

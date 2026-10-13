@@ -1,27 +1,16 @@
-// Only expanded folders containing .2d charts are published. ZIP archives are ignored.
+// Publish only expanded, referenced song/course files already in this public repository.
 import {readdir,readFile,mkdir,writeFile,copyFile,lstat} from 'node:fs/promises';
-import path from 'node:path';
-import {fileURLToPath} from 'node:url';
-import {parseChart} from '../docs/play/core.mjs';
-const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const source=path.resolve(process.argv[2]||path.join(root,'song'));
-const output=path.resolve(process.argv[3]||path.join(root,'docs/play/song'));
-if(source===output||output.startsWith(source+path.sep))throw Error('Output must not be inside source');
-const files=[];
-async function walk(dir){for(const entry of await readdir(dir,{withFileTypes:true})){if(entry.name.startsWith('.'))continue;const full=path.join(dir,entry.name);if(entry.isSymbolicLink())throw Error('Song symlinks are not allowed');if(entry.isDirectory())await walk(full);else if(entry.isFile()&&entry.name.endsWith('.2d'))files.push(full);}}
-await walk(source);const songs=[],copied=new Set();
-async function copy(from,relative){if(copied.has(relative))return;const dest=path.join(output,relative);await mkdir(path.dirname(dest),{recursive:true});await copyFile(from,dest);copied.add(relative);}
-for(const file of files.sort()){const relative=path.relative(source,file),folder=path.dirname(file),chart=parseChart(await readFile(file,'utf8'));
-  if(!chart.difficulties.length)throw Error(`No difficulties: ${relative}`);
-  if(!chart.audio)throw Error(`No audio specified: ${relative}`);
-  await copy(file,relative);
-  for(const [kind,value] of [['audio',chart.audio],['jacket',chart.jacket],['background',chart.background],['video',chart.video]]){
-    if(!value)continue;if(path.isAbsolute(value)||value.includes('\\')||value.split('/').some(p=>p==='..'||p==='.')||/^[a-z]+:/i.test(value))throw Error(`Unsafe ${kind} path: ${relative}`);
-    const full=path.resolve(folder,value);if(!full.startsWith(folder+path.sep))throw Error(`Outside chart folder: ${relative}`);
-    // Reject symlinks in every component, not just the file itself.
-    let cursor=folder;for(const part of value.split('/')){cursor=path.join(cursor,part);try{if((await lstat(cursor)).isSymbolicLink())throw Error(`Symlink asset: ${relative}`);}catch(e){if(e.code==='ENOENT'&&kind!=='audio'){cursor=null;break;}throw e;}}
-    if(cursor)await copy(full,path.relative(source,full));
-  }
-  const encoded=relative.split(path.sep).map(encodeURIComponent).join('/');songs.push({id:relative.split(path.sep).join('/'),chart:`song/${encoded}`,title:chart.title,composer:chart.composer,difficulties:chart.difficulties.map(d=>({name:d.name,level:d.level,lanes:d.lanes}))});
-}
-await mkdir(output,{recursive:true});await writeFile(path.join(output,'index.json'),JSON.stringify({version:1,songs},null,2)+'\n');console.log(`Generated ${songs.length} songs. Only referenced chart assets copied.`);
+import path from 'node:path';import {fileURLToPath} from 'node:url';import {createHash} from 'node:crypto';import {execFile} from 'node:child_process';import {promisify} from 'node:util';
+import {parseChart} from '../docs/play/core.mjs';import {parseDan} from '../docs/play/dan.mjs';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),source=path.resolve(process.argv[2]||path.join(root,'song')),output=path.resolve(process.argv[3]||path.join(root,'docs/play/song')),execute=promisify(execFile);
+const roots=[{path:source,prefix:'',danOnly:false}];if(!process.argv[2])roots.push({path:path.join(root,'Dan'),prefix:'Dan/',danOnly:true});
+for(const r of roots)if(r.path===output||output.startsWith(r.path+path.sep))throw Error('Output must not be inside source');
+const files=[],danFiles=[],copied=new Set();
+async function walk(dir,r){for(const e of await readdir(dir,{withFileTypes:true})){if(e.name.startsWith('.'))continue;const full=path.join(dir,e.name);if(e.isSymbolicLink())throw Error('Symlinks are not allowed');if(e.isDirectory())await walk(full,r);else if(e.isFile()&&e.name.endsWith('.2d'))files.push({file:full,root:r});else if(e.isFile()&&e.name.toLowerCase()==='dan.json')danFiles.push({file:full,root:r});}}
+for(const r of roots){try{const stat=await lstat(r.path);if(stat.isSymbolicLink())throw Error('Root symlink is not allowed');await walk(r.path,r);}catch(e){if(e.code!=='ENOENT')throw e;}}
+const relative=(file,r)=>r.prefix+path.relative(r.path,file).split(path.sep).join('/');
+async function copy(file,r){const rel=relative(file,r);if(rel.split('/').includes('..'))throw Error('Outside publish root');if(copied.has(rel))return;const dest=path.join(output,rel);await mkdir(path.dirname(dest),{recursive:true});await copyFile(file,dest);copied.add(rel);}
+async function asset(folder,value,required){if(!value)return null;if(path.isAbsolute(value)||value.includes('\\')||value.split('/').some(p=>!p||p==='..'||p==='.')||/^[a-z]+:/i.test(value))throw Error('Unsafe asset path');const full=path.resolve(folder,value);if(!full.startsWith(folder+path.sep))throw Error('Outside chart folder');let cursor=folder;for(const p of value.split('/')){cursor=path.join(cursor,p);try{if((await lstat(cursor)).isSymbolicLink())throw Error('Symlink asset');}catch(e){if(e.code==='ENOENT'&&!required)return null;throw e;}}return full;}
+const songs=[];for(const {file,root:r} of files.sort((a,b)=>a.file.localeCompare(b.file))){const text=await readFile(file,'utf8'),chart=parseChart(text),folder=path.dirname(file),rel=relative(file,r);if(!chart.difficulties.length||!chart.audio)throw Error('Missing difficulty/audio: '+rel);await copy(file,r);for(const [kind,value] of [['audio',chart.audio],['jacket',chart.jacket],['background',chart.background],['video',chart.video]]){const full=await asset(folder,value,kind==='audio');if(full)await copy(full,r);}let webAudio=null;if(/\.ogg$/i.test(chart.audio)){webAudio=chart.audio+'.web.m4a';const dest=path.join(output,relative(path.join(folder,webAudio),r));await mkdir(path.dirname(dest),{recursive:true});await execute('ffmpeg',['-nostdin','-y','-i',path.resolve(folder,chart.audio),'-vn','-c:a','aac','-b:a','192k','-movflags','+faststart',dest]);}songs.push({id:rel,hash:createHash('sha256').update(text).digest('hex'),chart:'song/'+rel.split('/').map(encodeURIComponent).join('/'),webAudio,danOnly:r.danOnly,title:chart.title,composer:chart.composer,difficulties:chart.difficulties.map(d=>({name:d.name,level:d.level,lanes:d.lanes}))});}
+const courses=[];for(const {file,root:r} of danFiles){const definition=parseDan(JSON.parse(await readFile(file,'utf8'))),rel=relative(file,r);for(const spec of definition.tracks){const full=await asset(path.dirname(file),spec.chart,true),record=files.find(f=>f.file===full);if(!record)throw Error('Invalid Dan chart: '+spec.chart);const d=parseChart(await readFile(full,'utf8')).difficulties;if(!d.some(d=>d.name.toUpperCase().replace('CUSTOM','SPECIAL')===spec.difficulty.toUpperCase().replace('CUSTOM','SPECIAL')))throw Error('Dan difficulty missing: '+spec.difficulty);}await copy(file,r);courses.push({id:rel,title:definition.title,json:'song/'+rel.split('/').map(encodeURIComponent).join('/')});}
+await mkdir(output,{recursive:true});await writeFile(path.join(output,'index.json'),JSON.stringify({version:1,songs,courses},null,2)+'\n');console.log(`Generated ${songs.length} charts, ${courses.length} courses. ZIP files are not expanded.`);

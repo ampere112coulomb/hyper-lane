@@ -1,6 +1,6 @@
-// First-stage port of Android MobileChart / MobileTiming / MobileFilters / MobileSession.
+// Android-aligned chart parsing, timing, filters, judgement and persisted records.
 export const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-export function parseChart(text){
+function parseBaseChart(text){
   const c={title:'Untitled',composer:'',designer:'',audio:'',jacket:'',background:'',video:'',bpm:120,offset:0,lanes:6,difficulties:[]};let d=null,layer=1;
   const names={TITLE:'title',COMPOSER:'composer',CHARTER:'designer',CHARTDESIGNER:'designer',CHART_DESIGNER:'designer',SONG:'audio',AUDIO:'audio',JACKET:'jacket',COVER:'jacket',BACKGROUND:'background',BG:'background',MOVIE:'video',VIDEO:'video',MV:'video'};
   for(const raw of text.replace(/\r/g,'').split('\n')){
@@ -50,7 +50,7 @@ export const grade=ms=>{ms=Math.abs(ms);return ms<=40?0:ms<=60?1:ms<=100?2:ms<=1
 export class Session{
   constructor(d,auto=false){this.notes=d.notes.map(n=>({...n,done:false,started:false}));this.auto=auto;this.counts=[0,0,0,0,0];this.combo=0;this.maxCombo=0;this.gauge=0;this.units=Math.max(1,this.notes.reduce((a,n)=>a+(n.kind==='G'?0:n.kind==='L'?2:1),0));this.longs=new Map();this.last='';this.offsets=[];}
   get score(){return Math.round(this.counts.reduce((a,v,i)=>a+v*[1,.75,.5,.25,0][i],0)/this.units*1000000);}
-  judge(g,delta=0){this.counts[g]++;if(g<4)this.offsets.push(delta);this.last=['PERFECT','GREAT','GOOD','BAD','MISS'][g];if(g<=2){this.combo++;this.maxCombo=Math.max(this.maxCombo,this.combo);}else this.combo=0;this.gauge=clamp(this.gauge+400/3/this.units*[1,.5,.25,-2,-2][g],0,100);}
+  judge(g,delta=0){this.counts[g]++;if(g<4)this.offsets.push(delta);this.last=['PERFECT','GREAT','GOOD','BAD','MISS'][g];if(g<=2){this.combo++;this.maxCombo=Math.max(this.maxCombo,this.combo);}else this.combo=0;this.gauge=clamp(this.gauge+400/3/this.units*[1,.5,.25,-2,-2][g],0,100);this.onJudge?.(g,delta);}
   press(lane,t){if(this.auto)return;let closest=null,delta=Infinity;for(const n of this.notes){if(n.startSeconds>t+.12)break;if(n.done||n.started||lane<n.lane||lane>=n.lane+n.span||['D','G'].includes(n.kind))continue;const ms=(t-n.startSeconds)*1000;if(['H','W'].includes(n.kind)&&(ms<0||ms>60))continue;if(Math.abs(ms)<Math.abs(delta)){closest=n;delta=ms;}}const g=grade(delta);if(!closest||g<0)return;if(closest.kind==='L'){closest.started=true;this.longs.set(lane,closest);}else closest.done=true;this.judge(g,delta);}
   release(lane,t){if(this.auto)return;const n=this.longs.get(lane);if(!n)return;this.longs.delete(lane);n.done=true;const delta=(t-n.endSeconds)*1000,g=grade(delta);this.judge(g<0?4:g,delta);}
   advance(t,held){for(const n of this.notes){if(n.done||n.kind==='G')continue;if(n.startSeconds>t+.2)break;const ms=(t-n.startSeconds)*1000;
@@ -62,8 +62,37 @@ export class Session{
   }}
 }
 export class Profile{
-  constructor(storage=globalThis.localStorage){this.storage=storage;this.key='hyperlane.web.profile.v1';this.data={version:1,name:'',settings:{speed:3.5,volume:70,offset:0,auto:false},scores:{}};this.error='';try{const old=JSON.parse(storage.getItem(this.key)||'null');if(old?.version===1){this.data.name=typeof old.name==='string'?old.name.slice(0,10):'';this.data.settings={...this.data.settings,...old.settings};this.data.scores=old.scores&&typeof old.scores==='object'?old.scores:{};}}catch{this.error='保存データを読み込めません。';}}
+  constructor(storage){this.key='hyperlane.web.profile.v1';this.data={version:1,name:'',settings:{speed:1.6,volume:80,previewVolume:40,seVolume:80,offset:0,auto:false,autoSound:true,touchHeight:50,backgroundBrightness:100,previewBrightness:100,laneTransparency:0,laneCover:0,keyBeamOpacity:0,keyBeamLength:50,startMargin:1300,feverBrightness:100,preferVideo:true},scores:{},replays:{},danPassed:[],danRevealed:[],presets:[]};this.error='';try{this.storage=storage||globalThis.localStorage;const old=JSON.parse(this.storage.getItem(this.key)||'null');if(old?.version===1){this.data.name=typeof old.name==='string'?old.name.slice(0,10):'';this.data.settings={...this.data.settings,...old.settings};for(const key of ['scores','replays'])if(old[key]&&typeof old[key]==='object')this.data[key]=old[key];for(const key of ['danPassed','danRevealed','presets'])if(Array.isArray(old[key]))this.data[key]=old[key];}}catch{this.error='保存データを読み込めません。';}}
   save(){try{this.storage.setItem(this.key,JSON.stringify(this.data));return true;}catch{this.error='このブラウザでは保存できません。';return false;}}
-  record(id,diff,s){if(s.auto)return false;const key=JSON.stringify([id,diff]);const old=this.data.scores[key];if(!old||s.score>old.score){this.data.scores[key]={score:s.score,counts:[...s.counts],maxCombo:s.maxCombo,gauge:s.gauge,accuracy:s.score/10000,date:new Date().toISOString()};return this.save();}return false;}
+  record(id,diff,s,metadata={}){if(s.auto)return false;const key=JSON.stringify([id,diff]);const old=this.data.scores[key];if(!old||old.hash!==metadata.hash||s.score>old.score){this.data.scores[key]={...metadata,score:s.score,counts:[...s.counts],maxCombo:s.maxCombo,gauge:s.gauge,accuracy:s.score/10000,date:new Date().toISOString()};return this.save();}return false;}
 }
 export function assetURL(path,base){if(!path||path.startsWith('/')||path.includes('\\')||path.split('/').some(p=>p==='..'||p==='.')||/^[a-z]+:/i.test(path))throw Error('素材のパスが不正です');const url=new URL(path.split('/').map(encodeURIComponent).join('/'),base);if(url.origin!==new URL(base).origin||!url.pathname.startsWith(new URL(base).pathname))throw Error('素材の場所が不正です');return url.href;}
+export function parseChart(text){
+  const c=parseBaseChart(text),sig=text.match(/^TIMESIG:\s*(\d+)\/(\d+)/m),preview=text.match(/^PREVIEW:\s*([\d.]+)\s*-\s*([\d.]+)/m);c.measure=sig&&Number(sig[2])>0?Number(sig[1])*4/Number(sig[2]):4;c.signature=sig?sig[1]+'/'+sig[2]:'4/4';c.preview=preview?[Number(preview[1]),Number(preview[2])]:[0,16];
+  for(const d of c.difficulties){d.layers={};d.camera=[];d.lines=[];d.laneVisibility=[];d.uiVisibility=[];d.ns=[];d.sig=[];d.fever=[];d.unsupported=[];
+    const layerTiming=n=>n===1?d:(d.layers[n]??={bpm:[],bs:[],ns:[],sig:[]});
+    for(const e of d.events){const p=e.spec,k=e.kind,values=p.map(Number),target=layerTiming(e.layer),raw=p.join(',');
+      if(e.layer!==1&&k==='BPM'){if(values[0]>0)target.bpm.push({beat:e.beat,value:values[0]});continue;}
+      if(e.layer!==1&&k==='BS'){if(Number.isFinite(values[0]))target.bs.push({beat:e.beat,value:values[0]});continue;}
+      if(k==='NS'){target.ns.push({beat:e.beat,value:values[0],mode:values[1]||1,duration:values[2]||0});continue;}
+      if(k==='SIG'){const [a,b]=p[0].split('/').map(Number);if(a>0&&b>0)target.sig.push({beat:e.beat,value:a*4/b,label:p[0]});continue;}
+      if(e.layer!==1)continue;
+      if(['BPM','BS','FILTER','GLITCH'].includes(k))continue;
+      if(k==='LANE_VIS'||k==='UI_VIS'){(k==='LANE_VIS'?d.laneVisibility:d.uiVisibility).push({beat:e.beat,value:clamp(values[0]/100,0,1),duration:values[1]||0});continue;}
+      if(k==='JUDGE_LINE'){const positions=p[0].split(';').map(Number);if(positions.every(v=>Number.isFinite(v)&&v>=0&&v<=100)&&values[1]>=0&&['RAMP','INSTANT','EASE_IN','EASE_OUT'].includes(p[2]))d.lines.push({beat:e.beat,positions,duration:values[1],ramp:p[2]!=='INSTANT',motion:p[2]});else d.unsupported.push('不正な判定線');continue;}
+      if(k==='CAMERA'||k==='CAMERA_ADV'){const m=raw.match(k==='CAMERA'?/^\s*\(\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)\s*([123])(?:\s*,\s*([^,]+))?\s*$/:/^\s*\(\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)\s*,\s*\(\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)\s*([123])(?:\s*,\s*([^,]+))?\s*$/);if(m){const advanced=k==='CAMERA_ADV',a=m.slice(1).map(Number),pose=advanced?a.slice(0,6):[clamp(a[0],-4,4),clamp(a[1],.5,8),clamp(a[2],-20,-1),0,0,0];if(advanced){pose[0]=clamp(pose[0],-20,20);pose[1]=clamp(pose[1],-20,20);pose[2]=clamp(pose[2],-50,20);}d.camera.push({beat:e.beat,pose,mode:a[advanced?6:3],duration:clamp(Number.isFinite(a[advanced?7:4])?a[advanced?7:4]:1,0,32),advanced});}else d.unsupported.push('不正なカメラ');continue;}
+      d.unsupported.push(k);
+    }
+    // Fever belongs to the current difficulty, including events declared between layer blocks.
+    let active=false;for(const raw of text.split('\n')){const line=raw.split('//')[0].trim();if(line.startsWith('DIFFICULTY:'))active=line.slice(11).trim()===d.name;if(active&&line.startsWith('FEVER:')){const m=line.slice(6).trim().match(/^([\d.]+)\s*-\s*([\d.]+)$/);if(m&&Number(m[2])>Number(m[1]))d.fever.push({start:Number(m[1]),end:Number(m[2])});}}
+    for(const n of d.notes)layerTiming(n.layer);
+    for(const layer of Object.values(d.layers)){layer.bpm.sort((a,b)=>a.beat-b.beat);layer.bs.sort((a,b)=>a.beat-b.beat);layer.timing=new Timing(layer,c.bpm);}
+    for(const n of d.notes){const timing=n.layer===1?d.timing:d.layers[n.layer].timing;n.startSeconds=timing.seconds(n.beat);n.endSeconds=timing.seconds(n.end);n.scrollStart=timing.scroll(n.beat);n.scrollEnd=timing.scroll(n.end);}
+    d.notes.sort((a,b)=>a.startSeconds-b.startSeconds);d.unsupported=[...new Set(d.unsupported)];
+    d.measurePositions=[];let b=0,length=c.measure,index=0,last=Math.max(0,...d.notes.filter(n=>n.layer===1).map(n=>n.end))+64;
+    for(let count=0;count<100000&&b<=last;count++){while(index<d.sig.length&&d.sig[index].beat<=b+1e-9)length=d.sig[index++].value;d.measurePositions.push(d.timing.scroll(b));let next=b+length;if(index<d.sig.length&&d.sig[index].beat<next)next=d.sig[index].beat;if(next<=b)break;b=next;}
+  }return c;
+}
+export function rank(score){return score>=1000000?'Psi':score>=995000?'Ex+':score>=990000?'Ex':score>=950000?'SS':score>=900000?'S':score>=860000?'A':score>=820000?'B':score>=780000?'C':'';}
+export function chartRating(level,score){return clamp(Number(level)||0,0,30)*(clamp(score,0,1000000)/1000000)**3;}
+export const difficultyName=name=>!name||name.toLowerCase()==='custom'?'SPECIAL':name.toUpperCase();
