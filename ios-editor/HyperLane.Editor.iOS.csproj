@@ -3,7 +3,7 @@
     <TargetFramework>net10.0-ios</TargetFramework><OutputType>Exe</OutputType>
     <AssemblyName>HyperLane.Editor.iOS</AssemblyName><RootNamespace>HyperLane.Editor.iOS</RootNamespace>
     <ApplicationId>com.ampere112coulomb.hyperlane.editor.ios</ApplicationId>
-    <ApplicationTitle>Hyper Lane Editor</ApplicationTitle><ApplicationDisplayVersion>0.1.1</ApplicationDisplayVersion><ApplicationVersion>2</ApplicationVersion>
+    <ApplicationTitle>Hyper Lane Editor</ApplicationTitle><ApplicationDisplayVersion>0.1.2</ApplicationDisplayVersion><ApplicationVersion>3</ApplicationVersion>
     <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
