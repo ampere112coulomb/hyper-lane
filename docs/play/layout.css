@@ -2,3 +2,17 @@
 @font-face{font-family:Checkpoint;src:url('assets/fonts/Checkpoint.otf')}@font-face{font-family:Lanobe;src:url('assets/fonts/LanobePOP.otf')}#difficulties button,#songs .level{font-family:Checkpoint,Arial,sans-serif}#loading-info p:first-child{font-family:Lanobe,Arial,sans-serif}
 #dan-cards article{flex:0 0 31.8%;min-width:31.8%;padding:1.5%;font-size:.65em;height:100%}#dan-cards img{width:100%;height:30%;aspect-ratio:auto;object-fit:contain}#dan-cards article p{margin:.3em 0;line-height:1.15}#dan-cards canvas{height:20%;margin-top:1em}.meter{position:relative}.meter::after{content:'';position:absolute;left:var(--goal,100%);bottom:.35em;height:1.25em;width:2px;background:#ffe33c}
 .background{animation:none!important;filter:brightness(.25)}
+/* Fit the entire game into a centered 16:9 surface, including fullscreen. */
+html,body{width:100%;height:100%;background:#000}
+body{display:grid;place-items:center;overscroll-behavior:none}
+#stage{width:min(100vw,177.7777778dvh);height:auto;aspect-ratio:16/9;container-type:inline-size;font-size:clamp(14px,min(1.6vw,2.8444444dvh),30px);user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#stage input,#stage textarea,[contenteditable="true"]{user-select:text;-webkit-user-select:text;-webkit-touch-callout:default}
+#stage img{ -webkit-user-drag:none }
+#songs{padding:20.25cqw 0}
+#songs button{height:4.78125cqw}
+.result-actions{gap:.5625cqw}
+.result-actions button,#dan-result aside button{height:4.5cqw}
+#dan-result aside button{margin-top:.5625cqw}
+#loading-info p{margin-bottom:2.25cqw}
+#best30{position:absolute;inset:0;width:100%;height:100%;padding:2.25cqw 4cqw}
+#best30-close{position:absolute}

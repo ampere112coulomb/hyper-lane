@@ -1,4 +1,4 @@
-const cacheName='hyperlane-web-port-v5';
+const cacheName='hyperlane-web-port-v6';
 const shell=['./','index.html','style.css','layout.css','transitions.css','app.mjs','core.mjs','motion.mjs','effects.mjs','gpu.mjs','audio.mjs','decoder.mjs','vendor/ogg-vorbis-decoder.min.js','dan.mjs','library.mjs','hub-catalog.mjs','settings.mjs','practice.mjs','vendor/fflate.mjs','manifest.webmanifest','assets/atlas.png','assets/skin.json','assets/SE.wav','assets/FusumaSkin.png','assets/rank_box.png','../hyper-lane-background.png','../hyper-lane-logo.png','../hyper-lane-icon.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(cacheName).then(c=>c.addAll(shell))));
 // Activate on the next launch, never replace running game code midway through play.
