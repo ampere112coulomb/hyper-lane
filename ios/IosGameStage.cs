@@ -215,7 +215,14 @@ internal sealed partial class MigrationStage : UIView
         if(Settings.AutoPlay)Text("AUTO",Rect(28,1000,200,30),18,UIColor.Yellow);
         Text("Ⅱ",Rect(1820,24,80,60),36);c.RestoreState();DanHud(c);
         if(PracticePlaying)Button(c,"↻",Rect(20,18,90,70),42);
-        foreach(int lane in gpu.Held){if(lane<1||lane>s.Difficulty.Lanes)continue;var z=TouchZones.GetRect(s.Difficulty.Lanes,lane-1,1920,1080,Settings.TouchHeight);Fill(c,Rect(z.Left,z.Top,z.Right-z.Left,z.Bottom-z.Top),Color(80,220,226,.18));}
+        if(!Settings.LaneTouch)foreach(int lane in gpu.Held){if(lane<1||lane>s.Difficulty.Lanes)continue;var z=TouchZones.GetRect(s.Difficulty.Lanes,lane-1,1920,1080,Settings.TouchHeight);Fill(c,Rect(z.Left,z.Top,z.Right-z.Left,z.Bottom-z.Top),Color(80,220,226,.18));}
+    }
+    private int HitPlayLane(float x,float y)
+    {
+        var s=Session;if(s is null)return -1;
+        if(!Settings.LaneTouch)return TouchZones.HitTest(s.Difficulty.Lanes,x,y,1920,1080,Settings.TouchHeight);
+        double beat=MobileChart.BeatAtSeconds(s.Difficulty,s.Song.Chart.Bpm,Seconds-s.Song.Chart.Offset);
+        return MobileProjection.At(s.Difficulty,beat).HitLane(s.Difficulty.Lanes,x,y);
     }
     private void PauseBox(CGContext c){Fill(c,Rect(0,0,1920,1080),Color(0,0,0,.6));string[] labels=["再開","リトライ","設定","曲選択"];for(int i=0;i<4;i++)Button(c,labels[i],Rect(650,360+i*130,620,110),45);}
     private void Result(CGContext c,double now)
@@ -230,7 +237,7 @@ internal sealed partial class MigrationStage : UIView
                 if(Page==Screen.Playing){touches.Remove(touch);var remaining=touches.Values.Where(l=>l>0).ToHashSet();gpu.Held=remaining;InputChanged?.Invoke(remaining,touch.Timestamp);}
                 if(release)dragging=false;continue;
             }
-            if(Page==Screen.Playing){if(PracticePlaying&&x<110&&y<88){if(release)RetryRequested?.Invoke();continue;}if(release&&x>1766&&y<130){PauseRequested?.Invoke();continue;}if(release||Settings.AutoPlay)touches.Remove(touch);else touches[touch]=TouchZones.HitTest(Session!.Difficulty.Lanes,x,y,1920,1080,Settings.TouchHeight)+1;var next=touches.Values.Where(l=>l>0).ToHashSet();gpu.Held=next;InputChanged?.Invoke(next,touch.Timestamp);continue;}
+            if(Page==Screen.Playing){if(PracticePlaying&&x<110&&y<88){if(release)RetryRequested?.Invoke();continue;}if(release&&x>1766&&y<130){PauseRequested?.Invoke();continue;}if(release||Settings.AutoPlay)touches.Remove(touch);else touches[touch]=HitPlayLane(x,y)+1;var next=touches.Values.Where(l=>l>0).ToHashSet();gpu.Held=next;InputChanged?.Invoke(next,touch.Timestamp);continue;}
             if(Page==Screen.Settings){TouchSettings(x,y,phase);continue;}
             if(Page==Screen.Practice){TouchPractice(x,y,phase);continue;}
             if(Page==Screen.Select&&x<95&&y<80){if(release)SearchRequested?.Invoke();continue;}

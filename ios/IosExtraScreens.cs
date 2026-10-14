@@ -13,12 +13,12 @@ internal sealed partial class MigrationStage
     private bool practiceDragging;
     internal Action<double,Action<double>>? BeatRequested;
     internal string AudioBufferStatus = "";
-    private string[][] SettingLabels=>[["ノーツスピード","ゲーム時の楽曲音量","曲選択プレビュー音量","ノーツ効果音の音量","譜面補正（+でノーツを遅く）","オートプレイ","自動SE","タッチ判定の高さ","音声バッファ（64～4096 frames）"],["レーンの透明度","ゲーム背景の明るさ","プレビュー背景の明るさ","開始前の余白","フィーバーエフェクトの明るさ","MVを優先","キービームの透明度","キービームの長さ","レーンカバー"]];
-    private double Value(int row)=>settingsTab==0?row switch{0=>Settings.NoteSpeed,1=>Settings.BgmVolume,2=>Settings.PreviewVolume,3=>Settings.SeVolume,4=>Settings.AudioOffsetMs,5=>Settings.AutoPlay?1:0,6=>Settings.AutoNoteSound?1:0,7=>Settings.TouchHeight,_=>Settings.AudioBufferFrames}:row switch{0=>Settings.LaneTransparency,1=>Settings.BackgroundBrightness,2=>Settings.PreviewBackgroundBrightness,3=>Settings.StartMarginMs,4=>Settings.FeverAuraBrightness,5=>Settings.PreferMusicVideo?1:0,6=>Settings.KeyBeamOpacity,7=>Settings.KeyBeamLength,_=>Settings.LaneCover};
+    private string[][] SettingLabels=>[["ノーツスピード","ゲーム時の楽曲音量","曲選択プレビュー音量","ノーツ効果音の音量","譜面補正（+でノーツを遅く）","オートプレイ","自動SE","タッチ判定の高さ","音声バッファ（64～4096 frames）","タッチ方式"],["レーンの透明度","ゲーム背景の明るさ","プレビュー背景の明るさ","開始前の余白","フィーバーエフェクトの明るさ","MVを優先","キービームの透明度","キービームの長さ","レーンカバー"]];
+    private double Value(int row)=>settingsTab==0?row switch{0=>Settings.NoteSpeed,1=>Settings.BgmVolume,2=>Settings.PreviewVolume,3=>Settings.SeVolume,4=>Settings.AudioOffsetMs,5=>Settings.AutoPlay?1:0,6=>Settings.AutoNoteSound?1:0,7=>Settings.TouchHeight,9=>Settings.LaneTouch?1:0,_=>Settings.AudioBufferFrames}:row switch{0=>Settings.LaneTransparency,1=>Settings.BackgroundBrightness,2=>Settings.PreviewBackgroundBrightness,3=>Settings.StartMarginMs,4=>Settings.FeverAuraBrightness,5=>Settings.PreferMusicVideo?1:0,6=>Settings.KeyBeamOpacity,7=>Settings.KeyBeamLength,_=>Settings.LaneCover};
     private bool Slider(int row)=>settingsTab==0?row is 0 or 1 or 2 or 3 or 7:row is 0 or 1 or 2 or 4 or 6 or 7 or 8;
     private void SetValue(int row,double value)
     {
-        int v=(int)Math.Round(value);if(settingsTab==0)switch(row){case 0:Settings.NoteSpeed=Math.Clamp(value,.5,10);break;case 1:Settings.BgmVolume=Math.Clamp(v,0,100);break;case 2:Settings.PreviewVolume=Math.Clamp(v,0,100);break;case 3:Settings.SeVolume=Math.Clamp(v,0,100);break;case 4:Settings.AudioOffsetMs=Math.Clamp(v,-1000,1000);break;case 5:Settings.AutoPlay=v!=0;break;case 6:Settings.AutoNoteSound=v!=0;break;case 7:Settings.TouchHeight=Math.Clamp(v,0,100);break;case 8:Settings.AudioBufferFrames=Math.Clamp(v,64,4096);break;}
+        int v=(int)Math.Round(value);if(settingsTab==0)switch(row){case 0:Settings.NoteSpeed=Math.Clamp(value,.5,10);break;case 1:Settings.BgmVolume=Math.Clamp(v,0,100);break;case 2:Settings.PreviewVolume=Math.Clamp(v,0,100);break;case 3:Settings.SeVolume=Math.Clamp(v,0,100);break;case 4:Settings.AudioOffsetMs=Math.Clamp(v,-1000,1000);break;case 5:Settings.AutoPlay=v!=0;break;case 6:Settings.AutoNoteSound=v!=0;break;case 7:Settings.TouchHeight=Math.Clamp(v,0,100);break;case 9:Settings.LaneTouch=v!=0;break;case 8:Settings.AudioBufferFrames=Math.Clamp(v,64,4096);break;}
         else switch(row){case 0:Settings.LaneTransparency=Math.Clamp(v,0,100);break;case 1:Settings.BackgroundBrightness=Math.Clamp(v,0,100);break;case 2:Settings.PreviewBackgroundBrightness=Math.Clamp(v,0,100);break;case 3:Settings.StartMarginMs=Math.Max(0,v);break;case 4:Settings.FeverAuraBrightness=Math.Clamp(v,0,100);break;case 5:Settings.PreferMusicVideo=v!=0;break;case 6:Settings.KeyBeamOpacity=Math.Clamp(v,0,100);break;case 7:Settings.KeyBeamLength=Math.Clamp(v,0,100);break;case 8:Settings.LaneCover=Math.Clamp(v,0,100);break;}
     }
     internal Action<string,int,Action<int>>? NumberRequested;
@@ -28,7 +28,7 @@ internal sealed partial class MigrationStage
         c.SaveState();c.TranslateCTM(960,540);c.ScaleCTM(1.4f,1.4f);c.TranslateCTM(-960,-540);Fill(c,Rect(550,190,820,700),Color(0,0,0,.88));Text("設 定",Rect(570,202,500,35),25);
         string[] tabs=["プレイ・音声","映像・演出","プリセット"];for(int i=0;i<3;i++){Fill(c,Rect(566+i*250,240,250,40),i==settingsTab?Color(47,40,57):Color(15,13,19));Text(tabs[i],Rect(566+i*250,240,250,40),21,center:true);}
         if(settingsTab==2)for(int i=0;i<3;i++){Text("プリセット "+(i+1),Rect(586,317+i*125,200,55),26);Button(c,"現在の設定を保存",Rect(795,317+i*125,245,55),22);Button(c,"読み込み",Rect(1055,317+i*125,253,55),22);}
-        for(int row=0;settingsTab<2&&row<SettingLabels[settingsTab].Length;row++){double y=300+row*54,v=Value(row);Text(SettingLabels[settingsTab][row],Rect(586,y+7,480,35),22);string value=settingsTab==0&&row==0?$"{v:0.00} ×":((settingsTab==0&&row is 5 or 6)||(settingsTab==1&&row==5))?v>0?"ON":"OFF":$"{v:0}";
+        for(int row=0;settingsTab<2&&row<SettingLabels[settingsTab].Length;row++){double y=300+row*48,v=Value(row);Text(SettingLabels[settingsTab][row],Rect(586,y+7,480,35),22);string value=settingsTab==0&&row==9?(Settings.LaneTouch?"レーンタッチ":"パネルタッチ"):settingsTab==0&&row==0?$"{v:0.00} ×":((settingsTab==0&&row is 5 or 6)||(settingsTab==1&&row==5))?v>0?"ON":"OFF":$"{v:0}";
             if(Slider(row)){double f=settingsTab==0&&row==0?(v-.5)/9.5:v/100;Fill(c,Rect(1080,y+19,125,3),Color(85,85,90));Fill(c,Rect(1080,y+19,125*f,3),Color(178,146,225));c.SetFillColor(UIColor.White.CGColor);c.FillEllipseInRect(Rect(1074+125*f,y+15,12,12));Text(value,Rect(1220,y,90,42),20,center:true);}
             else{Button(c,"−",Rect(1080,y,50,42),23);Text(value,Rect(1138,y,112,42),21,UIColor.Cyan,true);Button(c,"+",Rect(1258,y,50,42),23);}}
         if(settingsTab==0)Text(AudioBufferStatus,Rect(586,795,730,28),17,UIColor.Cyan);
@@ -36,12 +36,12 @@ internal sealed partial class MigrationStage
     }
     private void TouchSettings(float x,float y,int phase)
     {
-        double sx=960+(x-960)/1.4,sy=540+(y-540)/1.4;int row=(int)((sy-300)/54);
+        double sx=960+(x-960)/1.4,sy=540+(y-540)/1.4;int row=(int)((sy-300)/48);
         if(settingsTab<2&&row>=0&&row<SettingLabels[settingsTab].Length&&Slider(row)&&sx>=1065&&sx<=1215&&sy>=300){double f=Math.Clamp((sx-1080)/125,0,1);SetValue(row,settingsTab==0&&row==0?.5+f*9.5:f*100);if(phase==2)SaveSettings?.Invoke();return;}
         if(phase!=2)return;if(sy>=240&&sy<=280&&sx>=566&&sx<=1316)settingsTab=Math.Clamp((int)((sx-566)/250),0,2);
         else if(sx>=1080&&sy>=832){SaveSettings?.Invoke();Page=settingsReturn;}
         else if(settingsTab==2){int slot=(int)((sy-317)/125);if(slot>=0&&slot<3&&sy>=317&&sy<=372+slot*125){if(sx>=795&&sx<=1040)PresetRequested?.Invoke(slot,true);else if(sx>=1055&&sx<=1308)PresetRequested?.Invoke(slot,false);}}
-        else if(row>=0&&row<SettingLabels[settingsTab].Length&&sy>=300&&sy<=810){bool toggle=settingsTab==0&&row is 5 or 6||settingsTab==1&&row==5;
+        else if(row>=0&&row<SettingLabels[settingsTab].Length&&sy>=300&&sy<=810){bool toggle=settingsTab==0&&row is 5 or 6 or 9||settingsTab==1&&row==5;
             if(sx>=1138&&sx<=1250&&!toggle&&!Slider(row)){int edited=row;NumberRequested?.Invoke(SettingLabels[settingsTab][row],(int)Value(row),v=>{SetValue(edited,v);SaveSettings?.Invoke();});}
             else if(sx>=1080&&sx<=1130||sx>=1258&&sx<=1308){double step=settingsTab==0&&row==8?256:settingsTab==0&&row==4?5:settingsTab==1&&row==3?100:1;SetValue(row,toggle?Value(row)>0?0:1:Value(row)+(sx<1130?-step:step));SaveSettings?.Invoke();}}
     }

@@ -65,6 +65,18 @@ internal sealed class MobileProjection
         return float.IsFinite(screenX) && float.IsFinite(screenY);
     }
 
+    internal int HitLane(int lanes, float screenX, float screenY)
+    {
+        if (!TouchZones.Supports(lanes) || screenX < 0 || screenX >= 1920 || screenY < 0 || screenY >= 1080) return -1;
+        Vec3 ray = forward + right * ((screenX - 960) / focalY) + up * ((540 - screenY) / focalY);
+        if (Math.Abs(ray.Y) < .000001) return -1;
+        double t = -camera.Y / ray.Y;
+        if (t <= 0) return -1;
+        Vec3 hit = camera + ray * t;
+        if (hit.X < -1.15 || hit.X >= 1.15 || hit.Z < -12 || hit.Z > 52) return -1;
+        return Math.Clamp((int)((1.15 - hit.X) / (2.3 / lanes)), 0, lanes - 1);
+    }
+
     public void Clip(double x, double y, double z, Span<float> clip)
     {
         Vec3 relative = new Vec3(x, y, z) - camera;

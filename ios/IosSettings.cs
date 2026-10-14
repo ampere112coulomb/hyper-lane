@@ -22,6 +22,7 @@ internal sealed class IosSettings
     public int StartMarginMs { get; set; } = 1300;
     public int FeverAuraBrightness { get; set; } = 100;
     public int TouchHeight { get; set; } = 50;
+    public bool LaneTouch { get; set; }
     internal static IosSettings Load(string path)
     {
         try { return JsonSerializer.Deserialize<IosSettings>(File.ReadAllText(path)) ?? new(); }
