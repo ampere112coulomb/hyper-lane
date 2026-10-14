@@ -1,0 +1,76 @@
+/* Android-only layout; the PC editor remains unchanged. */
+html,body{touch-action:manipulation;height:100%;overscroll-behavior:none}
+#main-container{height:calc(100% - 42px)}
+#sidebar{width:248px;padding:12px;flex-shrink:0}
+#right-panel{display:none!important}
+#right-panel.mobile-details-open{display:flex!important;position:fixed;right:0;top:58px;bottom:42px;width:280px;z-index:900;background:#161b22f5}
+#sidebar button,#sidebar input,#sidebar select{min-height:40px;box-sizing:border-box}
+#playback-bar>div:nth-child(2){display:none}
+#playback-bar{height:42px!important;min-height:42px;padding:0 10px!important;box-sizing:border-box}
+#playback-bar label,#playback-bar select,#note-count-display{display:none}
+#editor-container{justify-content:flex-start;overflow-x:auto}
+#canvas-wrapper{flex-shrink:0}
+#editor-canvas,#minimap-canvas,#test-play-canvas{touch-action:none}
+#mobile-menu-toggle{position:fixed;right:12px;top:8px;width:52px;height:44px;font-size:26px;z-index:11000;background:#191724dd;border-color:#78638d}
+#mobile-mode-toggle{position:fixed;right:12px;top:50%;transform:translateY(-50%);width:88px;min-height:52px;font-size:18px;z-index:950;background:#191724e8;border-color:#78638d}
+#mobile-mode-toggle.active{background:#235ba0e8;border-color:#58a6ff}
+body:has(#test-play-overlay.active) #mobile-mode-toggle{display:none}
+#mobile-menu{position:fixed;right:12px;top:58px;width:min(340px,80vw);max-height:calc(100% - 75px);overflow:auto;padding:12px;background:#0b0915ef;border:1px solid #78638d;border-radius:8px;z-index:11000;display:none}
+#mobile-menu.open{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#mobile-menu button{min-height:44px;font-size:14px;background:#242030}
+#mobile-menu button.active{background:#235ba0}
+#mobile-menu button[hidden]{display:none!important}
+#mobile-status{position:fixed;bottom:8px;right:12px;max-width:44vw;font-size:11px;color:#b5cde1;z-index:150;pointer-events:none;text-align:right}
+#test-play-help{display:none}
+body.mobile-sidebar-hidden #sidebar{display:none}
+@media(max-height:480px){#sidebar{width:220px}#sidebar .sidebar-section-content{gap:9px}#mobile-menu button{min-height:40px}}
+
+/* Touch workstation layout inspired by the reference, using Hyper Lane colours. */
+#main-container{padding:52px 166px 0 88px;box-sizing:border-box;background:#10101a}
+#sidebar{position:fixed;left:88px;top:8px;bottom:48px;width:min(320px,55vw);z-index:1000;background:#171523f5;border:1px solid #78638d;border-radius:10px;box-shadow:0 8px 28px #0008}
+#sidebar .note-type-btn:empty{display:none}
+#mobile-left-rail{position:fixed;left:8px;top:8px;bottom:48px;width:72px;display:flex;flex-direction:column;gap:8px;z-index:500}
+#mobile-left-rail button{min-height:42px;font-size:13px;padding:8px 3px;background:#211d30dc;border-color:#675777;border-radius:10px}
+#mobile-rail-play{margin-top:auto;background:#273b58!important;border-color:#68b7de!important}
+#mobile-note-dock{position:fixed;right:8px;top:58px;bottom:48px;width:142px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:8px;box-sizing:border-box;border-radius:12px;background:#211c2ad9;z-index:500}
+#mobile-test-button{min-height:44px;background:#263d50;border-color:#68b7de;font-size:16px;border-radius:12px}
+#mobile-mode-toggle{position:static;transform:none;width:100%;min-height:40px;font-size:15px;flex-shrink:0}
+#mobile-note-palette{display:flex;flex-direction:column;gap:7px;margin:0}
+#mobile-note-palette button{min-height:37px;flex-shrink:0;padding:6px 4px;font-size:13px;border-radius:7px;border-left:5px solid var(--note-color);border-right:5px solid var(--note-color);background:#15131ee8;color:var(--note-color)}
+#mobile-note-palette button.active{background:#3b304b;border-color:var(--note-color);box-shadow:inset 0 0 0 1px var(--note-color)}
+#mobile-note-dock #large-note-settings{padding:3px;gap:5px;font-size:11px}
+#mobile-note-dock #large-note-settings input{width:100%;min-height:36px;box-sizing:border-box}
+#mobile-note-dock #large-note-anchor{overflow-wrap:anywhere}
+#mobile-snap-toggle{position:fixed;right:174px;top:8px;min-height:36px;min-width:94px;z-index:600;background:#252035dc;border-color:#78638d;border-radius:8px}
+#grid-snap-sidebar{display:none!important;position:fixed;right:174px;top:50px;width:230px;padding:12px;z-index:1200;background:#171523f5;border:1px solid #78638d;border-radius:10px}
+#grid-snap-sidebar.mobile-snap-open{display:grid!important;grid-template-columns:repeat(4,1fr);gap:6px}
+#grid-snap-sidebar label,#grid-snap-sidebar input{grid-column:1/-1}
+#grid-snap-sidebar button{min-height:38px}
+#minimap-canvas{order:-1;margin-right:8px}
+#playback-bar .play-controls>button{display:none}
+#mobile-status{right:174px;max-width:calc(100vw - 270px);font-size:10px}
+body:has(#test-play-overlay.active) #mobile-left-rail,body:has(#test-play-overlay.active) #mobile-note-dock,body:has(#test-play-overlay.active) #mobile-snap-toggle,body:has(#test-play-overlay.active) #grid-snap-sidebar{display:none!important}
+@media(max-height:400px){#mobile-note-dock{gap:5px;padding:6px}#mobile-note-palette{gap:5px}#mobile-note-palette button{min-height:32px}#mobile-left-rail{gap:5px}#mobile-left-rail button{min-height:36px}}
+#mobile-lane-controls{position:static;width:100%;box-sizing:border-box;flex-shrink:0;margin-top:auto;padding:6px;display:flex;flex-direction:column;gap:6px;background:#171523e8;border:1px solid #675777;border-radius:10px}
+#mobile-large-mode{min-height:36px;font-size:14px;background:#242030;border-color:#78638d}
+#mobile-large-mode.active{background:#315b48;border-color:#85c5a0;color:#d6ffe4}
+#mobile-lane-arrows{display:flex;gap:6px}
+#mobile-lane-arrows button{flex:1;min-width:0;min-height:42px;font-size:22px;padding:4px;background:#242030;border-color:#78638d}
+#mobile-lane-label{font-size:10px;text-align:center;color:#c1b7ce}
+body:has(#test-play-overlay.active) #mobile-lane-controls{display:none}
+#editor-container{min-width:0}
+#canvas-wrapper{flex:0 0 auto;min-width:max-content}
+#editor-canvas,#minimap-canvas{flex:0 0 auto;max-width:none}
+/* Dedicated-lane dialogs must sit above every Android dock/menu control. */
+#dialog-overlay{z-index:12000}
+#gimmick-dialog,#fever-dialog{z-index:12001;box-sizing:border-box;width:min(340px,calc(100vw - 32px));max-height:calc(100dvh - 24px);overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}
+#gimmick-dialog input,#gimmick-dialog select,#gimmick-dialog button,#fever-dialog input,#fever-dialog button{min-height:40px}
+/* Horizontal proportions are viewport-based, not device-dependent CSS pixels. */
+#main-container{padding-left:9.166667vw;padding-right:17.291667vw}
+#mobile-left-rail{left:.833333vw;width:7.5vw}
+#mobile-note-dock{right:.833333vw;width:14.791667vw}
+#sidebar{left:9.166667vw}
+#mobile-snap-toggle,#grid-snap-sidebar{right:18.125vw}
+#editor-container{overflow-x:hidden}
+#canvas-wrapper{min-width:0}
+#scroll-effect-toggle{position:fixed;top:8px;left:calc(9.166667vw + 8px);right:auto;max-width:45vw;box-sizing:border-box;min-height:36px;font-size:11px;z-index:600}
