@@ -4,6 +4,29 @@ window.AndroidEditor={postMessage:message=>window.webkit.messageHandlers.editor.
 window.chrome=window.chrome||{};
 window.chrome.webview={postMessage:message=>AndroidEditor.postMessage(message)};
 
+// Touch placement already synthesizes one editor mouse action on pointerup.
+// Do not also run the desktop handlers for WebKit's compatibility mouse events.
+let editorTouchUntil=0;
+const editorTouchPointers=new Set();
+const isEditorSurface=target=>!!target?.closest?.('#editor-canvas,#minimap-canvas');
+const editable=target=>!!target?.closest?.('input,textarea,[contenteditable="true"]');
+document.addEventListener('pointerdown',event=>{
+  if(event.pointerType!=='mouse'&&isEditorSurface(event.target)){
+    editorTouchPointers.add(event.pointerId);editorTouchUntil=performance.now()+1000;
+  }
+},true);
+for(const type of ['pointerup','pointercancel'])document.addEventListener(type,event=>{
+  if(editorTouchPointers.delete(event.pointerId))editorTouchUntil=performance.now()+1000;
+},true);
+for(const type of ['mousedown','mousemove','mouseup','click'])document.addEventListener(type,event=>{
+  if(isEditorSurface(event.target)&&(editorTouchPointers.size||performance.now()<editorTouchUntil||event.sourceCapabilities?.firesTouchEvents)){
+    event.preventDefault();event.stopImmediatePropagation();
+  }
+},true);
+for(const type of ['selectstart','contextmenu','dragstart'])document.addEventListener(type,event=>{
+  if(!editable(event.target)){event.preventDefault();}
+},true);
+
 // WebKit's long-press/callout and multi-touch gestures must not steal gameplay.
 const gameplayPointers=new Set();
 let gameplayTouchUntil=0;
@@ -29,7 +52,7 @@ document.addEventListener('click',event=>{
 },true);
 document.addEventListener('DOMContentLoaded',()=>{
   const style=document.createElement('style');
-  style.textContent='#test-play-canvas{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:none}';
+  style.textContent='html,body,canvas,button,label,summary{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}input,textarea,[contenteditable="true"]{-webkit-user-select:text;user-select:text}#test-play-canvas,#editor-canvas,#minimap-canvas{touch-action:none}';
   document.head.append(style);
 });
 document.addEventListener('click',event=>{
