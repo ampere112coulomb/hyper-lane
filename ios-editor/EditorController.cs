@@ -57,7 +57,9 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
     Task Eval(string script)
     {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        InvokeOnMainThread(() => web.EvaluateJavaScript(script, (_, error) => { if (error is null) completion.TrySetResult(); else completion.TrySetException(new InvalidOperationException(error.LocalizedDescription)); }));
+        // Commands have no native return value. WebKit cannot marshal objects such
+        // as Promises returned by the message bridge; finish with a supported null.
+        InvokeOnMainThread(() => web.EvaluateJavaScript("(function(){\n" + script + "\n;return null;})();", (_, error) => { if (error is null) completion.TrySetResult(); else completion.TrySetException(new InvalidOperationException(error.LocalizedDescription)); }));
         return completion.Task;
     }
     public void Pause() => _ = Eval("if(testPlay.active)exitTestPlay();if(isPlaying)togglePlayback();");
