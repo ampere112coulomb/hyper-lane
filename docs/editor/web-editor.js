@@ -32,6 +32,14 @@ document.addEventListener('DOMContentLoaded',()=>{
  loadAudioFile=input=>void webLoadAudio(input.files?.[0]);
  document.addEventListener('pointerdown',()=>{if(audioCtx&&audioCtx.state!=='running')void audioCtx.resume().catch(e=>webStatus(e.message));},true);
  const original=togglePlayback;togglePlayback=()=>{if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});void audioCtx.resume().catch(e=>webStatus(e.message));return original();};
+ // Visuals follow audible output time; SE must follow the BGM rendering clock.
+ // Using the visual beat here would add the output latency a second time.
+ const originalCheckSE=checkAndPlaySE;
+ checkAndPlaySE=visualBeat=>{
+   const audioBeat=isPlaying&&audioBuffer&&audioCtx
+     ?timeToBeat((audioCtx.currentTime-startTime)*playbackRate):visualBeat;
+   return originalCheckSE(audioBeat);
+ };
  mobileAction('フォルダから開く',async()=>webOpenFiles(await webChoose('',true,true)));
  webStatus('Web Editor：譜面と音源は端末内で処理／保存は.2dダウンロード');
 });
