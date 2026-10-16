@@ -95,4 +95,4 @@ export function parseChart(text){
 }
 export function rank(score){return score>=1000000?'Psi':score>=995000?'Ex+':score>=990000?'Ex':score>=950000?'SS':score>=900000?'S':score>=860000?'A':score>=820000?'B':score>=780000?'C':'';}
 export function chartRating(level,score){return clamp(Number(level)||0,0,30)*(clamp(score,0,1000000)/1000000)**3;}
-export const difficultyName=name=>!name||name.toLowerCase()==='custom'?'SPECIAL':name.toUpperCase();
+export const difficultyName=name=>!name||!name.trim()||name.trim().toLowerCase()==='custom'?'SPECIAL':name.trim().toUpperCase();

@@ -9,6 +9,8 @@ namespace HyperLane;
 internal sealed class PlayerRating
 {
 	internal const int BestCount = 30;
+	internal static bool IsRatedDifficulty(string? name) => !string.IsNullOrWhiteSpace(name) && !name.Trim().Equals("Special", StringComparison.OrdinalIgnoreCase) && !name.Trim().Equals("Custom", StringComparison.OrdinalIgnoreCase);
+	private static bool IsRatedKey(string key) => IsRatedDifficulty(key[(key.LastIndexOf('|') + 1)..]);
 	private readonly string path;
 	private readonly Dictionary<string, Entry> best = new(StringComparer.OrdinalIgnoreCase);
 
@@ -51,7 +53,7 @@ internal sealed class PlayerRating
 	}
 
 	internal double TotalFor(IEnumerable<(string Key, string ChartHash, int Level)> charts) =>
-		charts.Where(chart => best.TryGetValue(chart.Key, out Entry? entry)
+		charts.Where(chart => IsRatedKey(chart.Key) && best.TryGetValue(chart.Key, out Entry? entry)
 			&& entry.ChartHash.Equals(chart.ChartHash, StringComparison.OrdinalIgnoreCase)
 			&& entry.Level == chart.Level)
 			.Select(chart => ChartRating(chart.Level, best[chart.Key].Score))
