@@ -80,6 +80,8 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
                 case "open-chart": Pick("chart"); break;
                 case "open-audio": Pick("audio"); break;
                 case "resolve-song": requestedSong = root.GetProperty("name").GetString() ?? ""; await ResolveSong(); break;
+                case "difficulty-audio": requestedSong=root.GetProperty("filename").GetString()??"";audioGeneration++;await ResolveSong();break;
+                case "choose-difficulty-audio": Pick("audio-difficulty");break;
                 case "save-chart": await Save(root.GetProperty("text").GetString() ?? "", root.GetProperty("filename").GetString() ?? "chart.2d"); break;
                 case "native-test": await Eval("startTestPlay(false);"); break;
                 case "native-video": Alert("MP4書き出しはPC版エディタで行ってください。iOS版ではエディタ内のテストプレイを利用できます。"); break;
@@ -113,12 +115,12 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
             {
                 var url = urls[0]; if (url.StartAccessingSecurityScopedResource()) owner.grants.Add(url);
                 string path = url.Path ?? throw new IOException("ファイルを開けません。");
-                if (kind == "audio") { await owner.LoadAudio(path, true); return; }
+                if (kind is "audio" or "audio-difficulty") { await owner.LoadAudio(path, true,kind=="audio-difficulty"); return; }
                 if (kind == "folder") { owner.folderPath = path; await owner.ResolveSong(false); return; }
                 if (!Path.GetExtension(path).Equals(".2d", StringComparison.OrdinalIgnoreCase)) throw new IOException("chart.2dなどの.2d譜面を選択してください。");
                 if (new FileInfo(path).Length > 16_777_216) throw new IOException("譜面が大きすぎます。");
                 string text = await File.ReadAllTextAsync(path); owner.chartPath = path; owner.audioGeneration++;
-                await owner.Eval($"audioBuffer=null;waveformData=[];document.getElementById('meta-song').value='';importChartText({J(text)},{J(Path.GetFileName(path))});mobileStatus('譜面を読み込みました');AndroidEditor.postMessage(JSON.stringify({{type:'resolve-song',name:document.getElementById('meta-song').value}}));");
+                await owner.Eval($"audioBuffer=null;waveformData=[];document.getElementById('meta-song').value='';importChartText({J(text)},{J(Path.GetFileName(path))});mobileStatus('譜面を読み込みました');AndroidEditor.postMessage(JSON.stringify({{type:'resolve-song',name:effectiveAudioFile()}}));");
             }
             catch (Exception e) { owner.Alert(e.Message); }
         }
@@ -141,15 +143,16 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
             dialog.AddAction(UIAlertAction.Create("キャンセル", UIAlertActionStyle.Cancel, null)); PresentViewController(dialog, true, null);
         }
     }
-    async Task LoadAudio(string path, bool manual)
+    readonly System.Threading.SemaphoreSlim audioTransfer=new(1,1);
+    async Task LoadAudio(string path, bool manual,bool difficulty=false)
     {
         int generation = ++audioGeneration;
         await Status("音源を読み込み中…（OGGはiOS用に変換します）");
         string ready = Path.GetExtension(path).Equals(".ogg", StringComparison.OrdinalIgnoreCase)
             ? await HyperLane.iOS.IosAudioConverter.ToM4aAsync(path, Path.Combine(cache, "audio")) : path;
         if (generation != audioGeneration) return;
-        if (manual) await Eval($"document.getElementById('meta-song').value={J(Path.GetFileName(path))};markEditorDirty();");
-        await SendAudio(ready, Path.GetFileName(path), false);
+        if (manual) await Eval(difficulty?$"chartData[currentDifficulty].audio={J(Path.GetFileName(path))};refreshDifficultyAudioFields();requestedDifficultyAudio=effectiveAudioFile();nativeAudioRequest++;markEditorDirty();":$"document.getElementById('meta-song').value={J(Path.GetFileName(path))};markEditorDirty();");
+        await audioTransfer.WaitAsync();try{if(generation!=audioGeneration)return;await SendAudio(ready,manual?Path.GetFileName(path):requestedSong,false);}finally{audioTransfer.Release();}
     }
     async Task SendAudio(string path, string name, bool se)
     {

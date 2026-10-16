@@ -21,9 +21,9 @@ internal sealed partial class GameController
         int request=++previewRequest;var previous=previewAudio;previewAudio=null;
         if(previous!=null){float volume=previous.Volume;for(int i=1;i<=8;i++){previous.Volume=volume*(1-i/8f);await Task.Delay(25);}previous.Stop();previous.Dispose();}
         if(song==null||diff==null)return;await Task.Delay(200);if(request!=previewRequest||stage.Page!=MigrationStage.Screen.Select)return;
-        string path=MigrationStage.Media(song,song.Chart.Audio);if(path.Length==0)return;AVAudioPlayer? next=null;
+        string path=MigrationStage.Media(song,song.Chart.AudioFor(diff));if(path.Length==0)return;AVAudioPlayer? next=null;
         try{if(Path.GetExtension(path).Equals(".ogg",StringComparison.OrdinalIgnoreCase))path=await IosAudioConverter.ToM4aAsync(path,Path.Combine(documents,"audio-cache"));if(request!=previewRequest||stage.Page!=MigrationStage.Screen.Select)return;next=AVAudioPlayer.FromUrl(NSUrl.FromFilename(path),out _);if(next==null)return;
-            previewFrom=Math.Clamp(song.Chart.Offset+MobileChart.BeatSeconds(diff,song.Chart.Bpm,song.Chart.PreviewStartBeat),0,next.Duration);previewTo=Math.Clamp(song.Chart.Offset+MobileChart.BeatSeconds(diff,song.Chart.Bpm,song.Chart.PreviewEndBeat),previewFrom,next.Duration);if(previewTo<=previewFrom)previewTo=next.Duration;
+            previewFrom=Math.Clamp(song.Chart.OffsetFor(diff)+MobileChart.BeatSeconds(diff,song.Chart.Bpm,song.Chart.PreviewStartFor(diff)),0,next.Duration);previewTo=Math.Clamp(song.Chart.OffsetFor(diff)+MobileChart.BeatSeconds(diff,song.Chart.Bpm,song.Chart.PreviewEndFor(diff)),previewFrom,next.Duration);if(previewTo<=previewFrom)previewTo=next.Duration;
             if(request!=previewRequest||stage.Page!=MigrationStage.Screen.Select){next.Dispose();return;}previewAudio=next;next.CurrentTime=previewFrom;next.Volume=0;next.Play();previewStarted=CAAnimation.CurrentMediaTime();
         }catch{next?.Dispose();}
     }

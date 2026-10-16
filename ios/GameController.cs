@@ -169,7 +169,7 @@ internal sealed partial class GameController : UIViewController
     {
         if (preparingAudio) return;
         if (!TouchZones.Supports(difficulty.Lanes)) { Alert("未対応", "このレーン数はタッチ範囲に未対応です。"); return; }
-        string path = Path.GetFullPath(Path.Combine(song.Folder, song.Chart.Audio));
+        string path = Path.GetFullPath(Path.Combine(song.Folder, song.Chart.AudioFor(difficulty)));
         if (!path.StartsWith(Path.GetFullPath(song.Folder) + Path.DirectorySeparatorChar, StringComparison.Ordinal))
         { Alert("音源エラー", "楽曲フォルダー外の音源は読み込めません。"); return; }
         audio?.Stop(); audio?.Dispose(); audio = null;
@@ -196,7 +196,7 @@ internal sealed partial class GameController : UIViewController
         {
             created?.Dispose();
             stage.CancelLoading();
-            Alert("音源エラー", $"{Path.GetFileName(song.Chart.Audio)}\n{error.Message}");
+            Alert("音源エラー", $"{Path.GetFileName(song.Chart.AudioFor(difficulty))}\n{error.Message}");
             return;
         }
         finally

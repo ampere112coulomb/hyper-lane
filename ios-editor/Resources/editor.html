@@ -224,12 +224,12 @@
                 <input type="text" id="meta-composer" value="" placeholder="Composer">
             </div>
             <div class="control-group">
-                <label>譜面デザイナー</label>
-                <input type="text" id="meta-chart-designer" value="" placeholder="Chart Designer">
+                <label>譜面デザイナー（全難易度共通）</label>
+                <input type="text" id="meta-chart-designer" value="" placeholder="個別指定がない難易度に使用">
             </div>
             <div class="control-group">
                 <label>音源</label>
-                <input type="text" id="meta-song" value="audio.ogg" placeholder="audio.ogg">
+                <input type="text" id="meta-song" value="audio.ogg" placeholder="audio.ogg" onchange="requestDifficultyAudio()">
             </div>
             <div class="control-group">
                 <label>オフセット (ms)</label>
@@ -259,6 +259,18 @@
                 </select>
             </div>
             <div class="control-group">
+                <label>譜面デザイナー（この難易度）</label>
+                <input type="text" id="meta-difficulty-designer" value="" placeholder="空欄なら共通のデザイナー名" oninput="updateCurrentDesigner(this.value)">
+                <label>音源（この難易度）</label>
+                <input type="text" id="meta-difficulty-song" placeholder="空欄なら共通音源" onchange="updateDifficultyAudio()">
+                <button type="button" onclick="chooseDifficultyAudio()">専用音源を選ぶ</button>
+                <label>オフセット（この難易度・ms）</label>
+                <input type="number" id="meta-difficulty-offset" step="any" placeholder="空欄なら共通設定" onchange="updateDifficultyAudio()">
+                <label>プレビュー開始拍（この難易度）</label>
+                <input type="number" id="meta-difficulty-preview-start" min="0" step="any" placeholder="空欄なら共通設定" onchange="updateDifficultyAudio()">
+                <label>プレビュー終了拍（この難易度）</label>
+                <input type="number" id="meta-difficulty-preview-end" min="0" step="any" placeholder="空欄なら共通設定" onchange="updateDifficultyAudio()">
+                <small>空欄は共通設定を使用。音源も譜面と同じ曲フォルダ内に置いてください。</small>
                 <label>難易度（数値・譜面定数）</label>
                 <input type="number" id="meta-level" value="10" step="any" oninput="updateCurrentLevel(this.value)" onblur="normalizeCurrentLevel()">
                 <label>表示文字（任意）</label>
@@ -667,6 +679,10 @@
 
         // 難易度別の譜面データを管理する構造
         const DIFFICULTIES = ["Easy", "Normal", "Hard", "Expert", "Master", "SPECIAL"];
+        function normalizePanelFilters(value) {
+            const kinds=['NOISE','RGB_SHIFT','SCANLINE','GLITCH','FLICKER','MONO','INVERT','BLOOM','MOSAIC','BRIGHTNESS'];
+            return Array.isArray(value)?value.filter(f=>f&&kinds.includes(String(f.kind||f.Kind).toUpperCase())&&Number.isFinite(Number(f.strength??f.Strength))).slice(0,24).map(f=>({kind:String(f.kind||f.Kind).toUpperCase(),strength:Math.max(String(f.kind||f.Kind).toUpperCase()==='BRIGHTNESS'?-100:0,Math.min(100,Number(f.strength??f.Strength))),removeAfterPlay:(f.removeAfterPlay??f.RemoveAfterPlay)===true})):[];
+        }
         const normalizeDifficultyName = name => /^(custom|special)$/i.test(name) ? "SPECIAL" : name;
         let currentDifficulty = "Normal";
         let currentLayer = 1;
@@ -1308,6 +1324,8 @@
             document.getElementById('meta-lanes').value = TOTAL_LANES;
             document.getElementById('meta-level').value = chartData[currentDifficulty].level;
             document.getElementById('meta-level-display').value = chartData[currentDifficulty].levelLabel || '';
+            document.getElementById('meta-difficulty-designer').value = chartData[currentDifficulty].chartDesigner || '';
+            refreshDifficultyAudioFields();requestDifficultyAudio();
             refreshChartRefs();
             updateLayerSelector();
             selectedNotes = [];
@@ -1631,6 +1649,9 @@
 
             document.getElementById('meta-level').value = chartData[diff].level;
             document.getElementById('meta-level-display').value = chartData[diff].levelLabel || '';
+            document.getElementById('meta-difficulty-designer').value = chartData[diff].chartDesigner || '';
+            refreshDifficultyAudioFields();
+            requestDifficultyAudio();
 
             selectedNotes = [];
             longStartBeat = null;
@@ -1654,6 +1675,36 @@
                 : Array.from(text);
             return letters.slice(0, 2).join('');
         }
+
+        function updateCurrentDesigner(value) {
+            chartData[currentDifficulty].chartDesigner = String(value).replace(/[\r\n]/g, ' ');
+            syncToGame();
+        }
+
+        function effectiveAudioFile() { return String(chartData[currentDifficulty]?.audio || document.getElementById('meta-song').value).trim(); }
+        function effectiveOffsetSeconds() { return (chartData[currentDifficulty]?.audioOffsetMs ?? (parseFloat(document.getElementById('meta-offset').value) || 0)) / 1000; }
+        function refreshDifficultyAudioFields() {
+            const data=chartData[currentDifficulty];
+            for(const [suffix,key] of [['song','audio'],['offset','audioOffsetMs'],['preview-start','previewStart'],['preview-end','previewEnd']]) document.getElementById('meta-difficulty-'+suffix).value=data[key] ?? '';
+        }
+        function updateDifficultyAudio() {
+            const data=chartData[currentDifficulty]; data.audio=document.getElementById('meta-difficulty-song').value.replace(/[\r\n]/g,' ').trim();
+            for(const [suffix,key] of [['offset','audioOffsetMs'],['preview-start','previewStart'],['preview-end','previewEnd']]) {const text=document.getElementById('meta-difficulty-'+suffix).value.trim();const value=Number(text);if(text===''||!Number.isFinite(value))delete data[key];else data[key]=suffix==='offset'?value:Math.max(0,value);}
+            requestDifficultyAudio();syncToGame();
+        }
+        let requestedDifficultyAudio='';
+        function requestDifficultyAudio() {
+            const file=effectiveAudioFile();if(file===requestedDifficultyAudio)return;requestedDifficultyAudio=file;
+            nativeAudioRequest++;
+            if(isPlaying)togglePlayback();audioBuffer=null;waveformData=[];
+            document.getElementById('audio-label').textContent=file?'曲: '+file+'（読み込み中）':'音源未設定';
+            if(window.chrome?.webview)window.chrome.webview.postMessage(JSON.stringify({type:'difficulty-audio',filename:file}));
+        }
+        function chooseDifficultyAudio() {
+            if(window.chrome?.webview)window.chrome.webview.postMessage(JSON.stringify({type:'choose-difficulty-audio'}));
+            else document.getElementById('audio-selector').click();
+        }
+        function setDifficultyAudioFile(file) { document.getElementById('meta-difficulty-song').value=file;updateDifficultyAudio(); }
 
         function updateCurrentLevelLabel(value) {
             chartData[currentDifficulty].levelLabel = clampLevelLabel(value);
@@ -2055,7 +2106,7 @@
             // 固定表示では拍差ではなく実時間差を使う。初期BPM時の1拍を
             // 1表示単位とするため、BPM変化後も画面上の移動速度は一定になる。
             const baseBpm = parseFloat(document.getElementById('meta-bpm').value) || 150;
-            const offset = (parseFloat(document.getElementById('meta-offset').value) || 0) / 1000;
+            const offset = effectiveOffsetSeconds();
             return (beatToTime(targetBeat) - offset) * baseBpm / 60;
         }
         function saveEditorScrollEffectSetting() {
@@ -2082,6 +2133,8 @@
 
         function loadAudioFile(input) {
             const file = input.files[0]; if(!file) return;
+            if(chartData[currentDifficulty]?.audio){chartData[currentDifficulty].audio=file.name;document.getElementById('meta-difficulty-song').value=file.name;}else document.getElementById('meta-song').value=file.name;
+            requestedDifficultyAudio=file.name;
             document.getElementById('audio-label').textContent = `曲: ${file.name}`;
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -2113,7 +2166,7 @@
 
         function beatToTimeForLayer(targetBeat, layerNumber=currentLayer) {
             const baseBPM = parseFloat(document.getElementById('meta-bpm').value) || 150;
-            const offset = (parseFloat(document.getElementById('meta-offset').value) || 0) / 1000;
+            const offset = effectiveOffsetSeconds();
             if (targetBeat <= 0) return offset;
             let currentBeat = 0; let currentTime = offset; let currentBPM = baseBPM;
             const bpms = layerData(currentDifficulty,layerNumber).changeEvents.filter(e => e.type === 'BPM').slice().sort((a,b) => (a.beat || 0) - (b.beat || 0));
@@ -2160,7 +2213,7 @@
 
         function beatToTimeForDifficultyLayer(targetBeat,diff,layerNumber) {
             const baseBPM=parseFloat(document.getElementById('meta-bpm').value)||150;
-            const offset=(parseFloat(document.getElementById('meta-offset').value)||0)/1000;
+            const offset = effectiveOffsetSeconds();
             let beat=0,time=offset,bpm=baseBPM;
             const events=layerData(diff,layerNumber).changeEvents.filter(e=>e.type==='BPM').slice().sort((a,b)=>a.beat-b.beat);
             for(const event of events) {
@@ -2178,7 +2231,7 @@
 
         function timeToBeat(targetTime,layerNumber=currentLayer) {
             const baseBPM = parseFloat(document.getElementById('meta-bpm').value) || 150;
-            const offset = (parseFloat(document.getElementById('meta-offset').value) || 0) / 1000;
+            const offset = effectiveOffsetSeconds();
             if (targetTime <= offset) return 0;
             let currentBeat = 0; let currentTime = offset; let currentBPM = baseBPM;
             const bpms = layerData(currentDifficulty,layerNumber).changeEvents.filter(e => e.type === 'BPM').slice().sort((a,b) => (a.beat || 0) - (b.beat || 0));
@@ -3457,6 +3510,13 @@
         }
 
         function importChartText(text, fileName) {
+                requestedDifficultyAudio='';
+                nativeAudioRequest++;
+                if(isPlaying)togglePlayback();audioBuffer=null;waveformData=[];
+                document.getElementById('meta-offset').value=0;
+                document.getElementById('meta-preview-start').value=0;
+                document.getElementById('meta-preview-end').value=16;
+                document.getElementById('meta-song').value='';
                 importedFileName = fileName;
                 document.getElementById('export-btn').textContent = `譜面を上書き保存 (${fileName})`;
                 document.getElementById('meta-composer').value = '';
@@ -3476,6 +3536,10 @@
                     
                     if (line.startsWith('TITLE:')) document.getElementById('meta-title').value = line.replace('TITLE:', '').trim();
                     else if (line.startsWith('COMPOSER:')) document.getElementById('meta-composer').value = line.replace('COMPOSER:', '').trim();
+                    else if (line.startsWith('DIFFICULTY_CHART_DESIGNER:')) { if (insideDifficulty) chartData[activeImportDiff].chartDesigner = line.slice('DIFFICULTY_CHART_DESIGNER:'.length).trim(); }
+                    else if (line.startsWith('DIFFICULTY_SONG:')) { if(insideDifficulty)chartData[activeImportDiff].audio=line.slice('DIFFICULTY_SONG:'.length).trim(); }
+                    else if (line.startsWith('DIFFICULTY_OFFSET:')) {const n=Number(line.slice('DIFFICULTY_OFFSET:'.length).trim());if(insideDifficulty&&Number.isFinite(n))chartData[activeImportDiff].audioOffsetMs=n*1000;}
+                    else if (line.startsWith('DIFFICULTY_PREVIEW:')) {const r=line.slice('DIFFICULTY_PREVIEW:'.length).trim().split('-').map(Number);if(insideDifficulty&&r.length===2&&r.every(Number.isFinite)&&r[0]>=0&&r[1]>r[0]){chartData[activeImportDiff].previewStart=r[0];chartData[activeImportDiff].previewEnd=r[1];}}
                     else if (line.startsWith('CHART_DESIGNER:')) document.getElementById('meta-chart-designer').value = line.replace('CHART_DESIGNER:', '').trim();
                     else if (line.startsWith('CHARTDESIGNER:')) document.getElementById('meta-chart-designer').value = line.replace('CHARTDESIGNER:', '').trim();
                     else if (line.startsWith('CHARTER:')) document.getElementById('meta-chart-designer').value = line.replace('CHARTER:', '').trim();
@@ -3520,6 +3584,22 @@
                     else if (line.startsWith('LEVEL:')) {
                         chartData[activeImportDiff].level = clampLevel(line.replace('LEVEL:', '').trim());
                     }
+                    else if (line.startsWith('PANEL_FILTERS:')) {
+                        try { chartData[activeImportDiff].panelFilters = normalizePanelFilters(JSON.parse(line.slice('PANEL_FILTERS:'.length))); } catch { chartData[activeImportDiff].panelFilters=[]; }
+                    }
+                    else if (line.startsWith('JACKET_FILTERS:')) {
+                        try { chartData[activeImportDiff].jacketFilters = normalizePanelFilters(JSON.parse(line.slice('JACKET_FILTERS:'.length))); } catch { chartData[activeImportDiff].jacketFilters=[]; }
+                    }
+                    else if (line.startsWith('SELECTION_BG_FILTERS:')) {
+                        try { chartData[activeImportDiff].selectionBackgroundFilters = normalizePanelFilters(JSON.parse(line.slice('SELECTION_BG_FILTERS:'.length))); } catch { chartData[activeImportDiff].selectionBackgroundFilters=[]; }
+                    }
+                    else if (line.startsWith('SELECTION_AUDIO:')) {
+                        chartData[activeImportDiff].selectionAudioRaw = line.slice('SELECTION_AUDIO:'.length).trim();
+                    }
+                    else if (line.startsWith('TITLE_FILTERS:')) { chartData[activeImportDiff].titleFiltersRaw = line.slice('TITLE_FILTERS:'.length).trim(); }
+                    else if (line.startsWith('COMPOSER_FILTERS:')) { chartData[activeImportDiff].composerFiltersRaw = line.slice('COMPOSER_FILTERS:'.length).trim(); }
+                    else if (line.startsWith('DIFFICULTY_TEXT_FILTERS:')) { chartData[activeImportDiff].difficultyTextFiltersRaw = line.slice('DIFFICULTY_TEXT_FILTERS:'.length).trim(); }
+                    else if (line.startsWith('SELECTION_LEVEL_FILTERS:')) { chartData[activeImportDiff].selectionLevelFiltersRaw = line.slice('SELECTION_LEVEL_FILTERS:'.length).trim(); }
                     else if (line.startsWith('LEVEL_DISPLAY:')) {
                         chartData[activeImportDiff].levelLabel = clampLevelLabel(line.replace('LEVEL_DISPLAY:', '').trim());
                     }
@@ -3585,8 +3665,8 @@
                 if (!window.chrome?.webview) alert(`「${fileName}」をインポートしました！`);
         }
 
-        let nativeAudioParts = [], nativeAudioName = '';
-        function beginNativeAudio(fileName) { nativeAudioParts = []; nativeAudioName = fileName; }
+        let nativeAudioParts = [], nativeAudioName = '', nativeAudioRequest=0;
+        function beginNativeAudio(fileName) { nativeAudioParts = []; nativeAudioName = fileName;nativeAudioRequest++; }
         function appendNativeAudioChunk(base64) {
             const binary = atob(base64);
             const bytes = new Uint8Array(binary.length);
@@ -3601,8 +3681,10 @@
                 for (const part of nativeAudioParts) { bytes.set(part, offset); offset += part.length; }
                 nativeAudioParts = [];
                 if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                audioBuffer = await audioCtx.decodeAudioData(bytes.buffer);
-                extractWaveform(audioBuffer);
+                const loadingName=nativeAudioName,loadingRequest=nativeAudioRequest;
+                const buffer = await audioCtx.decodeAudioData(bytes.buffer);
+                if(loadingRequest!==nativeAudioRequest || (effectiveAudioFile() && loadingName !== effectiveAudioFile()))return;
+                audioBuffer=buffer;extractWaveform(audioBuffer);
                 document.getElementById('audio-label').textContent = `曲: ${nativeAudioName} (自動読み込み)`;
                 window.chrome?.webview.postMessage(JSON.stringify({ type: 'audio-loaded', filename: nativeAudioName }));
             } catch (error) {
@@ -3647,9 +3729,29 @@
 
                 output.push(`// ==========================================`);
                 output.push(`DIFFICULTY: ${d}`);
+                const designer = String(dData.chartDesigner || '').replace(/[\r\n]/g, ' ').trim();
+                if (designer) output.push(`DIFFICULTY_CHART_DESIGNER: ${designer}`);
+                if(dData.audio)output.push(`DIFFICULTY_SONG: ${String(dData.audio).replace(/[\r\n]/g,' ').trim()}`);
+                if(Number.isFinite(dData.audioOffsetMs))output.push(`DIFFICULTY_OFFSET: ${dData.audioOffsetMs/1000}`);
+                if(Number.isFinite(dData.previewStart)||Number.isFinite(dData.previewEnd)) {
+                    const start=dData.previewStart ?? previewStart,end=dData.previewEnd ?? previewEnd;
+                    if(end<=start){alert(`${d}のプレビュー終了拍は開始拍より後にしてください。`);throw new Error('Invalid difficulty preview range');}
+                    output.push(`DIFFICULTY_PREVIEW: ${start}-${end}`);
+                }
                 output.push(`LEVEL: ${clampLevel(dData.level)}`);
                 const levelLabel = clampLevelLabel(dData.levelLabel);
                 if (levelLabel) output.push(`LEVEL_DISPLAY: ${levelLabel}`);
+                const panelFilters = normalizePanelFilters(dData.panelFilters);
+                if (panelFilters.length) output.push(`PANEL_FILTERS: ${JSON.stringify(panelFilters)}`);
+                const jacketFilters = normalizePanelFilters(dData.jacketFilters);
+                if (jacketFilters.length) output.push(`JACKET_FILTERS: ${JSON.stringify(jacketFilters)}`);
+                const bgFilters = normalizePanelFilters(dData.selectionBackgroundFilters);
+                if (bgFilters.length) output.push(`SELECTION_BG_FILTERS: ${JSON.stringify(bgFilters)}`);
+                if (dData.selectionAudioRaw) output.push(`SELECTION_AUDIO: ${dData.selectionAudioRaw}`);
+                if (dData.titleFiltersRaw) output.push(`TITLE_FILTERS: ${dData.titleFiltersRaw}`);
+                if (dData.composerFiltersRaw) output.push(`COMPOSER_FILTERS: ${dData.composerFiltersRaw}`);
+                if (dData.difficultyTextFiltersRaw) output.push(`DIFFICULTY_TEXT_FILTERS: ${dData.difficultyTextFiltersRaw}`);
+                if (dData.selectionLevelFiltersRaw) output.push(`SELECTION_LEVEL_FILTERS: ${dData.selectionLevelFiltersRaw}`);
                 output.push(`LANES: ${dData.lanes || TOTAL_LANES}`);
                 output.push(`// ==========================================`);
 
@@ -3766,7 +3868,7 @@
         }
         function testBeatTime(beat) {
             const bpm=parseFloat(document.getElementById('meta-bpm').value)||150;
-            const offset=(parseFloat(document.getElementById('meta-offset').value)||0)/1000;
+            const offset = effectiveOffsetSeconds();
             if(beat<=0)return offset+beat*60/bpm;
             let currentBeat=0,currentTime=offset,currentBpm=bpm;
             const events=testPlay.active?testPlay.bpmEvents:changeEvents.filter(event=>event.type==='BPM').slice().sort((a,b)=>(a.beat||0)-(b.beat||0));
@@ -3775,7 +3877,7 @@
         }
         function testTimeToBeat(seconds) {
             const baseBpm=parseFloat(document.getElementById('meta-bpm').value)||150;
-            const offset=(parseFloat(document.getElementById('meta-offset').value)||0)/1000;
+            const offset = effectiveOffsetSeconds();
             if(seconds<=offset)return (seconds-offset)*baseBpm/60;
             let currentBeat=0,currentTime=offset,currentBpm=baseBpm;
             for(const event of testPlay.bpmEvents){const next=event.beat||0,duration=(next-currentBeat)*60/currentBpm;if(seconds<currentTime+duration)break;currentTime+=duration;currentBeat=next;currentBpm=Number(event.val)||currentBpm;}
@@ -4132,6 +4234,8 @@
                 applyEditorMetaFromBackup(backup.meta);
                 if (chartData[currentDifficulty]) { refreshChartRefs(); updateLayerSelector(); }
                 const diffSelect = document.getElementById("meta-difficulty"); if (diffSelect) diffSelect.value = currentDifficulty;
+                document.getElementById('meta-difficulty-designer').value = chartData[currentDifficulty]?.chartDesigner || '';
+                refreshDifficultyAudioFields();requestDifficultyAudio();
                 const exportBtn = document.getElementById("export-btn"); if (exportBtn) exportBtn.textContent = "譜面を上書き保存 (" + importedFileName + ")";
                 if (typeof updateDifficultyTabs === "function") updateDifficultyTabs();
                 if (typeof syncToGame === "function") syncToGame();

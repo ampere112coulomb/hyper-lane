@@ -27,7 +27,7 @@ internal sealed class LegacyMigrationStage : UIView
         context.SaveState(); context.TranslateCTM(Origin.X, Origin.Y); context.ScaleCTM(Scale, Scale);
         context.ClipToRect(new CGRect(0, 0, 1920, 1080));
         MobileDifficulty diff = session.Difficulty; MobileChart chart = session.Song.Chart;
-        double beat = MobileChart.BeatAtSeconds(diff, chart.Bpm, Seconds - chart.Offset);
+        double beat = MobileChart.BeatAtSeconds(diff, chart.Bpm, Seconds - chart.OffsetFor(diff));
         MobileProjection projection = MobileProjection.At(diff, beat);
         double width = 2.3 / diff.Lanes;
         double[] lines = new double[diff.Lanes];
@@ -42,7 +42,7 @@ internal sealed class LegacyMigrationStage : UIView
         foreach (var grouping in diff.NotesByLayer.OrderBy(layer => layer.Key))
         {
             MobileDifficulty timing = grouping.Key == 1 ? diff : diff.Layers[grouping.Key];
-            double layerBeat = MobileChart.BeatAtSeconds(timing, chart.Bpm, Seconds - chart.Offset);
+            double layerBeat = MobileChart.BeatAtSeconds(timing, chart.Bpm, Seconds - chart.OffsetFor(diff));
             double scroll = MobileChart.ScrollPosition(timing, chart.Bpm, layerBeat);
             double speed = Settings.NoteSpeed * 10 * MobileChart.NsMultiplierAt(timing, layerBeat);
             foreach (MobileNote note in grouping.Value)

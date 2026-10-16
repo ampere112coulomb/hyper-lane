@@ -60,7 +60,7 @@ internal sealed partial class IosLaneRenderer : GLKViewDelegate
         if(!reportedFrame && Environment.GetEnvironmentVariable("HL_VISUAL_QA")!=null){reportedFrame=true;Console.Error.WriteLine($"HL GPU frame: {view.DrawableWidth}x{view.DrawableHeight}, geometry={geometry.Count/10}, sprites={sprites.Count/10}, error={Gl.glGetError()}, center={Gl.Sample((int)view.DrawableWidth/2,(int)view.DrawableHeight*430/1080)}");File.WriteAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),"visual-qa","gpu-geometry.json"),System.Text.Json.JsonSerializer.Serialize(geometry));}
         if(Settings.LaneCover>0)
         {
-            geometry.Clear();double beat=MobileChart.BeatAtSeconds(s.Difficulty,s.Song.Chart.Bpm,Seconds-s.Song.Chart.Offset);
+            geometry.Clear();double beat=MobileChart.BeatAtSeconds(s.Difficulty,s.Song.Chart.Bpm,Seconds-s.Song.Chart.OffsetFor(s.Difficulty));
             var p=MobileProjection.At(s.Difficulty,beat);double cover=p.DepthAtScreenFraction(1-Settings.LaneCover/100.0);
             Quad(p,-1.15,1.15,cover,52,.085,98,66,161,170/255.0);Quad(p,-1.15,1.15,cover,Math.Min(52,cover+.085),.088,171,135,225,205/255.0);
             Gl.Draw(program,vertexBuffer,geometry,false);
@@ -77,7 +77,7 @@ internal sealed partial class IosLaneRenderer : GLKViewDelegate
     }
     private void Build(MobileSession s)
     {
-        var diff=s.Difficulty;var chart=s.Song.Chart;double beat=MobileChart.BeatAtSeconds(diff,chart.Bpm,Seconds-chart.Offset);
+        var diff=s.Difficulty;var chart=s.Song.Chart;double beat=MobileChart.BeatAtSeconds(diff,chart.Bpm,Seconds-chart.OffsetFor(diff));
         var p=MobileProjection.At(diff,beat);int lanes=diff.Lanes;double width=2.3/lanes,alpha=Visibility(diff.LaneVisibilityChanges,beat)*(1-Settings.LaneTransparency/100.0);
         if(depths.Length!=lanes)depths=new double[lanes];HyperLane.JudgementLineMotion.Evaluate(diff.JudgementLineChanges,beat,depths);
         for(int i=0;i<lanes;i++)depths[i]=p.DepthAtScreenFraction(depths[i]/100);
@@ -96,7 +96,7 @@ internal sealed partial class IosLaneRenderer : GLKViewDelegate
         double cover=Settings.LaneCover>0?p.DepthAtScreenFraction(1-Settings.LaneCover/100.0):52;
         foreach(var grouping in diff.NotesByLayer.OrderBy(x=>x.Key))
         {
-            var timing=grouping.Key==1?diff:diff.Layers[grouping.Key];double layerBeat=MobileChart.BeatAtSeconds(timing,chart.Bpm,Seconds-chart.Offset);
+            var timing=grouping.Key==1?diff:diff.Layers[grouping.Key];double layerBeat=MobileChart.BeatAtSeconds(timing,chart.Bpm,Seconds-chart.OffsetFor(diff));
             double root=MobileChart.ScrollPosition(timing,chart.Bpm,layerBeat),ns=MobileChart.NsMultiplierAt(timing,layerBeat);
             foreach(var note in grouping.Value)
             {

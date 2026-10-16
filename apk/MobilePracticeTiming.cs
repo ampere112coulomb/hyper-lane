@@ -5,8 +5,8 @@ namespace HyperLane.Android;
 internal readonly record struct MobilePracticeTiming(double StartRaw, double AnchorChart, int OffsetMs)
 {
     internal static MobilePracticeTiming At(MobileChart chart, MobileDifficulty diff, double beat, int offsetMs)
-        => new(chart.Offset + MobileChart.BeatSeconds(diff, chart.Bpm, beat - 8) + offsetMs / 1000.0,
-            chart.Offset + MobileChart.BeatSeconds(diff, chart.Bpm, beat), offsetMs);
+        => new(chart.OffsetFor(diff) + MobileChart.BeatSeconds(diff, chart.Bpm, beat - 8) + offsetMs / 1000.0,
+            chart.OffsetFor(diff) + MobileChart.BeatSeconds(diff, chart.Bpm, beat), offsetMs);
     internal bool IsPreroll(double chartSeconds) => chartSeconds < AnchorChart;
     internal double Gain(double chartSeconds)
     {

@@ -56,7 +56,7 @@ internal sealed partial class MigrationStage
             Image(visuals.FileImage(Media(e.Song,e.Song.Chart.Jacket)),Rect(x,y,110,130),crop:true);
             Fill(c,Rect(x,y,110,24),Color(5,3,12,.8));Text($"{PlayerRating.ChartRating(e.Entry!.Level,e.Entry.Score):0.000}",Rect(x,y,110,24),17,UIColor.Cyan,true);
             TitleTwoLines(e.Song.Chart.Title,Rect(x+120,y+2,225,38),22);
-            Text(DifficultyName(e.Diff.Name)+" Lv."+e.Diff.Level,Rect(x+120,y+41,225,21),15,Difficulty(e.Diff.Name));
+            Text(DifficultyName(e.Diff.Name)+" Lv."+e.Diff.DisplayLevel,Rect(x+120,y+41,225,21),15,Difficulty(e.Diff.Name));
             Text(e.Entry.Score.ToString("D7"),Rect(x+120,y+63,225,29),26,UIColor.Cyan);
             int[] n=e.Entry.Counts??[];int total=n.Sum();
             Text(total>0&&n.Length==5?$"ACC {(n[0]+.75*n[1]+.5*n[2]+.25*n[3])*100/total:0.00}%":"ACC —",Rect(x+120,y+91,225,16),12);

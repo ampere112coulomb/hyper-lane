@@ -9,6 +9,12 @@ internal sealed class MobileChart
     public string Composer { get; set; } = "";
     public string ChartDesigner { get; set; } = "";
     public string Audio { get; set; } = "";
+    public string AudioFor(MobileDifficulty? diff)=>string.IsNullOrWhiteSpace(diff?.Audio)?Audio:diff.Audio;
+    public string DesignerFor(MobileDifficulty? diff)=>string.IsNullOrWhiteSpace(diff?.ChartDesigner)?ChartDesigner:diff.ChartDesigner;
+    public double OffsetFor(MobileDifficulty? diff)=>diff?.AudioOffset??Offset;
+    public double PreviewStartFor(MobileDifficulty? diff)=>diff?.PreviewStartBeat??PreviewStartBeat;
+    public double PreviewEndFor(MobileDifficulty? diff)=>diff?.PreviewEndBeat??PreviewEndBeat;
+    public string DifficultyAudioPath(string folder,MobileDifficulty diff){try{string root=Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar;string path=Path.GetFullPath(Path.Combine(root,diff.Audio.Replace('\\','/')));return path.StartsWith(root,StringComparison.Ordinal)?path:"";}catch{return "";}}
     public string Jacket { get; set; } = "";
     public string Background { get; set; } = "";
     public string Video { get; set; } = "";
@@ -40,6 +46,12 @@ internal sealed class MobileChart
                     case "COMPOSER": chart.Composer = value; break;
                     case "CHARTER": case "CHARTDESIGNER": case "CHART_DESIGNER": chart.ChartDesigner = value; break;
                     case "SONG": case "AUDIO": chart.Audio = value; break;
+                    case "DIFFICULTY_CHART_DESIGNER": if(difficulty!=null)difficulty.ChartDesigner=value;break;
+                    case "DIFFICULTY_SONG": if(difficulty!=null)difficulty.Audio=value;break;
+                    case "DIFFICULTY_OFFSET": if(difficulty!=null&&Number(value,out double audioOffset)&&double.IsFinite(audioOffset))difficulty.AudioOffset=audioOffset;break;
+                    case "DIFFICULTY_PREVIEW":
+                        var range=value.Split('-',2,StringSplitOptions.TrimEntries);
+                        if(difficulty!=null&&range.Length==2&&Number(range[0],out double from)&&Number(range[1],out double to)&&double.IsFinite(from)&&double.IsFinite(to)&&from>=0&&to>from){difficulty.PreviewStartBeat=from;difficulty.PreviewEndBeat=to;}break;
                     case "JACKET": case "COVER": chart.Jacket = value; break;
                     case "BACKGROUND": case "BG": chart.Background = value; break;
                     case "MOVIE": case "VIDEO": case "MV": chart.Video = value; break;
@@ -73,6 +85,7 @@ internal sealed class MobileChart
                         }
                         break;
                     case "LEVEL": if (difficulty is not null) difficulty.Level = value; break;
+                    case "LEVEL_DISPLAY": if (difficulty is not null) difficulty.LevelLabel = HyperLane.ChartLevel.NormalizeLabel(value); break;
                     case "FEVER":
                         if (difficulty is not null)
                         {
@@ -212,8 +225,8 @@ internal sealed class MobileChart
             foreach (MobileNote note in diff.Notes)
             {
                 MobileDifficulty timing = note.Layer == 1 ? diff : diff.Layers[note.Layer];
-                note.StartSeconds = chart.Offset + BeatSeconds(timing, chart.Bpm, note.Beat);
-                note.EndSeconds = chart.Offset + BeatSeconds(timing, chart.Bpm, note.EndBeat);
+                note.StartSeconds = chart.OffsetFor(diff) + BeatSeconds(timing, chart.Bpm, note.Beat);
+                note.EndSeconds = chart.OffsetFor(diff) + BeatSeconds(timing, chart.Bpm, note.EndBeat);
                 note.ScrollStart = ScrollPosition(timing, chart.Bpm, note.Beat);
                 note.ScrollEnd = ScrollPosition(timing, chart.Bpm, note.EndBeat);
             }
@@ -354,6 +367,11 @@ internal sealed class MobileChart
 
 internal sealed class MobileDifficulty
 {
+    public string ChartDesigner { get; set; } = "";
+    public string Audio { get; set; } = "";
+    public double? AudioOffset { get; set; }
+    public double? PreviewStartBeat { get; set; }
+    public double? PreviewEndBeat { get; set; }
     public MobileTiming? Timing { get; set; }
     public Dictionary<int, MobileNote[]> NotesByLayer { get; set; } = new();
     public List<double> MeasureScrollPositions { get; } = new();
@@ -361,6 +379,8 @@ internal sealed class MobileDifficulty
     public List<HyperLane.JudgementLineChange> JudgementLineChanges { get; } = new();
     public string Name { get; set; } = "Normal";
     public string Level { get; set; } = "-";
+    public string LevelLabel { get; set; } = "";
+    public string DisplayLevel => string.IsNullOrWhiteSpace(LevelLabel) ? HyperLane.ChartLevel.Display(Level) : HyperLane.ChartLevel.NormalizeLabel(LevelLabel);
     public int Lanes { get; set; } = 6;
     public List<MobileNote> Notes { get; } = new();
     public List<(double Beat, double Value)> BpmChanges { get; } = new();

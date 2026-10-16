@@ -18,10 +18,12 @@ const mobileToggle=document.createElement('button');mobileToggle.id='mobile-menu
 const mobileMessage=document.createElement('div');mobileMessage.id='mobile-status';document.body.append(mobileMessage);
 function mobileStatus(text){mobileMessage.textContent=text;}
 async function mobileLoadChartAudio(name){
+  const generation=++nativeAudioRequest;
   try{
     const bytes=await fetch('chart-audio').then(r=>r.arrayBuffer());
     if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});
     const buffer=await audioCtx.decodeAudioData(bytes);
+    if(generation!==nativeAudioRequest||name!==effectiveAudioFile())return;
     audioBuffer=buffer;extractWaveform(buffer);
     document.getElementById('audio-label').textContent='曲: '+name;
     mobileStatus('譜面と音源を読み込みました');
@@ -42,6 +44,9 @@ const mobileMenuItems=[];
 function refreshMobileMenu(){for(const item of mobileMenuItems)item.button.hidden=item.testOnly!==!!testPlay.active;}
 function mobileAction(label,run,testOnly=false){const b=document.createElement('button');b.textContent=label;b.onclick=()=>{if(testOnly!==!!testPlay.active)return;document.activeElement?.blur();mobileMenuClose();run();refreshMobileMenu();};mobileMenu.append(b);mobileMenuItems.push({button:b,testOnly});return b;}
 const audioPicker=document.createElement('input');audioPicker.type='file';audioPicker.accept='audio/*,.ogg,.mp3,.wav';audioPicker.hidden=true;audioPicker.onchange=()=>{if(audioPicker.files?.[0])document.getElementById('meta-song').value=audioPicker.files[0].name;loadAudioFile(audioPicker);};document.body.append(audioPicker);
+const difficultyAudioPicker=document.createElement('input');difficultyAudioPicker.type='file';difficultyAudioPicker.accept='audio/*,.ogg,.mp3,.wav,.m4a';difficultyAudioPicker.hidden=true;document.body.append(difficultyAudioPicker);
+function chooseMobileDifficultyAudio(){difficultyAudioPicker.value='';difficultyAudioPicker.click();}
+difficultyAudioPicker.onchange=()=>{const file=difficultyAudioPicker.files?.[0];if(!file)return;chartData[currentDifficulty].audio=file.name;document.getElementById('meta-difficulty-song').value=file.name;loadAudioFile(difficultyAudioPicker);syncToGame();markEditorDirty();};
 mobileAction('譜面を開く',()=>{if(!hasUnsavedChanges||confirm('未保存の変更があります。別の譜面を開きますか？'))AndroidEditor.postMessage(JSON.stringify({type:'open-chart'}));});
 mobileAction('音源を選ぶ',()=>audioPicker.click());
 mobileAction('譜面を保存',()=>exportChart());

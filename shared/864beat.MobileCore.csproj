@@ -8,6 +8,7 @@
   <ItemGroup>
     <!-- These are the actual tested Android sources, not a second implementation. -->
     <Compile Include="..\apk\MobileChart.cs" Link="Timing\MobileChart.cs" />
+    <Compile Include="..\apk\MobileChapterMenu.cs" Link="Library\MobileChapterMenu.cs" />
     <Compile Include="..\apk\MobileTiming.cs" Link="Timing\MobileTiming.cs" />
     <Compile Include="..\apk\MobileSession.cs" Link="Judgement\MobileSession.cs" />
     <Compile Include="..\apk\MobileDanRules.cs" Link="Dan\MobileDanRules.cs" />
@@ -22,6 +23,7 @@
     <Compile Include="..\apk\TouchZones.cs" Link="Input\TouchZones.cs" />
     <Compile Include="..\win\game\Ebeat864\JudgementLineChange.cs" Link="Timing\JudgementLineChange.cs" />
     <Compile Include="..\win\game\Ebeat864\PlayerRating.cs" Link="Scores\PlayerRating.cs" />
+    <Compile Include="..\win\game\Ebeat864\ChartLevel.cs" Link="Scores\ChartLevel.cs" />
     <Compile Include="..\win\game\Ebeat864\ReplayData.cs" Link="Replay\ReplayData.cs" />
     <Compile Include="..\win\game\Ebeat864\ReplayInput.cs" Link="Replay\ReplayInput.cs" />
     <Compile Include="..\win\game\Ebeat864\ReplayJudgement.cs" Link="Replay\ReplayJudgement.cs" />
