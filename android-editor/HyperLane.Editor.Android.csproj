@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework><OutputType>Exe</OutputType>
+    <ApplicationId>com.ampere112coulomb.hyperlane.editor</ApplicationId>
+    <ApplicationTitle>Hyper Lane Editor</ApplicationTitle><ApplicationDisplayVersion>0.1.11</ApplicationDisplayVersion><ApplicationVersion>12</ApplicationVersion>
+    <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion><RuntimeIdentifier>android-arm64</RuntimeIdentifier>
+    <AndroidPackageFormats>apk</AndroidPackageFormats><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <AndroidAsset Include="../assets/editor.html" Link="editor.html" />
+    <AndroidAsset Include="mobile-editor.js" Link="mobile-editor.js" /><AndroidAsset Include="mobile-editor.css" Link="mobile-editor.css" />
+    <AndroidAsset Include="../assets/SE.ogg" Link="SE.ogg" />
+    <AndroidResource Include="../assets/hyper-lane-editor-icon.png" Link="Resources/drawable-nodpi/editor_icon.png" LogicalName="drawable-nodpi/editor_icon.png" />
+  </ItemGroup>
+</Project>

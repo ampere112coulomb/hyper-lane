@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>HyperLane.Android</AssemblyName>
+    <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
+    <ApplicationId>com.ampere112coulomb.hyperlane</ApplicationId>
+    <ApplicationTitle>Hyper Lane</ApplicationTitle>
+    <ApplicationDisplayVersion>0.6.17</ApplicationDisplayVersion>
+    <ApplicationVersion>15</ApplicationVersion>
+    <RootNamespace>HyperLane.Android</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RuntimeIdentifier>android-arm64</RuntimeIdentifier>
+    <AndroidPackageFormats>apk</AndroidPackageFormats>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\win\game\Ebeat864\HitSparkleMotion.cs" Link="Shared\HitSparkleMotion.cs" />
+    <AndroidAsset Include="..\assets\judgements\*.png" Link="judgements\%(Filename)%(Extension)" />
+    <Compile Include="..\win\game\Ebeat864\JudgementLineChange.cs" Link="Shared\JudgementLineChange.cs" />
+    <Compile Include="..\win\game\Ebeat864\PlayerRating.cs" Link="Shared\PlayerRating.cs" />
+    <Compile Include="..\win\game\Ebeat864\ChartLevel.cs" Link="Shared\ChartLevel.cs" />
+    <Compile Include="..\win\game\Ebeat864\UserProfile.cs" Link="Shared\UserProfile.cs" />
+    <Compile Include="..\win\game\Ebeat864\DanDefinition.cs" Link="Shared\DanDefinition.cs" />
+    <Compile Include="..\win\game\Ebeat864\ReplayData.cs" Link="Shared\ReplayData.cs" />
+    <Compile Include="..\win\game\Ebeat864\ReplayInput.cs" Link="Shared\ReplayInput.cs" />
+    <Compile Include="..\win\game\Ebeat864\ReplayJudgement.cs" Link="Shared\ReplayJudgement.cs" />
+    <Compile Remove="tests\**\*.cs" />
+    <AndroidAsset Include="..\assets\skin\atlas.png" Link="skin\atlas.png" />
+    <AndroidAsset Include="..\assets\skin\skin.json" Link="skin\skin.json" />
+    <AndroidAsset Include="..\assets\skin\rank*.png" Link="skin\%(Filename)%(Extension)" />
+    <AndroidAsset Include="..\assets\SE.ogg" Link="SE.ogg" />
+    <AndroidAsset Include="..\assets\ui-se\Se*.wav" Link="ui-se\%(Filename)%(Extension)" />
+    <AndroidAsset Include="..\assets\FusumaSkin.png" Link="FusumaSkin.png" />
+    <AndroidAsset Include="..\assets\title-logo.png" Link="skin\title_logo.png" />
+    <AndroidAsset Include="..\assets\backgrounds\default-background.png" Link="skin\background.png" />
+    <AndroidResource Include="..\assets\hyper-lane-icon.png" Link="Resources\drawable-nodpi\hyperlane_icon.png" LogicalName="drawable-nodpi/hyperlane_icon.png" />
+    <AndroidAsset Include="..\assets\HUDPanel.png" Link="HUDPanel.png" />
+    <AndroidAsset Include="..\assets\DifficultyPlate.png" Link="DifficultyPlate.png" />
+    <AndroidAsset Include="..\assets\MusicBox.png" Link="MusicBox.png" />
+    <AndroidAsset Include="..\assets\fonts\Checkpoint.otf" Link="fonts\Checkpoint.otf" />
+    <AndroidAsset Include="..\assets\fonts\LanobePOP.otf" Link="fonts\LanobePOP.otf" />
+  </ItemGroup>
+</Project>
