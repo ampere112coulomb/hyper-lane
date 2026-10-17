@@ -65,6 +65,10 @@ internal sealed partial class IosLaneRenderer : GLKViewDelegate
             Quad(p,-1.15,1.15,cover,52,.085,98,66,161,170/255.0);Quad(p,-1.15,1.15,cover,Math.Min(52,cover+.085),.088,171,135,225,205/255.0);
             Gl.Draw(program,vertexBuffer,geometry,false);
         }
+        geometry.Clear();
+        double hitBeat=MobileChart.BeatAtSeconds(s.Difficulty,s.Song.Chart.Bpm,Seconds-s.Song.Chart.OffsetFor(s.Difficulty));
+        s.HitEffects.Append(geometry,s,MobileProjection.At(s.Difficulty,hitBeat),Seconds,true);
+        Gl.glDepthMask(0);Gl.Draw(program,vertexBuffer,geometry,false);Gl.glDepthMask(1);
         Gl.glDisable(2929);
         EndEffects();
         // Configuration alone is not a rendered frame. Shader pipelines can take

@@ -1,4 +1,19 @@
 'use strict';
+// Match the game: an overlapping Normal + Hold window can share one touch.
+hitTestLane=lane=>{
+  const now=testSongSeconds();let best=null,tap=null,hold=null;
+  for(const note of notes){const state=testStateFor(note);
+    if(note.beat<testPlay.anchorBeat||state.done||state.started||lane<note.lane||lane>=note.lane+largeNoteSpan(note)||['damage','guide','laneOpacity'].includes(note.type))continue;
+    const ms=(now-testPlay.timing.get(note).start)*1000,isHold=['hold','largeHold'].includes(note.type);
+    if(Math.abs(ms)>120||(isHold&&(ms<0||ms>60)))continue;
+    const candidate={note,state,ms};
+    if(!best||Math.abs(ms)<Math.abs(best.ms))best=candidate;
+    if(isHold&&(!hold||Math.abs(ms)<Math.abs(hold.ms)))hold=candidate;
+    if(['normal','large'].includes(note.type)&&(!tap||Math.abs(ms)<Math.abs(tap.ms)))tap=candidate;
+  }
+  const targets=tap&&hold&&(best===tap||best===hold)?[tap,hold].sort((a,b)=>testPlay.timing.get(a.note).start-testPlay.timing.get(b.note).start):best?[best]:[];
+  for(const target of targets){const grade=testJudgeIndex(target.ms);if(grade<0)continue;target.state.started=true;if(target.note.type!=='long')target.state.done=true;testRegisterJudge(grade);testPlaySE();}
+};
 // Only presentation clocks use this; audio scheduling still uses currentTime.
 function mobileOutputTime(context){
   const now=performance.now(),current=context.currentTime;

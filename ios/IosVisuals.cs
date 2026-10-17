@@ -45,6 +45,19 @@ internal sealed class IosVisuals : IDisposable
         }
     }
     internal UIImage? Asset(string name) => FileImage(Path.Combine(NSBundle.MainBundle.BundlePath, name));
+    internal UIImage? Judgement(string name)
+    {
+        string key="judgement:"+name;if(images.TryGetValue(key,out var cached))return cached;
+        var image=Asset("judgements/"+name+".png");if(image?.CGImage is not {} source)return null;
+        int w=(int)source.Width,h=(int)source.Height;byte[] pixels=new byte[w*h*4];
+        using var space=CGColorSpace.CreateDeviceRGB();
+        using(var bitmap=new CGBitmapContext(pixels,w,h,8,w*4,space,CGImageAlphaInfo.PremultipliedLast))bitmap.DrawImage(new CGRect(0,0,w,h),source);
+        int left=w,top=h,right=0,bottom=0;
+        for(int y=0;y<h;y++)for(int x=0;x<w;x++)if(pixels[(y*w+x)*4+3]>8){left=Math.Min(left,x);right=Math.Max(right,x);top=Math.Min(top,y);bottom=Math.Max(bottom,y);}
+        if(left>right)return null;
+        using var cropped=source.WithImageInRect(new CGRect(left,h-1-bottom,right-left+1,bottom-top+1));
+        return images[key]=UIImage.FromImage(cropped);
+    }
     internal UIImage? GearImage()
     {
         const string key="ui:gear";

@@ -6,6 +6,8 @@
     <AssemblyName>HyperLane.MobileCore</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\apk\MobileHitEffects.cs" Link="Rendering\MobileHitEffects.cs" />
+    <Compile Include="..\win\game\Ebeat864\HitSparkleMotion.cs" Link="Rendering\HitSparkleMotion.cs" />
     <!-- These are the actual tested Android sources, not a second implementation. -->
     <Compile Include="..\apk\MobileChart.cs" Link="Timing\MobileChart.cs" />
     <Compile Include="..\apk\MobileChapterMenu.cs" Link="Library\MobileChapterMenu.cs" />

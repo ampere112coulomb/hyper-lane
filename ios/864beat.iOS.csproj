@@ -7,12 +7,13 @@
     <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
     <ApplicationId>com.ampere112coulomb.hyperlane.ios</ApplicationId>
     <ApplicationTitle>Hyper Lane</ApplicationTitle>
-    <ApplicationDisplayVersion>0.2.3</ApplicationDisplayVersion>
-    <ApplicationVersion>21</ApplicationVersion>
+    <ApplicationDisplayVersion>0.2.4</ApplicationDisplayVersion>
+    <ApplicationVersion>22</ApplicationVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <BundleResource Include="..\assets\judgements\*.png" LogicalName="judgements/%(Filename)%(Extension)" />
     <PackageReference Include="NVorbis" Version="0.10.5" />
     <Compile Remove="tests\**\*.cs" />
     <ProjectReference Include="..\shared\864beat.MobileCore.csproj" />

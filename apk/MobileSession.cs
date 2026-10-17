@@ -18,6 +18,7 @@ internal sealed class MobileSession
     public void ConfigureDanGauge(double initial,int totalUnits,double globalInitial){Gauge=initial;GlobalGauge=globalInitial;globalUnits=Math.Max(1,totalUnits);}
     public static int ScoreUnits(MobileDifficulty difficulty)=>Math.Max(1,difficulty.Notes.Sum(n=>n.Kind=='G'?0:n.Kind=='L'?2:1));
     public event Action<MobileNote, bool>? NoteSound;
+    public MobileHitEffects HitEffects { get; } = new();
     private readonly int scoreUnits;
     private int nextJudgeIndex;
     private readonly Dictionary<int, MobileNote> activeLongs = new();
@@ -25,6 +26,7 @@ internal sealed class MobileSession
     public MobileSession(MobileSong song, MobileDifficulty difficulty)
     {
         Song = song; Difficulty = difficulty;
+        NoteSound += (note, _) => { if (note.Done && note.Kind is not ('D' or 'G')) HitEffects.Add(note); };
         scoreUnits = Math.Max(1, difficulty.Notes.Count(n => n.Kind != 'G') + difficulty.Notes.Count(n => n.Kind == 'L'));
         foreach (MobileNote note in difficulty.Notes) { note.Done = false; note.Started = false; }
     }
@@ -32,7 +34,7 @@ internal sealed class MobileSession
     public void Press(int lane, double seconds)
     {
         if (AutoPlay) return;
-        MobileNote? closest = null;
+        MobileNote? closest = null, tap = null, hold = null;
         double delta = double.MaxValue;
         foreach (MobileNote note in Difficulty.Notes)
         {
@@ -41,9 +43,22 @@ internal sealed class MobileSession
             double ms = (seconds - note.StartSeconds) * 1000;
             if (note.Kind is 'H' or 'W' && (ms < 0 || ms > 60)) continue;
             if (Math.Abs(ms) < Math.Abs(delta)) { closest = note; delta = ms; }
+            if (note.Kind is 'N' or 'M' && (tap is null || Math.Abs(ms) < Math.Abs((seconds-tap.StartSeconds)*1000))) tap=note;
+            if (note.Kind is 'H' or 'W' && (hold is null || Math.Abs(ms) < Math.Abs((seconds-hold.StartSeconds)*1000))) hold=note;
         }
+        if(tap is not null && hold is not null && (ReferenceEquals(closest,tap)||ReferenceEquals(closest,hold))) {
+            if(tap.StartSeconds<=hold.StartSeconds){ApplyPress(tap,seconds,lane);ApplyPress(hold,seconds,lane);}
+            else{ApplyPress(hold,seconds,lane);ApplyPress(tap,seconds,lane);}
+            return;
+        }
+        if(closest is not null)ApplyPress(closest,seconds,lane);
+    }
+
+    private void ApplyPress(MobileNote closest,double seconds,int lane)
+    {
+        double delta=(seconds-closest.StartSeconds)*1000;
         int grade = Grade(delta);
-        if (closest is null || grade < 0) return;
+        if (grade < 0) return;
         if (closest.Kind == 'L') { closest.Started = true; activeLongs[lane] = closest; }
         else closest.Done = true;
         Judge(grade, seconds, delta);

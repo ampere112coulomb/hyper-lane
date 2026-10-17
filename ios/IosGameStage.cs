@@ -67,6 +67,7 @@ internal sealed partial class MigrationStage : UIView
         particleOverlay=new ParticleOverlay(this){BackgroundColor=UIColor.Clear,Opaque=false,UserInteractionEnabled=false,Hidden=true};AddSubview(particleOverlay);
         CGColor[] feverColors=Enumerable.Range(0,5).Select(i=>Color(255,255,255,205/255.0*Math.Pow(1-i/4.0,2.2)).CGColor).ToArray();
         foreach(var layer in new[]{feverLeft,feverRight}){layer.Colors=feverColors;layer.StartPoint=new CGPoint(0,.5);layer.EndPoint=new CGPoint(1,.5);layer.Opacity=0;Layer.AddSublayer(layer);}feverRight.StartPoint=new CGPoint(1,.5);feverRight.EndPoint=new CGPoint(0,.5);
+        foreach(string word in new[]{"PERFECT","GREAT","GOOD","BAD","MISS","AUTO"})visuals.Judgement(word);
         Console.Error.WriteLine("HL startup: GPU initialization");
         gpu=new IosLaneRenderer(CGRect.Empty,visuals);AddSubview(gpu.View);
         Console.Error.WriteLine("HL startup: GPU ready");
@@ -182,7 +183,7 @@ internal sealed partial class MigrationStage : UIView
         }else Text("楽曲ZIPを追加してください",Rect(100,430,690,100),32,center:true);
         Button(c,"play",Rect(1023,945,338,107),57);Button(c,mode==2?"モード選択":"replay",Rect(1373,945,338,107),mode==2?34:57);Fill(c,Rect(1757,970,110,110),Color(5,4,9,.63));Image(visuals.GearImage(),Rect(1778,991,68,68));Button(c,"←",Rect(100,12,160,64),26);Stroke(c,Rect(32,26,22,22),Color(187,178,210),2);Fill(c,Rect(54,50,3,15),Color(187,178,210));Fill(c,Rect(0,924,120,80),Color(5,3,12,.7));Fill(c,Rect(0,924,120,2),Color(210,214,232,.5));Fill(c,Rect(0,1002,120,2),Color(210,214,232,.5));Fill(c,Rect(118,924,2,80),Color(210,214,232,.5));Text("＋",Rect(0,924,120,80),46,center:true);if(Settings.AutoPlay)Text("AUTO",Rect(970,900,150,40),19,UIColor.Yellow);Name(c,false);
     }
-    private void Name(CGContext c,bool result){if(!UserProfile.ValidName(UserName))return;if(result){Fill(c,Rect(0,0,125,62),Color(5,3,12,.82));Polygon(c,[155,0,545,0,545,62,193,62],Color(5,3,12,.82));Text($"{ratingTotal:0.00}",Rect(4,0,117,62),27,center:true);Text(UserName,Rect(198,0,337,62),30);}else{Polygon(c,[0,1018,240,1018,278,1080,0,1080],Color(5,3,12,.82));Text(UserName,Rect(25,1018,208,62),29);}}
+    private void Name(CGContext c,bool result){if(!UserProfile.ValidName(UserName))return;if(result){Polygon(c,[0,0,420,0,388,48,0,48],Color(5,3,12,.82));Polygon(c,[1500,0,1920,0,1920,48,1532,48],Color(5,3,12,.82));Text($"{ratingTotal:0.00}",Rect(4,0,380,48),27,center:true);Text(UserName,Rect(1540,0,360,48),UserName.Length>15?22:30);}else{Polygon(c,[0,1018,240,1018,278,1080,0,1080],Color(5,3,12,.82));Text(UserName,Rect(25,1018,208,62),29);}}
     private void Loading(CGContext c,double now)
     {
         double e=now-loadingAt,exit=exitAt==0?0:Math.Clamp((now-exitAt)/.5,0,1),p=exitAt==0?Ease(e/.5):exit*exit*(3-2*exit),edge=-134.4+2188.8*p;c.SaveState();Polygon(c,exitAt==0?[0,0,edge+134.4,0,edge-134.4,1080,0,1080]:[edge+134.4,0,1920,0,1920,1080,edge-134.4,1080],clip:true);Fill(c,Rect(0,0,1920,1080),Color(9,12,24));Image(visuals.Asset("FusumaSkin.png"),Rect(0,0,1920,1080),crop:true);
@@ -210,10 +211,10 @@ internal sealed partial class MigrationStage : UIView
         string[] labels=["PG","GR","GD","BD","MS"];
         for(int i=0;i<5;i++){double y=615+i*42;Text(labels[i],Rect(110,y,70,30),24);Text(s.Counts[i].ToString(),Rect(192,y,80,30),24);Text($"{(count==0?0:s.Counts[i]*100.0/count):0.##}%",Rect(277,y,110,30),24);Fill(c,Rect(0,647+i*42,359,2),Color(44,102,128));}
         Text("Max combo",Rect(49,823,230,30),24);Text(s.MaxCombo.ToString(),Rect(285,823,90,30),24);Fill(c,Rect(0,857,359,2),Color(44,102,128));
-        if(ActiveDan==null){Stroke(c,Rect(1780,299,85,735),Color(170,220,255));Fill(c,Rect(1790,1027-723*s.Gauge/100,65,723*s.Gauge/100),UIColor.Cyan);Text($"{s.Gauge:0}",Rect(1780,1044,85,24),16,center:true);Fill(c,Rect(1744,482.75,159,4),Color(255,190,54));Text("80",Rect(1700,470,40,24),16,UIColor.Yellow);}
+        if(ActiveDan==null){Stroke(c,Rect(1780,299,85,735),Color(170,220,255));Fill(c,Rect(1790,1027-723*s.Gauge/100,65,723*s.Gauge/100),UIColor.Cyan);Text($"{s.Gauge:0}",Rect(1780,1044,85,24),16,center:true);double gauge80=1027-723*.8;Fill(c,Rect(1744,gauge80,159,4),Color(255,190,54));Text("80",Rect(1700,gauge80-13,40,24),16,UIColor.Yellow);}
         if(s.Combo>0){Text(s.Combo.ToString("N0"),Rect(760,626,400,60),45,center:true);Text("COMBO",Rect(760,682,400,25),16,UIColor.Cyan,true);}
-        if(Seconds<s.JudgeUntilSeconds)Text(s.LastJudgement,Rect(760,834,400,50),32,center:true);
-        if(Settings.AutoPlay)Text("AUTO",Rect(28,1000,200,30),18,UIColor.Yellow);
+        if(Seconds<s.JudgeUntilSeconds)Image(visuals.Judgement(s.LastJudgement),Rect(860,849,200,30));
+        if(Settings.AutoPlay)Image(visuals.Judgement("AUTO"),Rect(28,978,110,30));
         Text("Ⅱ",Rect(1820,24,80,60),36);c.RestoreState();DanHud(c);
         if(PracticePlaying)Button(c,"↻",Rect(20,18,90,70),42);
         if(!Settings.LaneTouch)foreach(int lane in gpu.Held){if(lane<1||lane>s.Difficulty.Lanes)continue;var z=TouchZones.GetRect(s.Difficulty.Lanes,lane-1,1920,1080,Settings.TouchHeight);Fill(c,Rect(z.Left,z.Top,z.Right-z.Left,z.Bottom-z.Top),Color(80,220,226,.18));}
