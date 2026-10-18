@@ -21,7 +21,8 @@ internal sealed class MobileSession
     public MobileHitEffects HitEffects { get; } = new();
     private readonly int scoreUnits;
     private int nextJudgeIndex;
-    private readonly Dictionary<int, MobileNote> activeLongs = new();
+    private readonly HashSet<MobileNote> activeLongs = new();
+    private readonly HashSet<int> heldLanes = new();
 
     public MobileSession(MobileSong song, MobileDifficulty difficulty)
     {
@@ -34,6 +35,7 @@ internal sealed class MobileSession
     public void Press(int lane, double seconds)
     {
         if (AutoPlay) return;
+        heldLanes.Add(lane);
         MobileNote? closest = null, tap = null, hold = null;
         double delta = double.MaxValue;
         foreach (MobileNote note in Difficulty.Notes)
@@ -59,7 +61,7 @@ internal sealed class MobileSession
         double delta=(seconds-closest.StartSeconds)*1000;
         int grade = Grade(delta);
         if (grade < 0) return;
-        if (closest.Kind == 'L') { closest.Started = true; activeLongs[lane] = closest; }
+        if (closest.Kind == 'L') { closest.Started = true; activeLongs.Add(closest); }
         else closest.Done = true;
         Judge(grade, seconds, delta);
         NoteSound?.Invoke(closest, false);
@@ -68,15 +70,18 @@ internal sealed class MobileSession
     public void Release(int lane, double seconds)
     {
         if (AutoPlay) return;
-        if (!activeLongs.Remove(lane, out MobileNote? note)) return;
-        note.Done = true;
-        int grade = Grade((seconds - note.EndSeconds) * 1000);
-        Judge(grade < 0 ? 4 : grade, seconds, (seconds - note.EndSeconds) * 1000);
-        if (grade >= 0) NoteSound?.Invoke(note, true);
+        heldLanes.Remove(lane);
+        foreach(var note in activeLongs.Where(n=>lane>=n.Lane&&(long)lane<(long)n.Lane+n.LaneSpan&&!AnyHeld(n,heldLanes)).ToArray()){
+            activeLongs.Remove(note);note.Done = true;
+            int grade = Grade((seconds - note.EndSeconds) * 1000);
+            Judge(grade < 0 ? 4 : grade, seconds, (seconds - note.EndSeconds) * 1000);
+            if (grade >= 0) NoteSound?.Invoke(note, true);
+        }
     }
 
     public void Advance(double seconds, IReadOnlySet<int> held)
     {
+        heldLanes.Clear();heldLanes.UnionWith(held);
         while (nextJudgeIndex < Difficulty.Notes.Count && (Difficulty.Notes[nextJudgeIndex].Done || Difficulty.Notes[nextJudgeIndex].Kind == 'G')) nextJudgeIndex++;
         for (int index = nextJudgeIndex; index < Difficulty.Notes.Count; index++)
         {
@@ -101,18 +106,18 @@ internal sealed class MobileSession
             }
             else if (note.Kind == 'D')
             {
-                if (ms >= 80) { note.Done = true; Judge(held.Contains(note.Lane) ? 4 : 0, seconds); }
+                if (ms >= 80) { note.Done = true; Judge(AnyHeld(note,held) ? 4 : 0, seconds); }
             }
             else if (note.Kind == 'L')
             {
-                if (!note.Started && ms >= 0 && ms <= 130 && held.Contains(note.Lane))
-                { note.Started = true; activeLongs[note.Lane] = note; Judge(0, seconds); NoteSound?.Invoke(note, false); }
+                if (!note.Started && ms >= 0 && ms <= 130 && AnyHeld(note,held))
+                { note.Started = true; activeLongs.Add(note); Judge(0, seconds); NoteSound?.Invoke(note, false); }
                 else if (!note.Started && ms > 130)
                 { note.Started = true; Judge(4, seconds); }
-                else if (note.Started && note.HoldEnd && seconds >= note.EndSeconds && held.Contains(note.Lane))
-                { note.Done = true; activeLongs.Remove(note.Lane); Judge(0, seconds); NoteSound?.Invoke(note, true); }
+                else if (note.Started && note.HoldEnd && seconds >= note.EndSeconds && AnyHeld(note,held))
+                { note.Done = true; activeLongs.Remove(note); Judge(0, seconds); NoteSound?.Invoke(note, true); }
                 else if (note.Started && seconds > note.EndSeconds + 0.13)
-                { note.Done = true; activeLongs.Remove(note.Lane); Judge(4, seconds); }
+                { note.Done = true; activeLongs.Remove(note); Judge(4, seconds); }
             }
             else if (ms > 130) { note.Done = true; Judge(4, seconds); }
         }

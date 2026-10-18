@@ -18,7 +18,7 @@ internal static class MobileFilters
         }
         foreach (var change in changes)
         {
-            if (change.Beat > beat) break;
+            if (change.Beat > beat && !(beat<0&&change.Beat==0&&change.Ramp&&change.Duration==0)) {if(beat<0&&change.Beat==0)continue;break;}
             double previous = Strength(active, from, change.Beat);
             from = active is {} prior && prior.Kind == change.Kind && prior.BackgroundOnly == change.BackgroundOnly ? previous : 0;
             active = change;

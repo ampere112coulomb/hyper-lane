@@ -488,8 +488,8 @@ internal sealed partial class GameSurface : View
         // Motion events may be delivered after a busy render frame. Judge the
         // actual touch time, not the later time when this callback is processed.
         seconds -= Math.Clamp((SystemClock.UptimeMillis() - e.EventTime) / 1000.0, 0, .25);
-        foreach (int lane in held.Except(next).ToArray()) { session.Release(lane, seconds); RecordMobileInput(lane, seconds, false); }
         foreach (int lane in next.Except(held).ToArray()) { session.Press(lane, seconds); RecordMobileInput(lane, seconds, true); }
+        foreach (int lane in held.Except(next).ToArray()) { session.Release(lane, seconds); RecordMobileInput(lane, seconds, false); }
         held.Clear(); held.UnionWith(next);
         Invalidate();
         return true;

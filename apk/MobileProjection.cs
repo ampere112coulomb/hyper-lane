@@ -21,7 +21,7 @@ internal sealed class MobileProjection
         bool advanced = false, returningToNormal = false;
         foreach (MobileCameraChange change in difficulty.CameraChanges)
         {
-            if (change.Beat > beat) break;
+            if (change.Beat > beat && !(beat<0&&change.Beat==0&&change.Duration==0)) {if(beat<0&&change.Beat==0)continue;break;}
             from = Interpolate(from, to, start, duration, mode, change.Beat);
             if (change.Advanced && !advanced) from = LookPose(from);
             returningToNormal = advanced && !change.Advanced;

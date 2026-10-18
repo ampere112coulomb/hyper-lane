@@ -79,7 +79,7 @@ function mobileDockButton(parent,id,label,run){const b=document.createElement('b
 mobileDockButton(mobileNoteDock,'mobile-test-button','▶ テスト',()=>startTestPlay(false));
 mobileNoteDock.append(mobileModeButton);
 const mobilePalette=document.createElement('div');mobilePalette.className='note-type-btn';mobilePalette.id='mobile-note-palette';mobileNoteDock.append(mobilePalette);
-for(const [type,label,color] of [['normal','Normal','#e8edf3'],['hold','Hold','#d4a727'],['long','Long','#b387ed'],['guide','Guide','#6fa88b'],['large','Large Notes','#6fa88b'],['largeHold','Large Hold','#d4a727'],['damage','Damage','#f05260']]){
+for(const [type,label,color] of [['normal','Normal','#e8edf3'],['hold','Hold','#d4a727'],['long','Long','#b387ed'],['damage','Damage','#f05260'],['large','Large Normal','#6fa88b'],['largeHold','Large Hold','#d4a727'],['largeLong','Large Long','#b387ed'],['largeDamage','Large Damage','#f05260'],['guide','Guide','#6fa88b']]){
   const b=document.getElementById('btn-'+type);b.textContent=label;b.style.setProperty('--note-color',color);b.onclick=()=>{setNoteType(type);mobileMenuClose();};mobilePalette.append(b);
 }
 mobileNoteDock.append(document.getElementById('large-note-settings'));
@@ -118,7 +118,7 @@ const mobileLaneControls=document.createElement('div');mobileLaneControls.id='mo
 let mobileLargeAnchorMode=false;
 const mobileLargeMode=mobileDockButton(mobileLaneControls,'mobile-large-mode','Large',()=>{
   mobileLargeAnchorMode=!mobileLargeAnchorMode;
-  if(mobileLargeAnchorMode&&currentNoteType!=='large'&&currentNoteType!=='largeHold')setNoteType('large');
+  if(mobileLargeAnchorMode&&!isLargeTool(currentNoteType))setNoteType('large');
   refreshMobileLaneControls();
 });
 const mobileLaneArrows=document.createElement('div');mobileLaneArrows.id='mobile-lane-arrows';mobileLaneControls.append(mobileLaneArrows);
@@ -133,7 +133,7 @@ function refreshMobileLaneControls(){
   mobileLaneLabel.textContent=mobileLargeAnchorMode?`持つ位置 ${largeNoteAnchor+1}/${largeNoteSize}`:`レーン ${effectLanePage+1}/3`;
 }
 const mobileOriginalSetNoteType=setNoteType;
-setNoteType=type=>{mobileOriginalSetNoteType(type);if(type!=='large'&&type!=='largeHold')mobileLargeAnchorMode=false;refreshMobileLaneControls();};
+setNoteType=type=>{mobileOriginalSetNoteType(type);if(!isLargeTool(type))mobileLargeAnchorMode=false;refreshMobileLaneControls();};
 refreshMobileLaneControls();
 let mobileDrag=null;
 const editorPointers=new Map();

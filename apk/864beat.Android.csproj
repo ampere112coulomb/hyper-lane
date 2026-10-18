@@ -6,8 +6,8 @@
     <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
     <ApplicationId>com.ampere112coulomb.hyperlane</ApplicationId>
     <ApplicationTitle>Hyper Lane</ApplicationTitle>
-    <ApplicationDisplayVersion>0.6.17</ApplicationDisplayVersion>
-    <ApplicationVersion>15</ApplicationVersion>
+    <ApplicationDisplayVersion>0.6.18</ApplicationDisplayVersion>
+    <ApplicationVersion>16</ApplicationVersion>
     <RootNamespace>HyperLane.Android</RootNamespace>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

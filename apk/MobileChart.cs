@@ -190,16 +190,16 @@ internal sealed class MobileChart
             {
                 if (extra.StartsWith("SS=", StringComparison.OrdinalIgnoreCase) && Number(extra[3..], out double parsedSs))
                     ss = parsedSs == 0 ? .01 : Math.Sign(parsedSs) * Math.Clamp(Math.Abs(parsedSs), .01, 1000);
-                else if (kind is 'M' or 'W' && extra.StartsWith("SIZE=", StringComparison.OrdinalIgnoreCase) && int.TryParse(extra[5..], out int size) && size >= 2)
+                else if (kind is 'M' or 'W' or 'L' or 'D' && extra.StartsWith("SIZE=", StringComparison.OrdinalIgnoreCase) && int.TryParse(extra[5..], out int size) && size >= 2)
                     laneSpan = size;
                 else if (extra.StartsWith('#') && Regex.IsMatch(extra, "^#[0-9a-fA-F]{6}$")) color = extra;
                 else if (kind == 'G' && extra is "solid" or "fade" or "rise") guideMode = extra;
                 else if (kind == 'G' && Number(extra, out double opacity)) guideOpacity = Math.Clamp(opacity, 0, 1);
             }
-            if (kind is 'M' or 'W' ? (laneSpan < 2 || lane > difficulty.Lanes || (long)lane + laneSpan - 1 < 1)
+            if (laneSpan > 1 ? (lane > difficulty.Lanes || (long)lane + laneSpan - 1 < 1)
                 : lane < 1 || lane > difficulty.Lanes) continue;
             difficulty.Notes.Add(new MobileNote(beatStart, beatEnd, lane, kind, ss, noteMatch.Groups[4].Value == "H",
-                color, guideOpacity, guideMode, laneSpan) { Layer = activeLayer });
+                color, guideOpacity, guideMode, laneSpan) { Layer = activeLayer, HoldStart = kind == 'L' && noteMatch.Groups[2].Value == "H" });
         }
         foreach (MobileDifficulty diff in chart.Difficulties)
         {
@@ -416,6 +416,7 @@ internal sealed class MobileNote
     public char Kind { get; }
     public double Ss { get; }
     public bool HoldEnd { get; }
+    public bool HoldStart { get; init; }
     public string? CustomColor { get; }
     public double GuideOpacity { get; }
     public string GuideOpacityMode { get; }

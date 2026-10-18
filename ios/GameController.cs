@@ -260,8 +260,8 @@ internal sealed partial class GameController : UIViewController
         double raw=waitingForAudio?rawStart+CAAnimation.CurrentMediaTime()-startClock:audio.CurrentTime;
         double seconds = MobilePlaybackTiming.ChartSeconds(raw, settings.AudioOffsetMs)
             - Math.Clamp(CAAnimation.CurrentMediaTime() - timestamp, 0, .25);
-        foreach (int lane in held.Except(next).ToArray()) session.Release(lane, seconds);
         foreach (int lane in next.Except(held).ToArray()) session.Press(lane, seconds);
+        foreach (int lane in held.Except(next).ToArray()) session.Release(lane, seconds);
         RecordInput(next,seconds);
         held.Clear(); held.UnionWith(next);
     }

@@ -145,7 +145,7 @@ internal sealed partial class GameSurface
                     if (note.Started) return;
                 }
                 if (z < -12 || z > Math.Min(45, cover)) return;
-                Head(note.Kind switch { 'D' => "damage", 'L' => "longStart", 'H' or 'W' => "hold", 'M' => "large", _ => note.Lane % 2 == 0 ? "normalBlue" : "normalWhite" }, z);
+                Head(note.Kind switch { 'D' => "damage", 'L' => note.HoldStart ? "hold" : "longStart", 'H' or 'W' => "hold", 'M' => "large", _ => note.Lane % 2 == 0 ? "normalBlue" : "normalWhite" }, z);
                 void Head(string sprite, double at)
                 {
                     double thickness = .22 + .009 * Math.Max(0, at);
@@ -179,7 +179,7 @@ internal sealed partial class GameSurface
         double from = 1, target = 1, start = 0, duration = 0;
         foreach (MobileVisibilityChange change in changes)
         {
-            if (change.Beat > beat) break;
+            if (change.Beat > beat && !(beat<0&&change.Beat==0&&change.Duration==0)) {if(beat<0&&change.Beat==0)continue;break;}
             from += (target - from) * (duration <= 0 ? 1 : Math.Clamp((change.Beat - start) / duration, 0, 1));
             target = change.Opacity; start = change.Beat; duration = change.Duration;
         }
