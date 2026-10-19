@@ -6,8 +6,8 @@
     <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
     <ApplicationId>com.ampere112coulomb.hyperlane</ApplicationId>
     <ApplicationTitle>Hyper Lane</ApplicationTitle>
-    <ApplicationDisplayVersion>0.6.18</ApplicationDisplayVersion>
-    <ApplicationVersion>16</ApplicationVersion>
+    <ApplicationDisplayVersion>0.7.0</ApplicationDisplayVersion>
+    <ApplicationVersion>17</ApplicationVersion>
     <RootNamespace>HyperLane.Android</RootNamespace>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -15,6 +15,8 @@
     <AndroidPackageFormats>apk</AndroidPackageFormats>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\win\game\Ebeat864\BadgeDefinition.cs" Link="Shared\BadgeDefinition.cs" />
+    <Compile Include="..\win\game\Ebeat864\RankRules.cs" Link="Shared\RankRules.cs" />
     <Compile Include="..\win\game\Ebeat864\HitSparkleMotion.cs" Link="Shared\HitSparkleMotion.cs" />
     <AndroidAsset Include="..\assets\judgements\*.png" Link="judgements\%(Filename)%(Extension)" />
     <Compile Include="..\win\game\Ebeat864\JudgementLineChange.cs" Link="Shared\JudgementLineChange.cs" />

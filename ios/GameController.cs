@@ -251,7 +251,7 @@ internal sealed partial class GameController : UIViewController
         if(practice){stage.Page=MigrationStage.Screen.Practice;return;}
         if(activeDan!=null){FinishDan();return;}
         if(recordEligible&&!replaying)rating.Update(MigrationStage.Key(session.Song,session.Difficulty),MigrationStage.Hash(session.Song),MigrationStage.Level(session.Difficulty),session.Score,session.Counts,session.MaxCombo);
-        SaveReplay();stage.ShowResult();
+        SaveReplay();stage.AwardBadge(recordEligible&&!replaying);stage.ShowResult();
     }
 
     private void InputChanged(IReadOnlySet<int> next, double timestamp)

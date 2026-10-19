@@ -84,6 +84,7 @@ internal sealed class MobileChart
                                 difficulty.Layers[number] = new MobileDifficulty { Name = difficulty.Name, Lanes = difficulty.Lanes };
                         }
                         break;
+                    case "BADGE": if(difficulty is not null)difficulty.Badge=HyperLane.BadgeDefinition.Parse(value);break;
                     case "LEVEL": if (difficulty is not null) difficulty.Level = value; break;
                     case "LEVEL_DISPLAY": if (difficulty is not null) difficulty.LevelLabel = HyperLane.ChartLevel.NormalizeLabel(value); break;
                     case "FEVER":
@@ -367,6 +368,7 @@ internal sealed class MobileChart
 
 internal sealed class MobileDifficulty
 {
+    public HyperLane.BadgeDefinition? Badge {get;set;}
     public string ChartDesigner { get; set; } = "";
     public string Audio { get; set; } = "";
     public double? AudioOffset { get; set; }

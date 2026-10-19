@@ -262,6 +262,7 @@ internal sealed partial class GameSurface : View
             using(var warmBitmap=Bitmap.CreateBitmap(1,1,Bitmap.Config.Argb8888!)!)
             using(var warmCanvas=new Canvas(warmBitmap))foreach(string word in new[]{"PERFECT","GREAT","GOOD","BAD","MISS","AUTO"})DrawMobileJudgement(warmCanvas,word,new RectF(0,0,1,1));
             session = new MobileSession(song, diff) { AutoPlay = settings.AutoPlay };
+            badgeEligible=!settings.AutoPlay&&!practicePlaying&&!mobileReplaying&&!danPlaying;
             if(danPlaying&&activeDan!=null)session.ConfigureDanGauge(activeDan.Definition.CarryGauge&&danResults.Count>0?danResults[^1].Gauge:activeDan.Definition.InitialGauge,DanScoreUnits,danGlobalGauge);
             if (practicePlaying) PracticeTiming.SkipPreviousNotes(diff);
             soundTimes = diff.Notes.Where(n => n.Kind is not ('D' or 'G')).SelectMany(n => n.Kind == 'L'
@@ -442,6 +443,7 @@ internal sealed partial class GameSurface : View
         float y = (e.GetY(actionIndex) - stageTop) / stageScale;
         if (menuTransitionStarted != 0 || preparingMobilePlay) return true;
         if(!HyperLane.UserProfile.ValidName(profile.UserName))return true;
+        if(TouchBadges(e,x,y))return true;
         HandleMenuSound(e,x,y);
         if (page is Page.Title or Page.Modes or Page.Practice) return TouchFrontPage(e, x, y);
         if (page == Page.Select) return danMode?TouchMobileDanSelect(e,x,y):TouchSelection(e, x, y);

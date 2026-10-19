@@ -42,15 +42,15 @@ internal sealed partial class GameSurface
         using var box= result?Polygon([0,y,120,y,156,y+62,540,y+62,540,y,0,y]):Polygon([0,y,240,y,278,y+62,0,y+62]);
         // Separate, inward-slanted name and rating badges on results.
         if(result){
-            using var rate=Polygon([0,0,420,0,388,48,0,48]);
-            using var name=Polygon([1500,0,1920,0,1920,48,1532,48]);
+            using var rate=Polygon([1688,0,1920,0,1920,48,1720,48]);
+            using var name=Polygon([0,0,420,0,388,48,0,48]);
             paint.Color=Color.Argb(210,5,3,12);paint.SetStyle(Paint.Style.Fill);canvas.DrawPath(rate,paint);canvas.DrawPath(name,paint);
-            ResultText(canvas,$"{ratingTotal:0.00}",new RectF(4,0,384,48),27,1,Paint.Align.Center);
-            FitMobileText(canvas,profile.UserName,new RectF(1540,0,1900,48),30,1);
+            FitMobileText(canvas,profile.UserName,new RectF(25,0,380,48),30,1);
         }else{
             paint.Color=Color.Argb(210,5,3,12);paint.SetStyle(Paint.Style.Fill);canvas.DrawPath(box,paint);
             FitMobileText(canvas,profile.UserName,new RectF(25,y,233,y+62),29,1);
         }
+        DrawBadgeHeader(canvas);
     }
     private void FitMobileText(Canvas canvas,string text,RectF rect,float size,float opacity,bool center=false)
     {

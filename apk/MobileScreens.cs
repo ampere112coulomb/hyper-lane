@@ -221,6 +221,7 @@ internal sealed partial class GameSurface
         playbackClock.Stop();
         resultBlur?.Dispose(); resultBlur = background is null ? null : MobileResultBackground.Create(background);
         SaveMobileReplay();
+        try{pendingBadge=Badges.Award(session,badgeEligible&&!settings.AutoPlay&&!mobileReplaying);}catch(Exception error){message="称号保存エラー: "+error.Message;}
         if (!settings.AutoPlay && !mobileReplaying && HyperLane.ChartLevel.TryParse(session.Difficulty.Level, out double level))
         {
             try { rating.Update(RatingKey(session.Song, session.Difficulty), Hash(session.Song), level, session.Score,session.Counts,session.MaxCombo); RefreshRating(); }
@@ -285,7 +286,7 @@ internal sealed partial class GameSurface
         Bitmap? box = ResultSprite("rank_box.png");
         if (box is not null) ResultImage(canvas, box, CenteredRect(682, 874, 304 * scale), rankPhase);
         string rank = Rank(session.Score);
-        Bitmap? letter = rank.Length == 0 ? null : ResultSprite("rank-" + rank + ".png");
+        Bitmap? letter = rank.Length == 0 ? null : MobileRank(session.Score,HyperLane.RankRules.IsFullCombo(session.Counts));
         if (letter is not null) ResultImage(canvas, letter, CenteredRect(682, 874, 224 * scale), rankPhase);
         float baseline = Phase(3.1, .2);
         Line(canvas, 911, 1023, 1138, 1023, Alpha(Color.White, baseline), 3);
@@ -310,6 +311,7 @@ internal sealed partial class GameSurface
         for (int i = 0; i < actions.Length; i++) ScreenButton(canvas, actions[i], new RectF(1250, 694 + i * 91, 1637, 783 + i * 91), 42, Phase(4.5, .4));
         if (elapsed < 4.9) PostInvalidateOnAnimation();
         DrawMobileUserName(canvas,true);
+        DrawBadgeOverlay(canvas);
     }
 
     private static string Rank(int score) => score >= 1000000 ? "Psi" : score >= 995000 ? "Ex+" : score >= 990000 ? "Ex" : score >= 950000 ? "SS" : score >= 900000 ? "S" : score >= 860000 ? "A" : score >= 820000 ? "B" : score >= 780000 ? "C" : "";
@@ -347,7 +349,7 @@ internal sealed partial class GameSurface
     private bool TouchNativeResult(MotionEvent e, float x, float y)
     {
         if (e.ActionMasked != MotionEventActions.Up || Environment.TickCount64 - resultStartedAt < 4500) return true;
-        if(Hit(x,y,0,0,420,48)){OpenMobileBest30();return true;}
+        if(Hit(x,y,1688,0,1920,48)){OpenMobileBest30();return true;}
         for (int i = 0; i < 3; i++) if (Hit(x, y, 1250, 694 + i * 91, 1637, 783 + i * 91))
         {
             if (i == 0) StopPlaying();

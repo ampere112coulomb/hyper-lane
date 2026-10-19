@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net10.0-android</TargetFramework><OutputType>Exe</OutputType>
     <ApplicationId>com.ampere112coulomb.hyperlane.editor</ApplicationId>
-    <ApplicationTitle>Hyper Lane Editor</ApplicationTitle><ApplicationDisplayVersion>0.1.12</ApplicationDisplayVersion><ApplicationVersion>13</ApplicationVersion>
+    <ApplicationTitle>Hyper Lane Editor</ApplicationTitle><ApplicationDisplayVersion>0.2.0</ApplicationDisplayVersion><ApplicationVersion>14</ApplicationVersion>
     <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion><RuntimeIdentifier>android-arm64</RuntimeIdentifier>
     <AndroidPackageFormats>apk</AndroidPackageFormats><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>

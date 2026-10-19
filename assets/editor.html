@@ -401,6 +401,19 @@
                     <span id="volume-se-val" class="volume-val">70%</span>
                 </div>
             </div>
+            <details class="sidebar-section" id="badge-settings">
+                <summary>称号</summary>
+                <div class="sidebar-section-content">
+                    <label><input type="checkbox" id="badge-enabled" onchange="toggleBadge(this.checked)" style="width:auto"> 設定する</label>
+                    <div id="badge-fields" hidden>
+                        <label>画像ファイル名</label>
+                        <input type="text" id="badge-image" placeholder="badge.png" onchange="updateBadgeImage(this.value)">
+                        <label>獲得条件（すべて満たす）</label>
+                        <div id="badge-conditions"></div>
+                        <button type="button" onclick="addBadgeCondition()">条件を追加</button>
+                    </div>
+                </div>
+            </details>
             <input type="file" id="import-file" accept=".2d,.sd,.txt" style="display:none;" onchange="importChart(this)">
         </div>
 
@@ -717,9 +730,8 @@
             select.value=String(currentLayer);
             document.getElementById('delete-layer-btn').disabled=currentLayer===1;
         }
-        function switchLayer(number) {
+        function switchLayer(number, songTime = beatToTime(viewBeat)) {
             if (!layerNumbers().includes(number)) return;
-            const songTime=beatToTime(viewBeat);
             currentLayer=number;
             refreshChartRefs();
             viewBeat=timeToBeat(songTime);
@@ -738,9 +750,10 @@
             const layer = layerData(currentDifficulty, number);
             if ((layer.notes.length || layer.changeEvents.length || layer.feverSections.length) &&
                 !confirm(`レイヤー ${number} にはノーツ・ガイドまたは演出が配置されています。本当に削除しますか？`)) return;
+            const songTime=beatToTime(viewBeat);
             recordUndo();
             delete chartData[currentDifficulty].layers[number];
-            switchLayer(1);
+            switchLayer(1,songTime);
         }
         let notes = chartData[currentDifficulty].notes;
         let countedNotesRef = null;
@@ -1298,6 +1311,7 @@
             changeEvents = layerData().changeEvents;
             feverSections = layerData().feverSections;
             updateNoteCount(true);
+            refreshBadgeFields();
         }
 
         function updateUndoButton() {
@@ -1691,6 +1705,33 @@
             syncToGame();
         }
 
+        const BADGE_METRICS=[['rank','ランク'],['score','スコア'],['perfect','PERFECT'],['great','GREAT'],['good','GOOD'],['bad','BAD'],['miss','MISS'],['combo','Maxコンボ']];
+        const BADGE_RANKS=['C','B','A','S','SS','Ex','Ex+','ψ'];
+        function validBadge(badge) {
+            return badge && typeof badge.image==='string' && /\.(png|jpe?g|bmp|gif)$/i.test(badge.image) && !/[:\r\n]/.test(badge.image) && !badge.image.replace(/\\/g,'/').split('/').some(p=>!p||p==='.'||p==='..') && Array.isArray(badge.conditions) && badge.conditions.length>0 && badge.conditions.length<=32 && badge.conditions.every(c=>c && BADGE_METRICS.some(([metric])=>metric===c.metric) && ['>=','<='].includes(c.op) && Number.isSafeInteger(c.value) && c.value>=0 && c.value<=(c.metric==='rank'?7:1000000));
+        }
+        function refreshBadgeFields() {
+            const enabled=document.getElementById('badge-enabled');if(!enabled)return;
+            const badge=chartData[currentDifficulty]?.badge;
+            enabled.checked=!!badge;document.getElementById('badge-fields').hidden=!badge;
+            document.getElementById('badge-image').value=badge?.image || '';
+            const container=document.getElementById('badge-conditions');container.replaceChildren();
+            if(!badge)return;
+            for(const [index,condition] of badge.conditions.entries()){
+                const row=document.createElement('div');row.style.cssText='display:grid;grid-template-columns:1fr 72px 62px 26px;gap:4px;margin-bottom:6px;align-items:center';
+                const metric=document.createElement('select');for(const [value,label] of BADGE_METRICS)metric.add(new Option(label,value));metric.value=condition.metric;metric.onchange=()=>changeBadgeCondition(index,'metric',metric.value);
+                const value=document.createElement(condition.metric==='rank'?'select':'input');
+                if(condition.metric==='rank'){BADGE_RANKS.forEach((label,n)=>value.add(new Option(label,String(n))));value.value=String(condition.value);}else{value.type='number';value.min='0';value.max='1000000';value.step='1';value.value=condition.value;}
+                value.onchange=()=>changeBadgeCondition(index,'value',Number(value.value));
+                const op=document.createElement('select');op.add(new Option('以上','>='));op.add(new Option('以下','<='));op.value=condition.op;op.onchange=()=>changeBadgeCondition(index,'op',op.value);
+                const remove=document.createElement('button');remove.textContent='×';remove.type='button';remove.onclick=()=>{recordUndo();badge.conditions.splice(index,1);refreshBadgeFields();syncToGame();};
+                row.append(metric,value,op,remove);container.append(row);
+            }
+        }
+        function toggleBadge(enabled){recordUndo();if(enabled)chartData[currentDifficulty].badge={image:'badge.png',conditions:[{metric:'rank',op:'>=',value:0}]};else delete chartData[currentDifficulty].badge;refreshBadgeFields();syncToGame();}
+        function updateBadgeImage(value){const badge=chartData[currentDifficulty]?.badge;if(!badge)return;recordUndo();badge.image=String(value).trim();syncToGame();}
+        function addBadgeCondition(){const badge=chartData[currentDifficulty]?.badge;if(!badge||badge.conditions.length>=32)return;recordUndo();badge.conditions.push({metric:'rank',op:'>=',value:0});refreshBadgeFields();syncToGame();}
+        function changeBadgeCondition(index,key,value){const condition=chartData[currentDifficulty]?.badge?.conditions[index];if(!condition)return;recordUndo();condition[key]=value;if(key==='metric')condition.value=0;refreshBadgeFields();syncToGame();}
         function effectiveAudioFile() { return String(chartData[currentDifficulty]?.audio || document.getElementById('meta-song').value).trim(); }
         function effectiveOffsetSeconds() { return (chartData[currentDifficulty]?.audioOffsetMs ?? (parseFloat(document.getElementById('meta-offset').value) || 0)) / 1000; }
         function refreshDifficultyAudioFields() {
@@ -3599,6 +3640,7 @@
                     
                     if (line.startsWith('TITLE:')) document.getElementById('meta-title').value = line.replace('TITLE:', '').trim();
                     else if (line.startsWith('COMPOSER:')) document.getElementById('meta-composer').value = line.replace('COMPOSER:', '').trim();
+                    else if (line.startsWith('BADGE:')) { if(insideDifficulty){const badge=JSON.parse(line.slice(6).trim());if(!validBadge(badge))throw new Error('称号の設定が不正です');chartData[activeImportDiff].badge=badge;} }
                     else if (line.startsWith('DIFFICULTY_CHART_DESIGNER:')) { if (insideDifficulty) chartData[activeImportDiff].chartDesigner = line.slice('DIFFICULTY_CHART_DESIGNER:'.length).trim(); }
                     else if (line.startsWith('DIFFICULTY_SONG:')) { if(insideDifficulty)chartData[activeImportDiff].audio=line.slice('DIFFICULTY_SONG:'.length).trim(); }
                     else if (line.startsWith('DIFFICULTY_OFFSET:')) {const n=Number(line.slice('DIFFICULTY_OFFSET:'.length).trim());if(insideDifficulty&&Number.isFinite(n))chartData[activeImportDiff].audioOffsetMs=n*1000;}
@@ -3794,6 +3836,7 @@
 
                 output.push(`// ==========================================`);
                 output.push(`DIFFICULTY: ${d}`);
+                if(dData.badge){if(!validBadge(dData.badge)){alert(`${d}の称号画像と獲得条件を確認してください。`);throw new Error('Invalid badge');}output.push(`BADGE: ${JSON.stringify(dData.badge)}`);}
                 const designer = String(dData.chartDesigner || '').replace(/[\r\n]/g, ' ').trim();
                 if (designer) output.push(`DIFFICULTY_CHART_DESIGNER: ${designer}`);
                 if(dData.audio)output.push(`DIFFICULTY_SONG: ${String(dData.audio).replace(/[\r\n]/g,' ').trim()}`);
@@ -3931,7 +3974,33 @@
             // 通常のエディタ再生と同じ AudioContext.currentTime をマスタークロックにする。
             return testPlay.startSeconds + ((audioCtx?.currentTime||testPlay.clockAt) - testPlay.clockAt) + TEST_PLAY_SYNC_OFFSET_SECONDS;
         }
+        function testCreateLayerState(number) {
+            const layer=layerData(currentDifficulty,number),sorted=type=>layer.changeEvents.filter(e=>e.type===type).slice().sort((a,b)=>a.beat-b.beat);
+            const timing=previewLayerTiming(layer);
+            return {number,notes:layer.notes,bpmEvents:sorted('BPM'),bsEvents:sorted('BS'),nsEvents:sorted('NS'),scrollSegments:timing.segments,nsSegments:timing.nsSegments,minSs:layer.notes.reduce((min,n)=>Math.min(min,Number.isFinite(+n.ss)?Math.max(.01,Math.min(1000,Math.abs(+n.ss))):1),1)};
+        }
+        function testLayerBeatTime(beat,layer) {
+            let bpm=parseFloat(document.getElementById('meta-bpm').value)||150;
+            const offset=effectiveOffsetSeconds();
+            for(const e of layer.bpmEvents){if(e.beat>0)break;bpm=Number(e.val)||bpm;}
+            if(beat<=0)return offset+beat*60/bpm;
+            let position=0,time=offset;
+            for(const e of layer.bpmEvents){if(e.beat<=0)continue;if(e.beat>=beat)break;time+=(e.beat-position)*60/bpm;position=e.beat;bpm=Number(e.val)||bpm;}
+            return time+(beat-position)*60/bpm;
+        }
+        function testLayerTimeToBeat(seconds,layer) {
+            let bpm=parseFloat(document.getElementById('meta-bpm').value)||150;
+            const offset=effectiveOffsetSeconds();
+            for(const e of layer.bpmEvents){if(e.beat>0)break;bpm=Number(e.val)||bpm;}
+            if(seconds<=offset)return (seconds-offset)*bpm/60;
+            let position=0,time=offset;
+            for(const e of layer.bpmEvents){if(e.beat<=0)continue;const end=time+(e.beat-position)*60/bpm;if(seconds<end)break;time=end;position=e.beat;bpm=Number(e.val)||bpm;}
+            return position+(seconds-time)*bpm/60;
+        }
+        function testLayerScrollAt(beat,layer) {return previewLayerScrollAt(beat,layer.scrollSegments);}
+        function testNoteEligible(note) {return (testPlay.timing.get(note)?.start??-Infinity)>=testPlay.anchorSeconds-.000001;}
         function testBeatTime(beat) {
+            if(testPlay.active&&testPlay.layers)return testLayerBeatTime(beat,testPlay.layers.get(1));
             const bpm=parseFloat(document.getElementById('meta-bpm').value)||150;
             const offset = effectiveOffsetSeconds();
             if(beat<=0)return offset+beat*60/bpm;
@@ -3941,6 +4010,7 @@
             return currentTime+(beat-currentBeat)*60/currentBpm;
         }
         function testTimeToBeat(seconds) {
+            if(testPlay.layers)return testLayerTimeToBeat(seconds,testPlay.layers.get(1));
             const baseBpm=parseFloat(document.getElementById('meta-bpm').value)||150;
             const offset = effectiveOffsetSeconds();
             if(seconds<=offset)return (seconds-offset)*baseBpm/60;
@@ -3953,6 +4023,7 @@
                 const baseBpm = parseFloat(document.getElementById('meta-bpm').value) || 150;
                 return getScrollPos(targetBeat) * 120 / baseBpm;
             }
+            if(testPlay.layers)return testLayerScrollAt(targetBeat,testPlay.layers.get(1));
             let position=0,currentBeat=0,currentBs=1;
             const events=testPlay.active?testPlay.bsEvents:changeEvents.filter(event=>event.type==='BS').slice().sort((a,b)=>(a.beat||0)-(b.beat||0));
             for(const event of events){
@@ -4002,27 +4073,38 @@
             return state;
         }
         function buildTestRenderIndex() {
-            const sorted=type=>changeEvents.filter(event=>event.type===type).slice().sort((a,b)=>(a.beat||0)-(b.beat||0));
+            testPlay.layers=new Map(layerNumbers().map(number=>[number,testCreateLayerState(number)]));
+            const master=layerData(currentDifficulty,1),sorted=type=>master.changeEvents.filter(event=>event.type===type).slice().sort((a,b)=>(a.beat||0)-(b.beat||0));
             testPlay.bpmEvents=sorted('BPM');
             testPlay.bsEvents=sorted('BS');
             testPlay.nsEvents=sorted('NS');
             testPlay.judgementLineEvents=sorted('JUDGE_LINE').map(event=>({...event,spec:parseJudgementLineSpec(event.val)}));
             testPlay.nsScrollSegments=buildNoteSpeedSegments(testPlay.nsEvents);
-            testPlay.minSs=notes.reduce((min,n)=>Math.min(min,Number.isFinite(+n.ss)?Math.max(.01,Math.min(1000,Math.abs(+n.ss))):1),1);
-            testPlay.cameraEvents=changeEvents.filter(event=>event.type==='CAMERA'||event.type==='CAMERA_ADV').slice().sort((a,b)=>(a.beat||0)-(b.beat||0));
+            testPlay.cameraEvents=master.changeEvents.filter(event=>event.type==='CAMERA'||event.type==='CAMERA_ADV').slice().sort((a,b)=>(a.beat||0)-(b.beat||0));
+            testPlay.feverSections=master.feverSections;
+            testPlay.anchorSeconds??=testLayerBeatTime(testPlay.anchorBeat,testPlay.layers.get(currentLayer));
             testPlay.timing=new Map();
-            for(const note of notes)testPlay.timing.set(note,{start:testBeatTime(note.beat),end:testBeatTime(note.endBeat??note.beat)});
-            const make=source=>{
+            testPlay.playNotes=[];
+            for(const layer of testPlay.layers.values())for(const note of layer.notes){testPlay.playNotes.push(note);testPlay.timing.set(note,{start:testLayerBeatTime(note.beat,layer),end:testLayerBeatTime(note.endBeat??note.beat,layer)});}
+            testPlay.playNotes.sort((a,b)=>testPlay.timing.get(a).start-testPlay.timing.get(b).start);
+            const make=(source,layer)=>{
                 const result=source.map(note=>{
-                    const a=getTestPlayScrollPos(note.beat),b=getTestPlayScrollPos(note.endBeat??note.beat);
+                    const a=testLayerScrollAt(note.beat,layer),b=testLayerScrollAt(note.endBeat??note.beat,layer);
                     return {note,scrollStart:a,scrollEnd:b,start:Math.min(a,b),end:Math.max(a,b),prefixEnd:0};
                 }).sort((a,b)=>a.start-b.start);
                 let max=-Infinity;for(const item of result){max=Math.max(max,item.end);item.prefixEnd=max;}return result;
             };
-            testPlay.guideIndex=make(notes.filter(n=>n.type==='guide'&&n.beat>=testPlay.anchorBeat));
-            testPlay.noteIndex=make(notes.filter(n=>n.type!=='guide'&&n.type!=='laneOpacity'&&n.beat>=testPlay.anchorBeat));
-            const lastBeat=notes.reduce((max,n)=>Math.max(max,n.endBeat??n.beat),testPlay.anchorBeat)+80;
-            testPlay.measureIndex=getMeasureLineBeats(Math.max(0,testPlay.startBeat-16),lastBeat).map(beat=>({beat,scrollStart:getTestPlayScrollPos(beat),start:getTestPlayScrollPos(beat),end:getTestPlayScrollPos(beat),prefixEnd:getTestPlayScrollPos(beat)}));
+            for(const layer of testPlay.layers.values()){
+                layer.guideIndex=make(layer.notes.filter(n=>n.type==='guide'&&testNoteEligible(n)),layer);
+                layer.noteIndex=make(layer.notes.filter(n=>n.type!=='guide'&&n.type!=='laneOpacity'&&testNoteEligible(n)),layer);
+            }
+            // Public aggregate indexes are also used by diagnostics; rendering queries each layer separately.
+            testPlay.guideIndex=[...testPlay.layers.values()].flatMap(l=>l.guideIndex);
+            testPlay.noteIndex=[...testPlay.layers.values()].flatMap(l=>l.noteIndex);
+            const lastSeconds=testPlay.playNotes.reduce((max,n)=>Math.max(max,testPlay.timing.get(n).end),testPlay.anchorSeconds);
+            const lastBeat=testLayerTimeToBeat(lastSeconds,testPlay.layers.get(1))+80;
+            // Bar lines and all global effects belong to layer 1, regardless of the editing layer.
+            const old=changeEvents;try{changeEvents=master.changeEvents;testPlay.measureIndex=getMeasureLineBeats(Math.max(0,testPlay.startBeat-16),lastBeat).map(beat=>({beat,scrollStart:getTestPlayScrollPos(beat),start:getTestPlayScrollPos(beat),end:getTestPlayScrollPos(beat),prefixEnd:getTestPlayScrollPos(beat)}));}finally{changeEvents=old;}
         }
         function visibleTestRecords(index,minScroll,maxScroll) {
             let lo=0,hi=index.length;
@@ -4053,10 +4135,11 @@
             if(!bgmGainNode){bgmGainNode=audioCtx.createGain();bgmGainNode.connect(audioCtx.destination);}
             if(!seGainNode){seGainNode=audioCtx.createGain();seGainNode.connect(audioCtx.destination);}
             updateVolume(); audioCtx.resume(); stopTestAudio();
-            if(!restart){testPlay.anchorBeat=viewBeat;testPlay.startBeat=viewBeat-8;}
+            if(!restart){const selected=testCreateLayerState(currentLayer),master=testCreateLayerState(1);testPlay.anchorSeconds=testLayerBeatTime(viewBeat,selected);testPlay.anchorBeat=testLayerTimeToBeat(testPlay.anchorSeconds,master);testPlay.startBeat=testLayerTimeToBeat(testLayerBeatTime(viewBeat-8,selected),master);}
+            const masterEvents=layerData(currentDifficulty,1).changeEvents;
             testPlay.visibilityEvents={
-                LANE_VIS: changeEvents.filter(e=>e.type==='LANE_VIS').slice().sort((a,b)=>a.beat-b.beat),
-                UI_VIS: changeEvents.filter(e=>e.type==='UI_VIS').slice().sort((a,b)=>a.beat-b.beat)
+                LANE_VIS: masterEvents.filter(e=>e.type==='LANE_VIS').slice().sort((a,b)=>a.beat-b.beat),
+                UI_VIS: masterEvents.filter(e=>e.type==='UI_VIS').slice().sort((a,b)=>a.beat-b.beat)
             };
             testPlay.active=true;
             buildTestRenderIndex();
@@ -4101,8 +4184,8 @@
         function testCoveredHeld(note) { for(let lane=Math.max(1,note.lane);lane<=Math.min(TOTAL_LANES,note.lane+largeNoteSpan(note)-1);lane++)if(testPlay.held.has(lane))return true;return false; }
         function updateTestJudgements(beat) {
             const now=testSongSeconds();
-            for(const note of notes){
-                if(note.type==='guide'||note.type==='laneOpacity'||note.beat<testPlay.anchorBeat)continue;
+            for(const note of testPlay.playNotes){
+                if(note.type==='guide'||note.type==='laneOpacity'||!testNoteEligible(note))continue;
                 const state=testStateFor(note);if(state.done)continue;
                 const timing=testPlay.timing.get(note),start=timing.start,end=timing.end,ms=(now-start)*1000;
                 if(testPlay.auto){
@@ -4127,7 +4210,7 @@
         }
         function hitTestLane(lane) {
             const now=testSongSeconds();let best=null,bestMs=999;
-            for(const note of notes){const state=testStateFor(note);if(note.beat<testPlay.anchorBeat||state.done||state.started||lane<note.lane||lane>=note.lane+largeNoteSpan(note)||note.type==='damage'||note.type==='guide'||note.type==='laneOpacity')continue;
+            for(const note of testPlay.playNotes){const state=testStateFor(note);if(!testNoteEligible(note)||state.done||state.started||lane<note.lane||lane>=note.lane+largeNoteSpan(note)||note.type==='damage'||note.type==='guide'||note.type==='laneOpacity')continue;
                 const ms=(now-testPlay.timing.get(note).start)*1000;if((note.type==='hold'||note.type==='largeHold')&&(ms<0||ms>60))continue;if(Math.abs(ms)<Math.abs(bestMs)&&Math.abs(ms)<=120){best={note,state};bestMs=ms;}}
             if(!best)return;const j=testJudgeIndex(bestMs);if(j<0)return;best.state.started=true;if(best.note.type!=='long')best.state.done=true;testRegisterJudge(j);testPlaySE();
         }
@@ -4175,7 +4258,7 @@
                 return(low+high)/2;
             };
             const judgementDepths=judgementPositions.map(value=>depthAtFraction(value/100)),maxJudgementDepth=Math.max(0,...judgementDepths);
-            const fever=feverSections.find(x=>beat>=x.startBeat&&beat<=x.endBeat);
+            const fever=(testPlay.feverSections||feverSections).find(x=>beat>=x.startBeat&&beat<=x.endBeat);
             if(fever){
                 const elapsedBeat=beat-fever.startBeat,phase=elapsedBeat-Math.floor(elapsedBeat),pulse=Math.pow(1-phase,2),band=w*.14,maxAlpha=(205/255)*pulse;
                 const leftAura=g.createLinearGradient(0,0,band,0);
@@ -4197,9 +4280,12 @@
             g.globalAlpha=visibilityAtBeat('LANE_VIS',beat);
             for(const record of visibleTestRecords(testPlay.measureIndex,minScroll,maxScroll)){const z=(record.scrollStart-scroll)*unit;poly([{x:-half,y:.022,z:z-.012},{x:half,y:.022,z:z-.012},{x:half,y:.022,z:z+.012},{x:-half,y:.022,z:z+.012}],'rgba(90,170,230,.39)');}
             g.globalAlpha=1;
-            const cullUnit=unit*Math.max(nsMultiplier,.1)*(testPlay.minSs||1);
-            const reverseExtent=Math.max(noteFar,Math.abs(near-maxJudgementDepth));const minNoteScroll=scroll-reverseExtent/cullUnit,maxNoteScroll=scroll+reverseExtent/cullUnit;
-            const visible=[...visibleTestRecords(testPlay.guideIndex,minNoteScroll,maxNoteScroll),...visibleTestRecords(testPlay.noteIndex,minNoteScroll,maxNoteScroll)];
+            const reverseExtent=Math.max(noteFar,Math.abs(near-maxJudgementDepth)),visible=[],songSeconds=testSongSeconds();
+            for(const layer of testPlay.layers.values()){
+                const layerBeat=testLayerTimeToBeat(songSeconds,layer),layerScroll=testLayerScrollAt(layerBeat,layer),layerNs=previewLayerNsAt(layerBeat,layer.nsSegments);
+                const cullUnit=unit*Math.max(Math.abs(layerNs),.1)*layer.minSs,min=layerScroll-reverseExtent/cullUnit,max=layerScroll+reverseExtent/cullUnit;
+                for(const record of [...visibleTestRecords(layer.guideIndex,min,max),...visibleTestRecords(layer.noteIndex,min,max)])visible.push({...record,currentScroll:layerScroll,nsMultiplier:layerNs});
+            }
             const segments=[];
             for(const record of visible){
                 const n=record.note;if(!noteOverlapsLanes(n))continue;
@@ -4208,7 +4294,8 @@
                     for(let lane=first;lane<=last;lane++)segments.push({record,lane,span:1,offset:judgementDepths[lane-1]});
                 }else segments.push({record,lane:n.lane,span:largeNoteSpan(n),offset});
             }
-            for(const segment of segments){const {record,lane,span,offset}=segment,n=record.note;const state=testStateFor(n);if(state.done&&!state.missed)continue;const ss=Number.isFinite(+n.ss)?Math.sign(+n.ss||1)*Math.max(.01,Math.min(1000,Math.abs(+n.ss))):1;let z=(record.scrollStart-scroll)*unit*nsMultiplier*ss+offset,end=(record.scrollEnd-scroll)*unit*nsMultiplier*ss+offset,l=half-(lane+span-1)*lw,r=half-(lane-1)*lw;
+            segments.sort((a,b)=>(b.record.scrollStart-b.record.currentScroll)*b.record.nsMultiplier-(a.record.scrollStart-a.record.currentScroll)*a.record.nsMultiplier);
+            for(const segment of segments){const {record,lane,span,offset}=segment,n=record.note;const state=testStateFor(n);if(state.done&&!state.missed)continue;const ss=Number.isFinite(+n.ss)?Math.sign(+n.ss||1)*Math.max(.01,Math.min(1000,Math.abs(+n.ss))):1;let z=(record.scrollStart-record.currentScroll)*unit*record.nsMultiplier*ss+offset,end=(record.scrollEnd-record.currentScroll)*unit*record.nsMultiplier*ss+offset,l=half-(lane+span-1)*lw,r=half-(lane-1)*lw;
                 if(n.type==='long'||n.type==='guide'){let nz=Math.max(near,Math.min(z,end)),fz=Math.min(noteFar,Math.max(z,end));if(n.type==='long'&&state.started){if(ss<0)fz=Math.min(fz,offset);else nz=Math.max(nz,offset);}if(fz>nz){if(n.type==='guide'){const segments=12,base=n.color||'#10b981',opacity=Number.isFinite(+n.guideOpacity)?Math.max(0,Math.min(1,+n.guideOpacity)):1;for(let k=0;k<segments;k++){const a=nz+(fz-nz)*k/segments,b=nz+(fz-nz)*(k+1)/segments,fraction=(a-z)/(end-z||1);let fade=n.guideOpacityMode==='fade'?1-fraction:n.guideOpacityMode==='rise'?fraction:1;poly([{x:l+.018,y:.014,z:a},{x:r-.018,y:.014,z:a},{x:r-.018,y:.014,z:b},{x:l+.018,y:.014,z:b}],colorWithAlpha(base,opacity*Math.max(0,Math.min(1,fade))));}}else poly([{x:l+.009,y:.034,z:nz},{x:r-.009,y:.034,z:nz},{x:r-.009,y:.034,z:fz},{x:l+.009,y:.034,z:fz}],'rgba(170,105,255,.53)');}if(n.type==='guide')continue;if(end>=near&&end<=noteFar)poly([{x:l+.015,y:.072,z:end-.14},{x:r-.015,y:.072,z:end-.14},{x:r-.015,y:.072,z:end+.14},{x:l+.015,y:.072,z:end+.14}],n.holdEnd?'#ffd700':(n.color||'#ba85ff'));if(state.started)continue;}
                 if(z<near||z>noteFar)continue;const thick=.22+.009*Math.max(0,z),color=n.color||(n.type==='large'?'#6fa88b':n.type==='largeHold'?'#ffd700':n.type==='damage'?'#ff4b5a':n.type==='long'?'#ba85ff':n.type==='hold'?'#ffd700':n.lane%2===0?'#1e90ff':'#fff');if(n.type==='large'&&largeTexture(l+.006,r-.006,z-thick/2-.018,z+thick/2+.018))continue;poly([{x:l+.006,y:.041,z:z-thick/2-.018},{x:r-.006,y:.041,z:z-thick/2-.018},{x:r-.006,y:.041,z:z+thick/2+.018},{x:l+.006,y:.041,z:z+thick/2+.018}],'rgba(245,250,255,.86)');poly([{x:l+.015,y:.052,z:z-thick/2},{x:r-.015,y:.052,z:z-thick/2},{x:r-.015,y:.052,z:z+thick/2},{x:l+.015,y:.052,z:z+thick/2}],color);}
             g.globalAlpha=visibilityAtBeat('LANE_VIS',beat);

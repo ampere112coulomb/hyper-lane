@@ -69,8 +69,6 @@ internal sealed partial class GameSurface
         using var wall = Polygon([0,0,832,0,960,1080,0,1080]);
         paint.Color=Color.Argb(90,7,4,15);paint.SetStyle(Paint.Style.Fill);canvas.DrawPath(wall,paint);
         DrawSelectionHighlight(canvas);
-        Fill(canvas,new RectF(1688,0,1920,62),Color.Argb(160,5,4,9));
-        ResultText(canvas,$"RATE {ratingTotal:0.00}",new RectF(1688,0,1920,62),28,1,Paint.Align.Center);
         List<int> visible=SelectionIndices();
         if(visible.Count>0)
         {
@@ -93,7 +91,8 @@ internal sealed partial class GameSurface
                 ResultText(canvas,song.Chart.Composer,new RectF(title.Left,top+62,title.Right,top+86),16,.8f,Paint.Align.Center);
                 SelectionLevel(canvas,diff?.DisplayLevel??"–",new RectF(x+width-140,top,x+width,top+86),53,color,Paint.Align.Right);
                 int? best=BestScore(song,diff);
-                if(best.HasValue&&Rank(best.Value).Length>0&&ResultSprite("rank-"+Rank(best.Value)+".png") is {} rank)
+                bool fc=diff!=null&&HyperLane.ChartLevel.TryParse(diff.Level,out double rankLevel)&&rating.BestEntry(RatingKey(song,diff),Hash(song),rankLevel)is {} entry&&(entry.FullCombo||HyperLane.RankRules.IsFullCombo(entry.Counts));
+                if(best.HasValue&&Rank(best.Value).Length>0&&MobileRank(best.Value,fc) is {} rank)
                     ResultImage(canvas,rank,new RectF(x+width-208,top+9,x+width-140,top+77),1);
             }
             if(selectionJacket!=null)
@@ -129,6 +128,7 @@ internal sealed partial class GameSurface
         if(settings.AutoPlay)ResultText(canvas,"AUTO",new RectF(970,900,1120,940),19,1);
         UpdateSelectionPreview();
         DrawMobileUserName(canvas,false);
+        DrawBadgeOverlay(canvas);
         PostInvalidateDelayed(33);
     }
 

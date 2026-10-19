@@ -19,6 +19,7 @@ internal sealed partial class GameSurface
         double seconds = ChartPlaybackSeconds;
         AdvanceMobileReplay(seconds);
         session.AutoPlay = !mobileReplaying && settings.AutoPlay;
+        badgeEligible&=!settings.AutoPlay&&!mobileReplaying;
         if (!PracticePreroll) session.Advance(seconds, held);
         if(danPlaying)danEligible&=!settings.AutoPlay;
         UpdatePracticeVolume(seconds);

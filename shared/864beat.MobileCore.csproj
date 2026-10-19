@@ -6,6 +6,9 @@
     <AssemblyName>HyperLane.MobileCore</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\win\game\Ebeat864\BadgeDefinition.cs" Link="Badges\BadgeDefinition.cs" />
+    <Compile Include="..\win\game\Ebeat864\RankRules.cs" Link="Scores\RankRules.cs" />
+    <Compile Include="..\apk\MobileBadges.cs" Link="Badges\MobileBadges.cs" />
     <Compile Include="..\apk\MobileHitEffects.cs" Link="Rendering\MobileHitEffects.cs" />
     <Compile Include="..\win\game\Ebeat864\HitSparkleMotion.cs" Link="Rendering\HitSparkleMotion.cs" />
     <!-- These are the actual tested Android sources, not a second implementation. -->

@@ -84,6 +84,16 @@ internal sealed class IosVisuals : IDisposable
         if (!images.TryGetValue(path, out var image)) images[path] = image = File.Exists(path) ? UIImage.FromFile(path) : null;
         return image;
     }
+    internal UIImage? BadgeImage(string path)
+    {
+        string key="badge:"+path;if(images.TryGetValue(key,out var cached))return cached;
+        if(FileImage(path)?.CGImage is not {} source)return null;
+        int w=(int)source.Width,h=(int)source.Height;if(w>8192||h>8192||w*(long)h>16000000)return null;
+        byte[] pixels=new byte[w*h*4];using var space=CGColorSpace.CreateDeviceRGB();
+        using(var bitmap=new CGBitmapContext(pixels,w,h,8,w*4,space,CGImageAlphaInfo.PremultipliedLast))bitmap.DrawImage(new CGRect(0,0,w,h),source);
+        int l=w,t=h,r=-1,b=-1;for(int y=0;y<h;y++)for(int x=0;x<w;x++)if(pixels[(y*w+x)*4+3]>8){l=Math.Min(l,x);r=Math.Max(r,x);t=Math.Min(t,y);b=Math.Max(b,y);}
+        if(r<l)return null;using var crop=source.WithImageInRect(new CGRect(l,h-1-b,r-l+1,b-t+1));return images[key]=UIImage.FromImage(crop);
+    }
     internal UIImage? Blur(UIImage? source, string key)
     {
         if (source?.CGImage is null) return null;

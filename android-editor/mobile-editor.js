@@ -2,8 +2,8 @@
 // Match the game: an overlapping Normal + Hold window can share one touch.
 hitTestLane=lane=>{
   const now=testSongSeconds();let best=null,tap=null,hold=null;
-  for(const note of notes){const state=testStateFor(note);
-    if(note.beat<testPlay.anchorBeat||state.done||state.started||lane<note.lane||lane>=note.lane+largeNoteSpan(note)||['damage','guide','laneOpacity'].includes(note.type))continue;
+  for(const note of testPlay.playNotes){const state=testStateFor(note);
+    if(!testNoteEligible(note)||state.done||state.started||lane<note.lane||lane>=note.lane+largeNoteSpan(note)||['damage','guide','laneOpacity'].includes(note.type))continue;
     const ms=(now-testPlay.timing.get(note).start)*1000,isHold=['hold','largeHold'].includes(note.type);
     if(Math.abs(ms)>120||(isHold&&(ms<0||ms>60)))continue;
     const candidate={note,state,ms};
@@ -216,7 +216,7 @@ function mobileFilterAt(events,beat){
   const value=strength(active,from,beat);return value!==0?{...active,strength:value}:null;
 }
 function mobileFilterEvents(){
-  return changeEvents.filter(e=>e.type==='FILTER'||e.type==='GLITCH').map(e=>{
+  return layerData(currentDifficulty,1).changeEvents.filter(e=>e.type==='FILTER'||e.type==='GLITCH').map(e=>{
     const legacy=e.type==='GLITCH',p=String(e.val).split(',').map(x=>x.trim().toUpperCase());
     const kind=legacy?'GLITCH':p[0],value=Number(p[legacy?0:1])||0;
     return{beat:e.beat,kind,strength:Math.max(kind==='BRIGHTNESS'?-100:0,Math.min(100,value)),duration:legacy&&p.length<2?Infinity:Math.max(0,Number(p[legacy?1:2])||0),ramp:!legacy&&p[3]==='RAMP',background:!legacy&&p[4]==='BACKGROUND'};
