@@ -149,10 +149,10 @@ internal sealed partial class MigrationStage : UIView
     private void Transition(Screen to){transitionTarget=to;transitionAt=CAAnimation.CurrentMediaTime();movie?.Pause();}
     internal static string Key(MobileSong song,MobileDifficulty d)=>PlayerRating.Key(song.Folder,song.ChartPath,d.Name);
     internal static string Hash(MobileSong song)=>Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(song.ChartPath)));
-    internal static int Level(MobileDifficulty d)=>int.TryParse(d.DisplayLevel,out int level)?level:0;
-    private readonly Dictionary<string,(string Hash,int Level)> metadata=new();
+    internal static double Level(MobileDifficulty d)=>ChartLevel.TryParse(d.Level,out double level)?level:0;
+    private readonly Dictionary<string,(string Hash,double Level)> metadata=new();
     private readonly Dictionary<string,int?> bestScores=new();
-    private (string Hash,int Level) Meta(MobileSong song,MobileDifficulty d){string key=Key(song,d);if(!metadata.TryGetValue(key,out var meta))metadata[key]=meta=(Hash(song),Level(d));return meta;}
+    private (string Hash,double Level) Meta(MobileSong song,MobileDifficulty d){string key=Key(song,d);if(!metadata.TryGetValue(key,out var meta))metadata[key]=meta=(Hash(song),Level(d));return meta;}
     private int? Best(MobileSong song,MobileDifficulty d){string key=Key(song,d);if(bestScores.TryGetValue(key,out var score))return score;var m=Meta(song,d);return bestScores[key]=Rating?.BestScore(key,m.Hash,m.Level);}
     internal void RefreshRating(){bestScores.Clear();if(Rating==null)return;ratingTotal=Rating.TotalFor(AllSongs.SelectMany(s=>s.Chart.Difficulties.Select(d=>{var m=Meta(s,d);return(Key(s,d),m.Hash,m.Level);})));}
     private void DrawScreen(CGContext c)
