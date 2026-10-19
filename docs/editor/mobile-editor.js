@@ -196,7 +196,7 @@ function mobileFilterAt(events,beat){
   const value=strength(active,from,beat);return value!==0?{...active,strength:value}:null;
 }
 function mobileFilterEvents(){
-  return changeEvents.filter(e=>e.type==='FILTER'||e.type==='GLITCH').map(e=>{
+  return layerData(currentDifficulty,1).changeEvents.filter(e=>e.type==='FILTER'||e.type==='GLITCH').map(e=>{
     const legacy=e.type==='GLITCH',p=String(e.val).split(',').map(x=>x.trim().toUpperCase());
     const kind=legacy?'GLITCH':p[0],value=Number(p[legacy?0:1])||0;
     return{beat:e.beat,kind,strength:Math.max(kind==='BRIGHTNESS'?-100:0,Math.min(100,value)),duration:legacy&&p.length<2?Infinity:Math.max(0,Number(p[legacy?1:2])||0),ramp:!legacy&&p[3]==='RAMP',background:!legacy&&p[4]==='BACKGROUND'};
