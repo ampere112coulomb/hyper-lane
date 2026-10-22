@@ -85,6 +85,7 @@ internal sealed partial class IosLaneRenderer : GLKViewDelegate
         var p=MobileProjection.At(diff,beat);int lanes=diff.Lanes;double width=2.3/lanes,alpha=Visibility(diff.LaneVisibilityChanges,beat)*(1-Settings.LaneTransparency/100.0);
         if(depths.Length!=lanes)depths=new double[lanes];HyperLane.JudgementLineMotion.Evaluate(diff.JudgementLineChanges,beat,depths);
         for(int i=0;i<lanes;i++)depths[i]=p.DepthAtScreenFraction(depths[i]/100);
+        MobileSideLights.Append(geometry,p,MobileChart.ScrollPosition(diff,chart.Bpm,beat),Settings.NoteSpeed,MobileChart.NsMultiplierAt(diff,beat),true);
         for(int lane=1;lane<=lanes;lane++)Quad(p,1.15-lane*width,1.15-(lane-1)*width,-12,52,.004,lane%2==1?8:11,lane%2==1?20:25,lane%2==1?37:44,alpha);
         for(int edge=0;edge<=lanes;edge++){double x=-1.15+edge*width;bool outside=edge==0||edge==lanes;Quad(p,x-(outside?.012:.005),x+(outside?.012:.005),-12,52,.014,outside?85:37,outside?170:77,outside?215:110,alpha);}
         double scroll=MobileChart.ScrollPosition(diff,chart.Bpm,beat),speed=Settings.NoteSpeed*10;

@@ -406,11 +406,13 @@
                 <div class="sidebar-section-content">
                     <label><input type="checkbox" id="badge-enabled" onchange="toggleBadge(this.checked)" style="width:auto"> 設定する</label>
                     <div id="badge-fields" hidden>
+                        <div style="display:flex;gap:4px"><select id="badge-list" onchange="selectBadge(Number(this.value))"></select><button type="button" onclick="addBadge()">＋</button><button type="button" onclick="removeBadge()">削除</button></div>
                         <label>画像ファイル名</label>
                         <input type="text" id="badge-image" placeholder="badge.png" onchange="updateBadgeImage(this.value)">
                         <label>獲得条件（すべて満たす）</label>
                         <div id="badge-conditions"></div>
                         <button type="button" onclick="addBadgeCondition()">条件を追加</button>
+                        <div style="display:flex;gap:4px;flex-wrap:wrap"><button type="button" onclick="setBadgePreset('c')">C以上</button><button type="button" onclick="setBadgePreset('score')">90万点以上</button><button type="button" onclick="setBadgePreset('fc')">フルコンボ</button></div>
                     </div>
                 </div>
             </details>
@@ -1707,13 +1709,20 @@
 
         const BADGE_METRICS=[['rank','ランク'],['score','スコア'],['perfect','PERFECT'],['great','GREAT'],['good','GOOD'],['bad','BAD'],['miss','MISS'],['combo','Maxコンボ']];
         const BADGE_RANKS=['C','B','A','S','SS','Ex','Ex+','ψ'];
+        let activeBadgeIndex=0,badgeSelectedDifficulty='';
+        function badgesForDifficulty(data){return Array.isArray(data?.badges)?data.badges:data?.badge?[data.badge]:[];}
+        function mutableBadges(){const data=chartData[currentDifficulty];if(!Array.isArray(data.badges))data.badges=data.badge?[data.badge]:[];delete data.badge;return data.badges;}
+        function selectedBadge(){return badgesForDifficulty(chartData[currentDifficulty])[activeBadgeIndex];}
+        function newBadge(){return {id:globalThis.crypto?.randomUUID?.()||'b'+Date.now().toString(36)+Math.random().toString(36).slice(2),image:'badge.png',conditions:[{metric:'rank',op:'>=',value:0}]};}
+        function validBadgeIds(badges){const ids=badges.filter(b=>b.id).map(b=>b.id.toUpperCase());return new Set(ids).size===ids.length;}
         function validBadge(badge) {
-            return badge && typeof badge.image==='string' && /\.(png|jpe?g|bmp|gif)$/i.test(badge.image) && !/[:\r\n]/.test(badge.image) && !badge.image.replace(/\\/g,'/').split('/').some(p=>!p||p==='.'||p==='..') && Array.isArray(badge.conditions) && badge.conditions.length>0 && badge.conditions.length<=32 && badge.conditions.every(c=>c && BADGE_METRICS.some(([metric])=>metric===c.metric) && ['>=','<='].includes(c.op) && Number.isSafeInteger(c.value) && c.value>=0 && c.value<=(c.metric==='rank'?7:1000000));
+            return badge && (badge.id===undefined||badge.id===''||typeof badge.id==='string'&&/^[a-z0-9_-]{1,64}$/i.test(badge.id)) && typeof badge.image==='string' && /\.(png|jpe?g|bmp|gif)$/i.test(badge.image) && !/[:\r\n]/.test(badge.image) && !badge.image.replace(/\\/g,'/').split('/').some(p=>!p||p==='.'||p==='..') && Array.isArray(badge.conditions) && badge.conditions.length>0 && badge.conditions.length<=32 && badge.conditions.every(c=>c && BADGE_METRICS.some(([metric])=>metric===c.metric) && ['>=','<='].includes(c.op) && Number.isSafeInteger(c.value) && c.value>=0 && c.value<=(c.metric==='rank'?7:1000000));
         }
         function refreshBadgeFields() {
             const enabled=document.getElementById('badge-enabled');if(!enabled)return;
-            const badge=chartData[currentDifficulty]?.badge;
-            enabled.checked=!!badge;document.getElementById('badge-fields').hidden=!badge;
+            const badges=badgesForDifficulty(chartData[currentDifficulty]);if(badgeSelectedDifficulty!==currentDifficulty){activeBadgeIndex=0;badgeSelectedDifficulty=currentDifficulty;}activeBadgeIndex=Math.max(0,Math.min(activeBadgeIndex,badges.length-1));
+            const badge=badges[activeBadgeIndex],list=document.getElementById('badge-list');list.replaceChildren();badges.forEach((b,i)=>list.add(new Option(`${i+1}: ${b.image||'画像未設定'}`,String(i))));list.value=String(activeBadgeIndex);
+            enabled.checked=badges.length>0;document.getElementById('badge-fields').hidden=badges.length===0;
             document.getElementById('badge-image').value=badge?.image || '';
             const container=document.getElementById('badge-conditions');container.replaceChildren();
             if(!badge)return;
@@ -1728,10 +1737,14 @@
                 row.append(metric,value,op,remove);container.append(row);
             }
         }
-        function toggleBadge(enabled){recordUndo();if(enabled)chartData[currentDifficulty].badge={image:'badge.png',conditions:[{metric:'rank',op:'>=',value:0}]};else delete chartData[currentDifficulty].badge;refreshBadgeFields();syncToGame();}
-        function updateBadgeImage(value){const badge=chartData[currentDifficulty]?.badge;if(!badge)return;recordUndo();badge.image=String(value).trim();syncToGame();}
-        function addBadgeCondition(){const badge=chartData[currentDifficulty]?.badge;if(!badge||badge.conditions.length>=32)return;recordUndo();badge.conditions.push({metric:'rank',op:'>=',value:0});refreshBadgeFields();syncToGame();}
-        function changeBadgeCondition(index,key,value){const condition=chartData[currentDifficulty]?.badge?.conditions[index];if(!condition)return;recordUndo();condition[key]=value;if(key==='metric')condition.value=0;refreshBadgeFields();syncToGame();}
+        function selectBadge(index){activeBadgeIndex=index;refreshBadgeFields();}
+        function addBadge(){recordUndo();const badges=mutableBadges();badges.push(newBadge());activeBadgeIndex=badges.length-1;refreshBadgeFields();syncToGame();}
+        function removeBadge(){const badges=badgesForDifficulty(chartData[currentDifficulty]);if(!badges.length||!confirm('選択中の称号設定を削除しますか？'))return;recordUndo();mutableBadges().splice(activeBadgeIndex,1);activeBadgeIndex=Math.max(0,activeBadgeIndex-1);refreshBadgeFields();syncToGame();}
+        function toggleBadge(enabled){if(!enabled&&badgesForDifficulty(chartData[currentDifficulty]).length&&!confirm('この難易度の称号設定をすべて削除しますか？')){refreshBadgeFields();return;}recordUndo();const badges=mutableBadges();if(enabled&&!badges.length)badges.push(newBadge());else if(!enabled)badges.length=0;activeBadgeIndex=0;refreshBadgeFields();syncToGame();}
+        function updateBadgeImage(value){const badge=selectedBadge();if(!badge)return;recordUndo();badge.image=String(value).trim();refreshBadgeFields();syncToGame();}
+        function addBadgeCondition(){const badge=selectedBadge();if(!badge||badge.conditions.length>=32)return;recordUndo();badge.conditions.push({metric:'rank',op:'>=',value:0});refreshBadgeFields();syncToGame();}
+        function changeBadgeCondition(index,key,value){const condition=selectedBadge()?.conditions[index];if(!condition)return;recordUndo();condition[key]=value;if(key==='metric')condition.value=0;refreshBadgeFields();syncToGame();}
+        function setBadgePreset(preset){const badge=selectedBadge();if(!badge||badge.conditions.length&&!confirm('選択中の称号の条件を置き換えますか？'))return;recordUndo();badge.conditions=preset==='fc'?[{metric:'bad',op:'<=',value:0},{metric:'miss',op:'<=',value:0}]:preset==='score'?[{metric:'score',op:'>=',value:900000}]:[{metric:'rank',op:'>=',value:0}];refreshBadgeFields();syncToGame();}
         function effectiveAudioFile() { return String(chartData[currentDifficulty]?.audio || document.getElementById('meta-song').value).trim(); }
         function effectiveOffsetSeconds() { return (chartData[currentDifficulty]?.audioOffsetMs ?? (parseFloat(document.getElementById('meta-offset').value) || 0)) / 1000; }
         function refreshDifficultyAudioFields() {
@@ -3640,7 +3653,7 @@
                     
                     if (line.startsWith('TITLE:')) document.getElementById('meta-title').value = line.replace('TITLE:', '').trim();
                     else if (line.startsWith('COMPOSER:')) document.getElementById('meta-composer').value = line.replace('COMPOSER:', '').trim();
-                    else if (line.startsWith('BADGE:')) { if(insideDifficulty){const badge=JSON.parse(line.slice(6).trim());if(!validBadge(badge))throw new Error('称号の設定が不正です');chartData[activeImportDiff].badge=badge;} }
+                    else if (line.startsWith('BADGE:')) { if(insideDifficulty){const badge=JSON.parse(line.slice(6).trim());if(!validBadge(badge))throw new Error('称号の設定が不正です');(chartData[activeImportDiff].badges??=[]).push(badge);if(!validBadgeIds(chartData[activeImportDiff].badges))throw new Error('称号IDが重複しています');} }
                     else if (line.startsWith('DIFFICULTY_CHART_DESIGNER:')) { if (insideDifficulty) chartData[activeImportDiff].chartDesigner = line.slice('DIFFICULTY_CHART_DESIGNER:'.length).trim(); }
                     else if (line.startsWith('DIFFICULTY_SONG:')) { if(insideDifficulty)chartData[activeImportDiff].audio=line.slice('DIFFICULTY_SONG:'.length).trim(); }
                     else if (line.startsWith('DIFFICULTY_OFFSET:')) {const n=Number(line.slice('DIFFICULTY_OFFSET:'.length).trim());if(insideDifficulty&&Number.isFinite(n))chartData[activeImportDiff].audioOffsetMs=n*1000;}
@@ -3800,6 +3813,15 @@
 
         }
 
+        function exportOverviewImage() {
+            if (!window.chrome?.webview) { alert('譜面画像の書き出しはPC版エディタで使用できます。'); return; }
+            const data=chartData[currentDifficulty];
+            window.chrome.webview.postMessage(JSON.stringify({type:'chart-overview',
+                title:document.getElementById('meta-title').value,composer:document.getElementById('meta-composer').value,
+                difficulty:currentDifficulty,level:String(data.levelLabel || data.level || ''),lanes:TOTAL_LANES,
+                currentLayer,layers:layerNumbers().map(number=>({number,notes:layerData(currentDifficulty,number).notes.map(note=>({...note,size:largeNoteSpan(note)}))}))}));
+        }
+
         function exportChart(nativeTest = false) {
             for(const diff of DIFFICULTIES) if(!validateLayerCollisions(diff)) {
                 alert(`${diff}: 別レイヤーに同じレーン・同じ実時間のノーツがあります。`);
@@ -3836,7 +3858,7 @@
 
                 output.push(`// ==========================================`);
                 output.push(`DIFFICULTY: ${d}`);
-                if(dData.badge){if(!validBadge(dData.badge)){alert(`${d}の称号画像と獲得条件を確認してください。`);throw new Error('Invalid badge');}output.push(`BADGE: ${JSON.stringify(dData.badge)}`);}
+                const badges=badgesForDifficulty(dData);if(!badges.every(validBadge)||!validBadgeIds(badges)){alert(`${d}の称号画像と獲得条件を確認してください。`);throw new Error('Invalid badge');}for(const badge of badges)output.push(`BADGE: ${JSON.stringify(badge)}`);
                 const designer = String(dData.chartDesigner || '').replace(/[\r\n]/g, ' ').trim();
                 if (designer) output.push(`DIFFICULTY_CHART_DESIGNER: ${designer}`);
                 if(dData.audio)output.push(`DIFFICULTY_SONG: ${String(dData.audio).replace(/[\r\n]/g,' ').trim()}`);
@@ -4247,6 +4269,7 @@
             };
             const line3d=(a,b,color,width)=>{let da=depthOf(a),db=depthOf(b);if(da<=nearDepth&&db<=nearDepth)return;if(da<=nearDepth)a=intersect(a,b);else if(db<=nearDepth)b=intersect(b,a);const pa=project(a),pb=project(b);if(!pa||!pb)return;g.beginPath();g.moveTo(pa.x,pa.y);g.lineTo(pb.x,pb.y);g.strokeStyle=color;g.lineWidth=width;g.stroke();};
             const half=1.15,near=-12,far=52,noteFar=45,lw=2.3/TOTAL_LANES,scroll=getTestPlayScrollPos(beat),nsMultiplier=getTestPlayNsMultiplierAt(beat),zOf=b=>(getTestPlayScrollPos(b)-scroll)*testPlay.speed*10;
+            window.drawMobileSideLights?.(poly,scroll,testPlay.speed,nsMultiplier);
             const judgementPositions=judgementLinePositionsAt(beat,testPlay.judgementLineEvents||[]);
             const depthAtFraction=fraction=>{
                 if(fraction<=0)return 0;if(fraction>=1)return noteFar;

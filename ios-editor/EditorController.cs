@@ -46,10 +46,10 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
             .Replace("((audioCtx?.currentTime||testPlay.clockAt) - testPlay.clockAt)", "((audioCtx ? mobileOutputTime(audioCtx) : testPlay.clockAt) - testPlay.clockAt)")
             .Replace("<head>", "<head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover\"><script src=\"ios-editor.js\"></script>")
             .Replace("</head>", "<link rel=\"stylesheet\" href=\"mobile-editor.css\"></head>")
-            .Replace("</body>", "<script src=\"mobile-editor.js\"></script><script src=\"editor-qa.js\"></script></body>");
+            .Replace("</body>", "<script src=\"mobile-editor.js\"></script><script src=\"overview-core.js\"></script><script src=\"mobile-overview.js\"></script><script src=\"editor-qa.js\"></script></body>");
         // Stable file origin retains editor preferences between launches.
         string www = Path.Combine(cache, "www"); Directory.CreateDirectory(www);
-        foreach (string asset in new[] { "ios-editor.js", "mobile-editor.js", "mobile-editor.css", "editor-qa.js" }) File.Copy(Path.Combine(root, asset), Path.Combine(www, asset), true);
+        foreach (string asset in new[] { "ios-editor.js", "mobile-editor.js", "mobile-editor.css", "overview-core.js", "mobile-overview.js", "editor-qa.js" }) File.Copy(Path.Combine(root, asset), Path.Combine(www, asset), true);
         File.WriteAllText(Path.Combine(www, "editor.html"), html);
         web.LoadFileUrl(NSUrl.FromFilename(Path.Combine(www, "editor.html")), NSUrl.FromFilename(www));
         Console.Error.WriteLine("HL Editor local page requested");
@@ -83,6 +83,8 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
                 case "difficulty-audio": requestedSong=root.GetProperty("filename").GetString()??"";audioGeneration++;await ResolveSong();break;
                 case "choose-difficulty-audio": Pick("audio-difficulty");break;
                 case "save-chart": await Save(root.GetProperty("text").GetString() ?? "", root.GetProperty("filename").GetString() ?? "chart.2d"); break;
+                case "save-overview-png":
+                    await ShareOverview(root.GetProperty("base64").GetString()??"",root.GetProperty("filename").GetString()??"chart.png");break;
                 case "native-test": await Eval("startTestPlay(false);"); break;
                 case "native-video": Alert("MP4書き出しはPC版エディタで行ってください。iOS版ではエディタ内のテストプレイを利用できます。"); break;
                 case "load-se": await SendAudio(Path.Combine(NSBundle.MainBundle.BundlePath, "SE.wav"), "SE.wav", true); break;
@@ -161,6 +163,18 @@ public sealed class EditorController : UIViewController, IWKScriptMessageHandler
         while ((count = await file.ReadAsync(buffer)) > 0)
             await Eval($"{(se ? "appendNativeSEChunk" : "appendNativeAudioChunk")}({J(Convert.ToBase64String(buffer, 0, count))});");
         await Eval(se ? "void finishNativeSE();" : "void finishNativeAudio();");
+    }
+    async Task ShareOverview(string encoded,string name)
+    {
+        if(encoded.Length>33554432)throw new IOException("PNGが大きすぎます。");
+        byte[] bytes=Convert.FromBase64String(encoded);
+        if(bytes.Length<8||!bytes.AsSpan(0,8).SequenceEqual(new byte[]{137,80,78,71,13,10,26,10}))throw new IOException("PNGが不正です。");
+        string directory=Path.Combine(cache,"image-exports",Guid.NewGuid().ToString("N"));Directory.CreateDirectory(directory);
+        string filename=Path.GetFileName(name);if(!filename.EndsWith(".png",StringComparison.OrdinalIgnoreCase))filename="chart.png";
+        string export=Path.Combine(directory,filename);await File.WriteAllBytesAsync(export,bytes);
+        var share=new UIActivityViewController(new NSObject[]{NSUrl.FromFilename(export)},null);
+        if(share.PopoverPresentationController is {} popover){popover.SourceView=View;popover.SourceRect=new CoreGraphics.CGRect(View!.Bounds.Width/2,View.Bounds.Height/2,1,1);}
+        PresentViewController(share,true,null);
     }
     async Task Save(string text, string name)
     {
