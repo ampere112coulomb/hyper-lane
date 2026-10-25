@@ -3967,6 +3967,7 @@
             return from+(to-from)*(duration<=0?1:Math.max(0,Math.min(1,(beat-start)/duration)));
         }
 
+        function testCoveredHeld(note) { for(let lane=Math.max(1,note.lane);lane<=Math.min(TOTAL_LANES,note.lane+largeNoteSpan(note)-1);lane++)if(testPlay.held.has(lane))return true;return false; }
         function updateTestJudgements(beat) {
             const now=testSongSeconds();
             for(const note of testPlay.playNotes){
@@ -3986,8 +3987,9 @@
                     else if(ms>60){state.done=true;testRegisterJudge(4);}
                     continue;
                 }
-                if(note.type==='damage'){if(ms>=80){state.done=true;testRegisterJudge(testPlay.held.has(note.lane)?4:0);}continue;}
-                if(note.type==='long'&&!state.started&&ms>=0&&ms<=130&&testPlay.held.has(note.lane)){state.started=true;testRegisterJudge(0);testPlaySE();continue;}
+                if(note.type==='damage'){if(ms>=80){state.done=true;testRegisterJudge(testCoveredHeld(note)?4:0);}continue;}
+                if(note.type==='long'&&!state.started&&ms>=0&&ms<=130&&testCoveredHeld(note)){state.started=true;testRegisterJudge(0);testPlaySE();continue;}
+                if(note.type==='long'&&state.started&&note.holdEnd&&now>=end&&testCoveredHeld(note)){state.done=true;testRegisterJudge(0);testPlaySE();continue;}
                 if(!state.started&&ms>130){state.started=true;if(note.type!=='long')state.done=true;testRegisterJudge(4);}
                 else if(note.type==='long'&&state.started&&now-end>.13){state.done=true;testRegisterJudge(4);}
             }
@@ -4000,8 +4002,8 @@
         }
         function releaseTestLane(lane) {
             const now=testSongSeconds();
-            for(const state of testPlay.states.values()){const n=state.note;if(n.type!=='long'||n.lane!==lane||!state.started||state.done)continue;
-                const ms=(now-testPlay.timing.get(n).end)*1000;if(ms < -120)return;const j=testJudgeIndex(ms);state.done=true;testRegisterJudge(j<0?4:j);if(j>=0)testPlaySE();return;}
+            for(const state of testPlay.states.values()){const n=state.note;if(n.type!=='long'||lane<n.lane||lane>=n.lane+largeNoteSpan(n)||testCoveredHeld(n)||!state.started||state.done)continue;
+                const ms=(now-testPlay.timing.get(n).end)*1000;const j=testJudgeIndex(ms);state.done=true;testRegisterJudge(j<0?4:j);if(j>=0)testPlaySE();}
         }
 
         function drawTestPlay(beat) {
