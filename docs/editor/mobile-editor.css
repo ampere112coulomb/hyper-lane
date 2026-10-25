@@ -74,3 +74,12 @@ body:has(#test-play-overlay.active) #mobile-lane-controls{display:none}
 #editor-container{overflow-x:hidden}
 #canvas-wrapper{min-width:0}
 #scroll-effect-toggle{position:fixed;top:8px;left:calc(9.166667vw + 8px);right:auto;max-width:45vw;box-sizing:border-box;min-height:36px;font-size:11px;z-index:600}
+/* Match the PC editor theme without changing the browser touch controls. */
+:root{--bg-color:#080b18;--panel-bg:#101426;--border-color:#38334d;--text-main:#f4f2fa;--text-muted:#a7abc0;--accent:#b795e7}
+body{font-family:"Yu Gothic UI","Hiragino Kaku Gothic ProN",sans-serif;background:#080b18;color:#f4f2fa}
+#sidebar,#right-panel.mobile-details-open,#mobile-menu,#mobile-note-dock,#mobile-left-rail,#grid-snap-sidebar{background:#101426f5!important;border-radius:0!important;border-color:#38334d!important;box-shadow:none!important}
+#sidebar button,#mobile-menu button,#mobile-note-dock button,#mobile-left-rail button,#mobile-snap-toggle,#mobile-menu-toggle{border-radius:0!important;background-color:#171a2e!important;color:#f4f2fa!important;box-shadow:none!important}
+#mobile-note-palette button{text-align:center!important;border-left:3px solid var(--note-color)!important;border-right:3px solid var(--note-color)!important}
+#mobile-note-palette button.active{background-color:#302941!important}
+#sidebar input,#sidebar select,#sidebar textarea{background:#0b1020!important;color:#f4f2fa!important;border:1px solid #38334d!important;border-radius:0!important}
+#sidebar summary{border-left:0!important}

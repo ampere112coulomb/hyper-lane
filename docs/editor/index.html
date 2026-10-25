@@ -27,7 +27,7 @@
 
         #main-container {
             display: flex;
-            flex: 1; height: calc(100vh - 60px); overflow: hidden;
+            flex: 1; min-height: 0; overflow: hidden;
         }
 
         /* 左側パネル */
@@ -155,12 +155,12 @@
 
         /* 下部コントロールバー */
         #playback-bar {
-            height: 60px;
+            min-height: 60px; flex-shrink: 0;
             background: var(--panel-bg); border-top: 1px solid #30363d;
-            display: flex; align-items: center; justify-content: space-between; padding: 0 20px; box-sizing: border-box;
+            display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; padding: 10px 20px; box-sizing: border-box;
             z-index: 10;
         }
-        .play-controls { display: flex; align-items: center; gap: 15px;
+        .play-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
         }
 
         /* ギミックダイアログ */
@@ -206,8 +206,101 @@
         #test-speed-box { width:min(430px,88vw); padding:24px; border:1px solid #5caeff; border-radius:12px; background:#111923; color:#fff; box-shadow:0 16px 60px #000; }
         #test-speed-box input { width:100%; }
             #gimmick-dialog { max-height:85vh; overflow-y:auto; }
+        /* Hyper Lane visual theme: editing geometry and note colours stay unchanged. */
+        :root {
+            color-scheme: dark;
+            --bg-color:#060918; --panel-bg:#0d1024; --box-bg:#15182f;
+            --accent:#b39ae8; --accent-active:#46316d;
+            --text:#f1eef9; --text-main:#f1eef9; --text-muted:#a8abc5;
+            --success:#385f88; --success-active:#4678a7;
+            --line:rgba(164,143,217,.25); --cyan:#8bdceb;
+        }
+        body { font-family:'Yu Gothic UI','Meiryo',sans-serif; background:#060918; }
+        #sidebar, #right-panel {
+            background:linear-gradient(155deg,rgba(26,23,49,.97),rgba(8,13,31,.99) 58%);
+            border-color:var(--line); scrollbar-color:#64567e #0b1022;
+        }
+        #sidebar { padding:18px 16px; gap:14px; flex-shrink:0; }
+        #sidebar::before {
+            content:'HYPER LANE\A CHART EDITOR'; white-space:pre; display:block;
+            color:#e9e5ff; font-size:18px; font-weight:600; line-height:1.6;
+            letter-spacing:.16em; padding:0 4px 14px; border-bottom:1px solid var(--line);
+            text-shadow:0 0 20px rgba(167,137,236,.25);
+        }
+        #right-panel { flex-shrink:0; overflow-x:hidden; }
+        .sidebar-section { padding:0 0 10px; border-color:var(--line); }
+        .sidebar-section > summary {
+            position:relative; font-size:13px; font-weight:500; letter-spacing:.09em;
+            padding:10px 12px; background:linear-gradient(100deg,rgba(111,80,160,.20),transparent);
+            border-left:2px solid transparent; transition:background .18s ease,color .18s ease;
+        }
+        .sidebar-section > summary:hover { background:rgba(124,94,178,.22); color:#fff; }
+        .sidebar-section > summary::after { content:'−'; color:#b9a1e2; font-size:16px; line-height:18px; }
+        .sidebar-section:not([open]) > summary::after { content:'+'; }
+        .sidebar-section-content { gap:13px; padding:13px 4px 3px; }
+        label { color:#aeb1cb; font-size:11px; font-weight:500; letter-spacing:.025em; }
+        input,select,button {
+            font-family:inherit; border-radius:2px; border-color:#39324f;
+            background-color:var(--box-bg); color:var(--text);
+            box-sizing:border-box; min-width:0;
+        }
+        input:not([type=range]):not([type=checkbox]):not([type=color]),select { width:100%; min-height:34px; }
+        input::placeholder { color:#767a98; opacity:1; }
+        input:hover,select:hover { border-color:#6b5d89; }
+        input:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible {
+            outline:2px solid var(--cyan); outline-offset:2px;
+        }
+        button {
+            font-weight:500; letter-spacing:.025em;
+            background-image:linear-gradient(115deg,rgba(153,128,211,.09),rgba(14,16,34,.15));
+            transition:background-color .16s ease,border-color .16s ease,box-shadow .16s ease;
+        }
+        button:hover { background-color:#2c2543; border-color:#b49bdc; box-shadow:inset 0 0 16px rgba(167,127,230,.08); }
+        button.active { background-color:#46316d; border-color:#c0a8eb; box-shadow:inset 2px 0 #d2bcff; color:#fff; }
+        button:disabled { opacity:.4; cursor:default; box-shadow:none; }
+        .note-type-btn { gap:6px; }
+        .note-type-btn button { min-height:35px; text-align:center; padding-left:8px; padding-right:8px; border-left-width:3px; border-right-width:3px; font-size:12px; }
+        .note-type-btn button.active { box-shadow:none; }
+        #btn-normal,#btn-large { border-left-color:#e7f0ff; border-right-color:#e7f0ff; }
+        #btn-hold,#btn-largeHold { border-left-color:#70adff; border-right-color:#70adff; }
+        #btn-long,#btn-largeLong { border-left-color:#bf9bf1; border-right-color:#bf9bf1; }
+        #btn-damage,#btn-largeDamage { border-left-color:#ed718e; border-right-color:#ed718e; }
+        #btn-guide { background-color:#163037 !important; border-left-color:#84d7bf; border-right-color:#84d7bf; }
+        #btn-guide.active { background-color:#2c5558 !important; }
+        .snap-btn { border-radius:0; }
+        .snap-btn.active { background:#453064; border-color:#c6a3f3; }
+        .volume-mixer { background:rgba(8,12,29,.7); border-color:var(--line); border-radius:2px; padding:12px; }
+        input[type=range] { accent-color:#bea2ed; cursor:pointer; }
+        input[type=checkbox] { accent-color:#b398df; }
+        #sidebar::-webkit-scrollbar-thumb,#right-panel::-webkit-scrollbar-thumb { background:#66577f; border-radius:0; }
+        #right-panel::-webkit-scrollbar { width:8px; }
+        .panel-section { padding:18px; gap:13px; border-color:var(--line) !important; }
+        h2 { color:#d7c6f4; font-size:12px; font-weight:500; letter-spacing:.12em; border-color:var(--line); padding-bottom:10px; }
+        #editor-container {
+            background-color:#060918;
+            background-image:radial-gradient(ellipse at 50% 0,rgba(71,40,125,.16),transparent 70%);
+            box-shadow:inset 0 0 70px rgba(0,0,0,.32);
+        }
+        #canvas-wrapper { border-left:1px solid rgba(148,131,190,.15); border-right:1px solid rgba(148,131,190,.15); }
+        #editor-canvas { background:#080c1b; }
+        #minimap-canvas { background:#0b1023; border-color:var(--line); }
+        #game-preview-zone { width:280px; max-width:100%; box-sizing:border-box; border:1px solid #64517f; border-radius:0; box-shadow:0 8px 30px rgba(0,0,0,.23); }
+        #game-meta-display { left:0; top:0; right:0; border-radius:0; padding:7px 9px; color:#d7d0ef; background:rgba(8,10,26,.85); border-bottom:1px solid var(--line); font-size:10px; letter-spacing:.04em; }
+        #batch-edit-zone > .control-group { background:rgba(27,24,48,.85) !important; border-radius:2px !important; }
+        #playback-bar { background:linear-gradient(100deg,#16132b,#0a1023); border-top:1px solid #5a4778; padding:10px 16px; box-shadow:0 -4px 22px rgba(0,0,0,.25); gap:8px 12px; }
+        #playback-bar .play-controls { gap:8px 10px; }
+        #playback-bar #playback-rate { width:auto; min-width:66px; }
+        #play-btn { background-color:#42305f !important; border-color:#aa8bd3; }
+        #export-btn { background:linear-gradient(110deg,#304c68,#273951) !important; border-color:#779cb9; }
+        #playback-bar button:not(#undo-btn) { border-radius:0; }
+        #gimmick-dialog,#fever-dialog,#test-speed-box {
+            background:linear-gradient(145deg,#17152d,#0a1023); border:1px solid #a186ca; border-radius:2px;
+            box-shadow:0 20px 80px rgba(0,0,0,.65); padding:22px;
+        }
+        #dialog-overlay { background:rgba(3,5,15,.78); }
+        @media (prefers-reduced-motion:reduce) { button,.sidebar-section > summary { transition:none; } }
     </style>
-<link rel="stylesheet" href="mobile-editor.css"></head>
+<link rel="stylesheet" href="mobile-editor.css?v=20261026-parity"></head>
 <body>
 
     <div id="main-container">
@@ -224,12 +317,16 @@
                 <input type="text" id="meta-composer" value="" placeholder="Composer">
             </div>
             <div class="control-group">
-                <label>譜面デザイナー</label>
-                <input type="text" id="meta-chart-designer" value="" placeholder="Chart Designer">
+                <label>譜面デザイナー（全難易度共通）</label>
+                <input type="text" id="meta-chart-designer" value="" placeholder="個別指定がない難易度に使用">
             </div>
             <div class="control-group">
                 <label>音源</label>
-                <input type="text" id="meta-song" value="audio.ogg" placeholder="audio.ogg">
+                <input type="text" id="meta-song" value="audio.ogg" placeholder="audio.ogg" onchange="requestDifficultyAudio()">
+            </div>
+            <div class="control-group">
+                <label>リンク（全難易度共通）</label>
+                <input type="url" id="meta-link" value="" placeholder="https://..." onchange="syncToGame()">
             </div>
             <div class="control-group">
                 <label>オフセット (ms)</label>
@@ -259,13 +356,32 @@
                 </select>
             </div>
             <div class="control-group">
+                <label>譜面デザイナー（この難易度）</label>
+                <input type="text" id="meta-difficulty-designer" value="" placeholder="空欄なら共通のデザイナー名" oninput="updateCurrentDesigner(this.value)">
+                <label>音源（この難易度）</label>
+                <input type="text" id="meta-difficulty-song" placeholder="空欄なら共通音源" onchange="updateDifficultyAudio()">
+                <label>リンク（この難易度）</label>
+                <input type="url" id="meta-difficulty-link" placeholder="空欄なら共通リンク" onchange="updateDifficultyLink(this.value)">
+                <label>オフセット（この難易度・ms）</label>
+                <input type="number" id="meta-difficulty-offset" step="any" placeholder="空欄なら共通設定" onchange="updateDifficultyAudio()">
+                <label>プレビュー開始拍（この難易度）</label>
+                <input type="number" id="meta-difficulty-preview-start" min="0" step="any" placeholder="空欄なら共通設定" onchange="updateDifficultyAudio()">
+                <label>プレビュー終了拍（この難易度）</label>
+                <input type="number" id="meta-difficulty-preview-end" min="0" step="any" placeholder="空欄なら共通設定" onchange="updateDifficultyAudio()">
                 <label>難易度（数値・譜面定数）</label>
                 <input type="number" id="meta-level" value="10" step="any" oninput="updateCurrentLevel(this.value)" onblur="normalizeCurrentLevel()">
                 <label>表示文字（任意）</label>
-                <input type="text" id="meta-level-display" value="" placeholder="例：極、？？" oninput="updateCurrentLevelLabel(this.value)" onblur="this.value=clampLevelLabel(this.value)" aria-describedby="level-help">
-                <small id="level-help">2文字まで。空欄なら難易度を通常表示。レートは上の数値から計算。</small>
+                <input type="text" id="meta-level-display" value="" placeholder="例：極、？？" oninput="updateCurrentLevelLabel(this.value)" onblur="this.value=clampLevelLabel(this.value)">
             </div>
             <div class="control-group">
+                <label>難易度比較（試験機能・表示のみ）</label>
+                <select id="compare-difficulty" onchange="draw()">
+                    <option value="">OFF</option>
+                    <option value="Easy">Easy</option><option value="Normal">Normal</option>
+                    <option value="Hard">Hard</option><option value="Expert">Expert</option>
+                    <option value="Master">Master</option><option value="SPECIAL">SPECIAL</option>
+                </select>
+                <small id="compare-difficulty-status" role="status"></small>
                 <label>レーン数</label>
                 <select id="meta-lanes" onchange="changeLaneCount(parseInt(this.value, 10)); syncToGame();">
                     <option value="3">3K (3レーン)</option>
@@ -292,7 +408,6 @@
             <div class="control-group">
                 <label>ジャケット</label>
                 <input type="text" id="meta-jacket" value="" placeholder="jacket.png / cover.jpg">
-                <div style="font-size:11px; color:var(--text-muted);">楽曲フォルダ内の1:1正方形画像を指定してください。</div>
             </div>
             <div class="control-group">
                 <label>背景(静止画)</label>
@@ -310,7 +425,6 @@
             <div class="control-group">
                 <label>レイヤー</label>
                 <div style="display:flex;gap:6px"><select id="meta-layer" onchange="switchLayer(Number(this.value))"><option value="1">レイヤー 1</option></select><button type="button" onclick="addLayer()" title="新しいレイヤーを追加">＋</button><button type="button" id="delete-layer-btn" onclick="deleteCurrentLayer()" title="選択中のレイヤーを削除" disabled>削除</button></div>
-                <div style="font-size:11px;color:var(--text-muted)">他レイヤーのノーツは薄く表示。画面フィルター・レーン/UI非表示はレイヤー1のみ。</div>
             </div>
             <div id="grid-snap-sidebar">
                 <label>SNAP</label>
@@ -331,22 +445,25 @@
             <input type="file" id="audio-selector" accept="audio/*" onchange="loadAudioFile(this)" hidden>
             <label id="se-label" hidden></label>
             <div class="note-type-btn">
-                <button id="btn-normal" class="active" onclick="setNoteType('normal')">Normal (白/青)</button>
-                <button id="btn-hold" onclick="setNoteType('hold')">Hold (黄)</button>
-                <button id="btn-long" onclick="setNoteType('long')">Long (紫)</button>
-                <button id="btn-damage" onclick="setNoteType('damage')">Damage (赤)</button>
-                <button id="btn-guide" onclick="setNoteType('guide')" style="background: #1f3a52;">Guide (緑帯)</button>
-                <button id="btn-large" onclick="setNoteType('large')">Large Notes (緑)</button>
-                <button id="btn-largeHold" onclick="setNoteType('largeHold')">Large Hold (黄)</button>
+                <button id="btn-normal" class="active" onclick="setNoteType('normal')">Normal</button>
+                <button id="btn-hold" onclick="setNoteType('hold')">Hold</button>
+                <button id="btn-long" onclick="setNoteType('long')">Long</button>
+                <button id="btn-damage" onclick="setNoteType('damage')">Damage</button>
+                <button id="btn-large" onclick="setNoteType('large')">Large Normal</button>
+                <button id="btn-largeHold" onclick="setNoteType('largeHold')">Large Hold</button>
+                <button id="btn-largeLong" onclick="setNoteType('largeLong')">Large Long</button>
+                <button id="btn-largeDamage" onclick="setNoteType('largeDamage')">Large Damage</button>
+                <button id="btn-guide" onclick="setNoteType('guide')" style="background: #1f3a52;grid-column:1 / -1;">Guide</button>
             </div>
             <div class="control-group" id="large-note-settings" style="display:none;">
                 <label for="large-note-size">ノーツの大きさ（レーン数）</label>
                 <input type="number" id="large-note-size" min="2" step="1" value="2" oninput="updateLargeNoteSize()">
-                <div id="large-note-anchor" style="font-size:11px;color:var(--text-muted);">持つ位置: 左（Ctrl＋← / →で変更）</div>
+                <div id="large-note-anchor" style="font-size:11px;color:var(--text-muted);">持つ位置: 左</div>
             </div>
             <div class="control-group" style="background: rgba(16, 185, 129, 0.08); padding: 8px; border-radius: 6px; border: 1px solid rgba(16,185,129,0.25);">
                 <label>GUIDE NOTE COLOR</label>
                 <input type="color" id="guide-color" value="#10b981" oninput="saveGuideColorPicker()">
+                <input type="text" id="guide-color-code" value="#10b981" placeholder="#10B981" maxlength="7" aria-label="Guideカラーコード" spellcheck="false" oninput="applyGuideColorCode()" onchange="applyGuideColorCode(true)" style="font-family:monospace;" title="#RRGGBB / #RGB（#なしでも可）">
                 <div id="guide-palette" style="display:grid; grid-template-columns: repeat(6, 1fr); gap:4px; margin-top:4px;"></div>
                 <div style="display:flex; gap:5px; margin-top:4px;">
                     <button onclick="addGuidePaletteColor()" style="flex:1; padding:4px; font-size:11px;">Save</button>
@@ -384,14 +501,25 @@
                     <span id="volume-se-val" class="volume-val">70%</span>
                 </div>
             </div>
+            <details class="sidebar-section" id="badge-settings">
+                <summary>称号</summary>
+                <div class="sidebar-section-content">
+                    <label><input type="checkbox" id="badge-enabled" onchange="toggleBadge(this.checked)" style="width:auto"> 設定する</label>
+                    <div id="badge-fields" hidden>
+                        <div style="display:flex;gap:4px"><select id="badge-list" onchange="selectBadge(Number(this.value))"></select><button type="button" onclick="addBadge()">＋</button><button type="button" onclick="removeBadge()">削除</button></div>
+                        <label>画像ファイル名</label>
+                        <input type="text" id="badge-image" placeholder="badge.png" onchange="updateBadgeImage(this.value)">
+                        <label>獲得条件（すべて満たす）</label>
+                        <div id="badge-conditions"></div>
+                        <button type="button" onclick="addBadgeCondition()">条件を追加</button>
+                        <div style="display:flex;gap:4px;flex-wrap:wrap"><button type="button" onclick="setBadgePreset('c')">C以上</button><button type="button" onclick="setBadgePreset('score')">90万点以上</button><button type="button" onclick="setBadgePreset('fc')">フルコンボ</button></div>
+                    </div>
+                </div>
+            </details>
             <input type="file" id="import-file" accept=".2d,.sd,.txt" style="display:none;" onchange="importChart(this)">
         </div>
 
         <div id="editor-container">
-            <label id="scroll-effect-toggle" title="オフにすると編集画面だけが基準スピードで動きます。テストプレイには影響しません。">
-                <input type="checkbox" id="editor-scroll-effects" checked onchange="saveEditorScrollEffectSetting()">
-                スクロール変化の影響を受ける
-            </label>
             <div id="canvas-wrapper">
                 <canvas id="editor-canvas"></canvas>
                 <canvas id="minimap-canvas" width="40"></canvas>
@@ -484,13 +612,10 @@
         <div class="play-controls">
             <button id="play-btn" onclick="togglePlayback()" style="background: var(--accent-active); width: 100px;">再生 (Space)</button>
             <button id="undo-btn" onclick="undoLastAction()" disabled style="width: 86px;">Undo</button>
-            <span style="font-size: 13px; color: var(--text-muted);">
+            <span style="font-size: 13px; color: var(--text-muted); white-space:nowrap;">
                 現在の位置: <span id="current-beat-disp" style="color:#fff; font-weight:bold;">0.00</span> 拍目
             </span>
-            <span id="note-count-display" style="font-size:13px; color:var(--text-muted); white-space:nowrap;" title="ゲームのオート再生と同じ判定回数です。ロングは始点と終点で2、ガイドは0として数えます。">
-                ノーツ数: <strong id="note-count-value" style="color:#fff;">0</strong>
-            </span>
-            <label style="margin: 0; margin-left: 15px;">速度:</label>
+            <label for="playback-rate" style="margin: 0;">速度:</label>
             <select id="playback-rate" onchange="changePlaybackRate(this.value)" style="padding: 4px;">
                 <option value="0.5">0.5x</option>
                 <option value="0.75">0.75x</option>
@@ -498,8 +623,12 @@
                 <option value="1.25">1.25x</option>
                 <option value="1.5">1.5x</option>
             </select>
+            <span id="note-count-display" style="font-size:13px; color:var(--text-muted); white-space:nowrap;" title="選択中の難易度の全レイヤーを集計。Longは始点・終点で1つ、Guideとレーン透明度は対象外です。">
+                ノーツ数: <strong id="note-count-value" style="color:#fff;">0</strong>
+            </span>
+            <span id="note-kind-counts" style="font-size:13px; color:var(--text-muted); white-space:nowrap;" title="Large NotesはNormal、Large HoldはHoldに合算します。">Normal : 0　Hold : 0　Long : 0　Damage : 0</span>
         </div>
-        <div>
+        <div style="margin-left:auto; white-space:nowrap;">
             <span id="update-status" role="status" aria-live="polite" style="display:none; margin-right:12px; color:#79c7d8; font-size:12px; white-space:nowrap; vertical-align:middle;"></span>
             <button id="export-btn" style="background: var(--success); border-color: var(--success-active); padding: 8px 16px; font-size: 14px;" onclick="exportChart()">譜面を上書き保存 (chart.2d)</button>
             <button style="background: var(--accent-active); padding: 8px 16px; font-size: 14px; margin-left: 8px;" onclick="exportChart('video')">動画を書き出す (MP4)</button>
@@ -553,6 +682,7 @@
             <div class="gimmick-type-buttons" style="padding-bottom:0;">
                 <button type="button" id="camera-variant-normal" onclick="chooseCameraVariant('CAMERA')">通常カメラ</button>
                 <button type="button" id="camera-variant-advanced" onclick="chooseCameraVariant('CAMERA_ADV')">SDV（位置＋角度）</button>
+                <button type="button" id="camera-variant-sequence" onclick="chooseCameraVariant('CAMERA_ADV',true)">2段階移動</button>
             </div>
         </div>
         <div class="control-group" id="dialog-value-group">
@@ -614,6 +744,7 @@
             <div style="font-size:11px;color:var(--text-muted);">0拍で瞬時に切り替わります。</div>
         </div>
         <div class="control-group" id="camera-value-group" style="display:none; gap:7px;">
+            <input type="hidden" id="camera-sequence" value="1">
             <label>カメラの移動先</label>
             <div style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px;">
                 <label style="font-size:11px;">左右 X<input type="number" id="camera-x" min="-4" max="4" step="0.1" value="0"></label>
@@ -633,6 +764,19 @@
             </select>
             <label>移動にかける拍数</label>
             <input type="number" id="camera-duration" min="0" max="32" step="0.25" value="1">
+            <div id="camera-second-stage" style="display:none; border-top:1px solid var(--line); padding-top:10px;">
+                <label>2段階目の移動先</label>
+                <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;">
+                    <label>X<input type="number" id="camera2-x" min="-20" max="20" step="0.1" value="0"></label>
+                    <label>Y<input type="number" id="camera2-y" min="-20" max="20" step="0.1" value="2.5"></label>
+                    <label>Z<input type="number" id="camera2-z" min="-50" max="20" step="0.1" value="-6"></label>
+                    <label>角度X<input type="number" id="camera2-rx" step="0.1" value="-12.8"></label>
+                    <label>角度Y<input type="number" id="camera2-ry" step="0.1" value="0"></label>
+                    <label>角度Z<input type="number" id="camera2-rz" step="0.1" value="0"></label>
+                </div>
+                <label>2段階目の動き<select id="camera2-mode"><option value="1">一定速度</option><option value="2">ゆっくり開始 → 加速</option><option value="3">速く開始 → 減速</option></select></label>
+                <label>2段階目にかける拍数<input type="number" id="camera2-duration" min="0" max="32" step="0.25" value="1"></label>
+            </div>
             <div style="font-size:11px; color:var(--text-muted); line-height:1.45;">0拍なら瞬時に切り替わります。初期位置は X=0 / Y=2.5 / Z=-6 です。</div>
         </div>
         <div style="display:flex; gap:5px; margin-top:5px;">
@@ -667,6 +811,10 @@
 
         // 難易度別の譜面データを管理する構造
         const DIFFICULTIES = ["Easy", "Normal", "Hard", "Expert", "Master", "SPECIAL"];
+        function normalizePanelFilters(value) {
+            const kinds=['NOISE','RGB_SHIFT','SCANLINE','GLITCH','FLICKER','MONO','INVERT','BLOOM','MOSAIC','BRIGHTNESS'];
+            return Array.isArray(value)?value.filter(f=>f&&kinds.includes(String(f.kind||f.Kind).toUpperCase())&&Number.isFinite(Number(f.strength??f.Strength))).slice(0,24).map(f=>({kind:String(f.kind||f.Kind).toUpperCase(),strength:Math.max(String(f.kind||f.Kind).toUpperCase()==='BRIGHTNESS'?-100:0,Math.min(100,Number(f.strength??f.Strength))),removeAfterPlay:(f.removeAfterPlay??f.RemoveAfterPlay)===true})):[];
+        }
         const normalizeDifficultyName = name => /^(custom|special)$/i.test(name) ? "SPECIAL" : name;
         let currentDifficulty = "Normal";
         let currentLayer = 1;
@@ -731,12 +879,14 @@
             if (!force && countedNotesRef === notes && countedNotesLength === notes.length) return;
             countedNotesRef = notes;
             countedNotesLength = notes.length;
-            let judgements = 0;
+            const counts = {normal:0,hold:0,long:0,damage:0};
             for (const number of layerNumbers()) for (const note of layerData(currentDifficulty,number).notes) {
-                if (!note || note.type === 'guide' || note.type === 'laneOpacity') continue;
-                judgements += note.type === 'long' ? 2 : 1;
+                if (!note) continue;
+                const kind = note.type === 'large' ? 'normal' : note.type === 'largeHold' ? 'hold' : note.type;
+                if (Object.hasOwn(counts,kind)) counts[kind]++;
             }
-            document.getElementById('note-count-value').textContent = judgements.toLocaleString();
+            document.getElementById('note-count-value').textContent = Object.values(counts).reduce((sum,count)=>sum+count,0).toLocaleString();
+            document.getElementById('note-kind-counts').textContent = `Normal : ${counts.normal.toLocaleString()}　Hold : ${counts.hold.toLocaleString()}　Long : ${counts.long.toLocaleString()}　Damage : ${counts.damage.toLocaleString()}`;
         }
         let changeEvents = chartData[currentDifficulty].changeEvents;
         let nsScrollEvents = [];
@@ -754,7 +904,7 @@
         let importedFileName = "chart.2d"; // デフォルトファイル名
         let viewBeat = 0.0; 
         let TOTAL_LANES = 8; 
-        let LANE_WIDTH = 50;
+        const LANE_WIDTH = 50;
         const START_X = 100;
         const FEVER_LANE_X = 10;
         const FEVER_LANE_WIDTH = 48;
@@ -781,6 +931,7 @@
         let waveformData = [];
         let seBuffer = null;
         let playedNotesMap = new Set();
+        let previewPlaybackStartBeat = 0;
         let isDragging = false;
         let isSelectMode = false;
         let isRightDragging = false;
@@ -1057,6 +1208,7 @@
             const savedColor = localStorage.getItem(GUIDE_COLOR_KEY);
             const picker = document.getElementById('guide-color');
             if (picker && savedColor) picker.value = normalizeHexColor(savedColor);
+            syncGuideColorCode();
             try {
                 guidePaletteColors = JSON.parse(localStorage.getItem(GUIDE_PALETTE_KEY) || '[]');
             } catch(e) {
@@ -1093,7 +1245,28 @@
         function saveGuideColorPicker() {
             const picker = document.getElementById('guide-color');
             if (picker) localStorage.setItem(GUIDE_COLOR_KEY, picker.value);
+            syncGuideColorCode();
             renderGuidePalette();
+        }
+        function parseGuideColorCode(value) {
+            let code=String(value).trim().replace(/^#/,'');
+            if(/^[0-9a-f]{3}$/i.test(code))code=code.split('').map(c=>c+c).join('');
+            return /^[0-9a-f]{6}$/i.test(code)?'#'+code.toLowerCase():null;
+        }
+        function syncGuideColorCode() {
+            const field=document.getElementById('guide-color-code');
+            if(field){field.value=document.getElementById('guide-color').value;field.setCustomValidity('');}
+        }
+        function applyGuideColorCode(commit=false) {
+            const field=document.getElementById('guide-color-code'),color=parseGuideColorCode(field.value);
+            field.setCustomValidity(color?'':'#RRGGBB または #RGB で入力してください');
+            // Keep shorthand intact while typing so entering six digits remains possible.
+            if(color&&(commit||field.value.trim().replace(/^#/,'').length===6)){
+                document.getElementById('guide-color').value=color;
+                localStorage.setItem(GUIDE_COLOR_KEY,color);
+                renderGuidePalette();
+                if(commit)syncGuideColorCode();
+            }
         }
 
         function renderGuidePalette() {
@@ -1277,6 +1450,7 @@
             changeEvents = layerData().changeEvents;
             feverSections = layerData().feverSections;
             updateNoteCount(true);
+            refreshBadgeFields();
         }
 
         function updateUndoButton() {
@@ -1308,6 +1482,8 @@
             document.getElementById('meta-lanes').value = TOTAL_LANES;
             document.getElementById('meta-level').value = chartData[currentDifficulty].level;
             document.getElementById('meta-level-display').value = chartData[currentDifficulty].levelLabel || '';
+            document.getElementById('meta-difficulty-designer').value = chartData[currentDifficulty].chartDesigner || '';
+            refreshDifficultyAudioFields();requestDifficultyAudio();
             refreshChartRefs();
             updateLayerSelector();
             selectedNotes = [];
@@ -1328,10 +1504,10 @@
             // 初期化時に同一ディレクトリのSE.oggを自動読み込み
             preloadDefaultSE();
             loadGuidePalette();
-            loadEditorScrollEffectSetting();
             loadPreviewNoteSpeed();
 
             window.addEventListener('resize', resizeCanvas);
+            if (typeof ResizeObserver !== 'undefined') new ResizeObserver(resizeCanvas).observe(document.getElementById('playback-bar'));
             canvas.addEventListener('mousedown', handleMouseDown);
             canvas.addEventListener('mousemove', handleMouseMove);
             window.addEventListener('mouseup', handleMouseUp);
@@ -1368,7 +1544,7 @@
             }, { passive: false });
 
             window.addEventListener('keydown', e => {
-                if ((currentNoteType === 'large' || currentNoteType === 'largeHold') && e.ctrlKey && (e.code === 'ArrowLeft' || e.code === 'ArrowRight') &&
+                if (isLargeTool(currentNoteType) && e.ctrlKey && (e.code === 'ArrowLeft' || e.code === 'ArrowRight') &&
                     !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName) && !testPlay?.active) {
                     e.preventDefault();
                     largeNoteAnchor = Math.max(0, Math.min(largeNoteSize - 1, largeNoteAnchor + (e.code === 'ArrowRight' ? 1 : -1)));
@@ -1431,11 +1607,16 @@
                     if (selectedCameraEvent) openSelectedEffectEditor();
                     return;
                 }
-                if (e.code === 'Delete' && selectedEffectEvents.length > 0 && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) {
+                if (e.code === 'Delete' && (selectedNotes.length > 0 || selectedEffectEvents.length > 0) &&
+                    !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName) &&
+                    !document.activeElement?.isContentEditable && !e.isComposing && !testPlay?.active) {
                     e.preventDefault();
                     recordUndo();
+                    layerData().notes = notes.filter(note => !selectedNotes.includes(note));
+                    notes = layerData().notes;
                     layerData().changeEvents = changeEvents.filter(event => !selectedEffectEvents.includes(event));
                     changeEvents = layerData().changeEvents;
+                    selectedNotes = [];
                     selectedEffectEvents = [];
                     selectedCameraEvent = null;
                     updateGimmickList();
@@ -1591,7 +1772,7 @@
                 } else if (n.type === 'long') {
                     const yEnd = beatToMinimapY(n.endBeat);
                     minimapCtx.fillStyle = 'rgba(187, 128, 255, 0.5)';
-                    minimapCtx.fillRect(nX, yEnd, nW, y - yEnd);
+                    minimapCtx.fillRect(nX, yEnd, nW * largeNoteSpan(n), y - yEnd);
                 } else {
                     if (n.type === 'damage') minimapCtx.fillStyle = '#f85149';
                     else if (n.type === 'hold') minimapCtx.fillStyle = '#d4a727';
@@ -1631,6 +1812,9 @@
 
             document.getElementById('meta-level').value = chartData[diff].level;
             document.getElementById('meta-level-display').value = chartData[diff].levelLabel || '';
+            document.getElementById('meta-difficulty-designer').value = chartData[diff].chartDesigner || '';
+            refreshDifficultyAudioFields();
+            requestDifficultyAudio();
 
             selectedNotes = [];
             longStartBeat = null;
@@ -1654,6 +1838,83 @@
                 : Array.from(text);
             return letters.slice(0, 2).join('');
         }
+
+        function updateCurrentDesigner(value) {
+            chartData[currentDifficulty].chartDesigner = String(value).replace(/[\r\n]/g, ' ');
+            syncToGame();
+        }
+
+        const BADGE_METRICS=[['rank','ランク'],['score','スコア'],['perfect','PERFECT'],['great','GREAT'],['good','GOOD'],['bad','BAD'],['miss','MISS'],['combo','Maxコンボ']];
+        const BADGE_RANKS=['C','B','A','S','SS','Ex','Ex+','ψ'];
+        let activeBadgeIndex=0,badgeSelectedDifficulty='';
+        function badgesForDifficulty(data){return Array.isArray(data?.badges)?data.badges:data?.badge?[data.badge]:[];}
+        function mutableBadges(){const data=chartData[currentDifficulty];if(!Array.isArray(data.badges))data.badges=data.badge?[data.badge]:[];delete data.badge;return data.badges;}
+        function selectedBadge(){return badgesForDifficulty(chartData[currentDifficulty])[activeBadgeIndex];}
+        function newBadge(){return {id:globalThis.crypto?.randomUUID?.()||'b'+Date.now().toString(36)+Math.random().toString(36).slice(2),image:'badge.png',conditions:[{metric:'rank',op:'>=',value:0}]};}
+        function validBadgeIds(badges){const ids=badges.filter(b=>b.id).map(b=>b.id.toUpperCase());return new Set(ids).size===ids.length;}
+        function validBadge(badge) {
+            return badge && (badge.id===undefined||badge.id===''||typeof badge.id==='string'&&/^[a-z0-9_-]{1,64}$/i.test(badge.id)) && typeof badge.image==='string' && /\.(png|jpe?g|bmp|gif)$/i.test(badge.image) && !/[:\r\n]/.test(badge.image) && !badge.image.replace(/\\/g,'/').split('/').some(p=>!p||p==='.'||p==='..') && Array.isArray(badge.conditions) && badge.conditions.length>0 && badge.conditions.length<=32 && badge.conditions.every(c=>c && BADGE_METRICS.some(([metric])=>metric===c.metric) && ['>=','<='].includes(c.op) && Number.isSafeInteger(c.value) && c.value>=0 && c.value<=(c.metric==='rank'?7:1000000));
+        }
+        function refreshBadgeFields() {
+            const enabled=document.getElementById('badge-enabled');if(!enabled)return;
+            const badges=badgesForDifficulty(chartData[currentDifficulty]);if(badgeSelectedDifficulty!==currentDifficulty){activeBadgeIndex=0;badgeSelectedDifficulty=currentDifficulty;}activeBadgeIndex=Math.max(0,Math.min(activeBadgeIndex,badges.length-1));
+            const badge=badges[activeBadgeIndex],list=document.getElementById('badge-list');list.replaceChildren();badges.forEach((b,i)=>list.add(new Option(`${i+1}: ${b.image||'画像未設定'}`,String(i))));list.value=String(activeBadgeIndex);
+            enabled.checked=badges.length>0;document.getElementById('badge-fields').hidden=badges.length===0;
+            document.getElementById('badge-image').value=badge?.image || '';
+            const container=document.getElementById('badge-conditions');container.replaceChildren();
+            if(!badge)return;
+            for(const [index,condition] of badge.conditions.entries()){
+                const row=document.createElement('div');row.style.cssText='display:grid;grid-template-columns:1fr 72px 62px 26px;gap:4px;margin-bottom:6px;align-items:center';
+                const metric=document.createElement('select');for(const [value,label] of BADGE_METRICS)metric.add(new Option(label,value));metric.value=condition.metric;metric.onchange=()=>changeBadgeCondition(index,'metric',metric.value);
+                const value=document.createElement(condition.metric==='rank'?'select':'input');
+                if(condition.metric==='rank'){BADGE_RANKS.forEach((label,n)=>value.add(new Option(label,String(n))));value.value=String(condition.value);}else{value.type='number';value.min='0';value.max='1000000';value.step='1';value.value=condition.value;}
+                value.onchange=()=>changeBadgeCondition(index,'value',Number(value.value));
+                const op=document.createElement('select');op.add(new Option('以上','>='));op.add(new Option('以下','<='));op.value=condition.op;op.onchange=()=>changeBadgeCondition(index,'op',op.value);
+                const remove=document.createElement('button');remove.textContent='×';remove.type='button';remove.onclick=()=>{recordUndo();badge.conditions.splice(index,1);refreshBadgeFields();syncToGame();};
+                row.append(metric,value,op,remove);container.append(row);
+            }
+        }
+        function selectBadge(index){activeBadgeIndex=index;refreshBadgeFields();}
+        function addBadge(){recordUndo();const badges=mutableBadges();badges.push(newBadge());activeBadgeIndex=badges.length-1;refreshBadgeFields();syncToGame();}
+        function removeBadge(){const badges=badgesForDifficulty(chartData[currentDifficulty]);if(!badges.length||!confirm('選択中の称号設定を削除しますか？'))return;recordUndo();mutableBadges().splice(activeBadgeIndex,1);activeBadgeIndex=Math.max(0,activeBadgeIndex-1);refreshBadgeFields();syncToGame();}
+        function toggleBadge(enabled){if(!enabled&&badgesForDifficulty(chartData[currentDifficulty]).length&&!confirm('この難易度の称号設定をすべて削除しますか？')){refreshBadgeFields();return;}recordUndo();const badges=mutableBadges();if(enabled&&!badges.length)badges.push(newBadge());else if(!enabled)badges.length=0;activeBadgeIndex=0;refreshBadgeFields();syncToGame();}
+        function updateBadgeImage(value){const badge=selectedBadge();if(!badge)return;recordUndo();badge.image=String(value).trim();refreshBadgeFields();syncToGame();}
+        function addBadgeCondition(){const badge=selectedBadge();if(!badge||badge.conditions.length>=32)return;recordUndo();badge.conditions.push({metric:'rank',op:'>=',value:0});refreshBadgeFields();syncToGame();}
+        function changeBadgeCondition(index,key,value){const condition=selectedBadge()?.conditions[index];if(!condition)return;recordUndo();condition[key]=value;if(key==='metric')condition.value=0;refreshBadgeFields();syncToGame();}
+        function setBadgePreset(preset){const badge=selectedBadge();if(!badge||badge.conditions.length&&!confirm('選択中の称号の条件を置き換えますか？'))return;recordUndo();badge.conditions=preset==='fc'?[{metric:'bad',op:'<=',value:0},{metric:'miss',op:'<=',value:0}]:preset==='score'?[{metric:'score',op:'>=',value:900000}]:[{metric:'rank',op:'>=',value:0}];refreshBadgeFields();syncToGame();}
+        function effectiveAudioFile() { return String(chartData[currentDifficulty]?.audio || document.getElementById('meta-song').value).trim(); }
+        function effectiveOffsetSeconds() { return (chartData[currentDifficulty]?.audioOffsetMs ?? (parseFloat(document.getElementById('meta-offset').value) || 0)) / 1000; }
+        function refreshDifficultyAudioFields() {
+            const data=chartData[currentDifficulty];
+            document.getElementById('meta-difficulty-link').value=data.externalLink || '';
+            for(const [suffix,key] of [['song','audio'],['offset','audioOffsetMs'],['preview-start','previewStart'],['preview-end','previewEnd']]) document.getElementById('meta-difficulty-'+suffix).value=data[key] ?? '';
+        }
+        function updateDifficultyAudio() {
+            const data=chartData[currentDifficulty]; data.audio=document.getElementById('meta-difficulty-song').value.replace(/[\r\n]/g,' ').trim();
+            for(const [suffix,key] of [['offset','audioOffsetMs'],['preview-start','previewStart'],['preview-end','previewEnd']]) {const text=document.getElementById('meta-difficulty-'+suffix).value.trim();const value=Number(text);if(text===''||!Number.isFinite(value))delete data[key];else data[key]=suffix==='offset'?value:Math.max(0,value);}
+            requestDifficultyAudio();syncToGame();
+        }
+        function updateDifficultyLink(value) {
+            recordUndo();chartData[currentDifficulty].externalLink=String(value).replace(/[\r\n]/g,'').trim();syncToGame();
+        }
+        function chartExternalLink(value) {
+            const text=String(value || '').trim();if(!text)return '';
+            try {const url=new URL(text);if(!/^https?:\/\//i.test(text)||text.length>2048||/[\s\x00-\x1f\x7f]/.test(text)||!['https:','http:'].includes(url.protocol)||!url.hostname||url.username||url.password)throw new Error();return text;}
+            catch {throw new Error('リンクは https:// または http:// から始まるURLを入力してください。');}
+        }
+        let requestedDifficultyAudio='';
+        function requestDifficultyAudio() {
+            const file=effectiveAudioFile();if(file===requestedDifficultyAudio)return;requestedDifficultyAudio=file;
+            nativeAudioRequest++;
+            if(isPlaying)togglePlayback();audioBuffer=null;waveformData=[];
+            document.getElementById('audio-label').textContent=file?'曲: '+file+'（読み込み中）':'音源未設定';
+            if(window.chrome?.webview)window.chrome.webview.postMessage(JSON.stringify({type:'difficulty-audio',filename:file}));
+        }
+        function chooseDifficultyAudio() {
+            if(window.chrome?.webview)window.chrome.webview.postMessage(JSON.stringify({type:'choose-difficulty-audio'}));
+            else document.getElementById('audio-selector').click();
+        }
+        function setDifficultyAudioFile(file) { document.getElementById('meta-difficulty-song').value=file;updateDifficultyAudio(); }
 
         function updateCurrentLevelLabel(value) {
             chartData[currentDifficulty].levelLabel = clampLevelLabel(value);
@@ -1693,7 +1954,7 @@
             currentNoteType = type;
             document.querySelectorAll('.note-type-btn button').forEach(b => b.classList.remove('active'));
             document.getElementById(`btn-${type}`).classList.add('active');
-            document.getElementById('large-note-settings').style.display = (type === 'large' || type === 'largeHold') ? 'flex' : 'none';
+            document.getElementById('large-note-settings').style.display = isLargeTool(type) ? 'flex' : 'none';
             selectedNotes = [];
             longStartBeat = null;
             longStartLane = null;
@@ -1703,7 +1964,7 @@
         function updateLargeNoteAnchor() {
             const position = largeNoteAnchor === 0 ? '左' : largeNoteAnchor === largeNoteSize - 1 ? '右' :
                 (largeNoteAnchor === Math.floor(largeNoteSize / 2) && largeNoteSize % 2 ? '真ん中' : `${largeNoteAnchor + 1}番目`);
-            document.getElementById('large-note-anchor').textContent = `持つ位置: ${position}（Ctrl＋← / →で変更）`;
+            document.getElementById('large-note-anchor').textContent = `持つ位置: ${position}`;
         }
 
         function updateLargeNoteSize() {
@@ -1714,8 +1975,9 @@
             updateLargeNoteAnchor();
         }
 
+        function isLargeTool(type) { return ['large','largeHold','largeLong','largeDamage'].includes(type); }
         function largeNoteSpan(note) {
-            return note.type === 'large' || note.type === 'largeHold' ? Math.max(2, Number(note.size) || 2) : 1;
+            return ['large','largeHold'].includes(note.type) ? Math.max(2, Number(note.size) || 2) : ['long','damage'].includes(note.type) ? Math.max(1, Number(note.size) || 1) : 1;
         }
 
         function noteOverlapsLanes(note, lanes = TOTAL_LANES) {
@@ -1837,6 +2099,13 @@
 
         function parseCameraPreviewValue(raw) {
             const text = String(raw || '').trim();
+            if(text.includes(';')){
+                const parts=text.split(';');if(parts.length!==2)return null;
+                const first=parseCameraPreviewValue(parts[0]),next=parseCameraPreviewValue(parts[1]);
+                if(!first?.advanced||!next?.advanced||![first,next].every(s=>[s.x,s.y,s.z,s.rx,s.ry,s.rz,s.duration].every(Number.isFinite)))return null;
+                for(const s of [first,next]){s.x=Math.max(-20,Math.min(20,s.x));s.y=Math.max(-20,Math.min(20,s.y));s.z=Math.max(-50,Math.min(20,s.z));s.duration=Math.max(0,Math.min(32,s.duration));}
+                return {...first,next};
+            }
             const advanced = text.match(/^\s*\(\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)\s*,\s*\(\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)\s*([123])(?:\s*,\s*([^,]+))?\s*$/);
             if (advanced) return { x:+advanced[1], y:+advanced[2], z:+advanced[3], rx:+advanced[4], ry:+advanced[5], rz:+advanced[6], mode:+advanced[7], duration:advanced[8] === undefined ? 1 : +advanced[8], advanced:true };
             let match = text.match(/^\s*\(\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^\)]+)\s*\)\s*([123])(?:\s*,\s*([^,]+))?\s*$/);
@@ -1846,6 +2115,13 @@
             return null;
         }
 
+        function cameraTotalDuration(spec){return spec&&Number.isFinite(spec.duration)?Math.max(0,spec.duration)+(spec.next?Math.max(0,spec.next.duration):0):0;}
+        function cameraStageValue(s){return `(${s.x},${s.y},${s.z}),(${s.rx||0},${s.ry||0},${s.rz||0})${s.mode||1},${s.duration}`;}
+        function expandCameraEvents(events){
+            return events.filter(e=>e.type==='CAMERA'||e.type==='CAMERA_ADV').flatMap(e=>{
+                const spec=parseCameraPreviewValue(e.val);return spec?.next?[{...e,val:cameraStageValue(spec)},{...e,beat:e.beat+spec.duration,val:cameraStageValue(spec.next)}]:[e];
+            }).sort((a,b)=>(a.beat||0)-(b.beat||0));
+        }
         function cameraAtPreviewBeat(targetBeat) {
             let from = {x:0,y:2.5,z:-6,rx:0,ry:0,rz:0}, to = {...from}, start = 0, duration = 0, mode = 1, advanced = false, transitionFromAdvanced = false;
             const lookAngles = position => {
@@ -1859,11 +2135,14 @@
                 const viewAdvanced=advanced||(transitionFromAdvanced&&duration>0&&beat<start+duration);
                 return {x:from.x+(to.x-from.x)*t,y:from.y+(to.y-from.y)*t,z:from.z+(to.z-from.z)*t,rx:from.rx+(to.rx-from.rx)*t,ry:from.ry+(to.ry-from.ry)*t,rz:from.rz+(to.rz-from.rz)*t,advanced:viewAdvanced};
             };
-            const events = testPlay?.active ? testPlay.cameraEvents : changeEvents.filter(e => e.type === 'CAMERA' || e.type === 'CAMERA_ADV').slice().sort((a,b)=>(a.beat||0)-(b.beat||0));
+            const events = testPlay?.active ? testPlay.cameraEvents : expandCameraEvents(changeEvents);
             for (const event of events) {
-                if ((event.beat || 0) > targetBeat) break;
                 const spec = parseCameraPreviewValue(event.val);
                 if (!spec || ![spec.x,spec.y,spec.z,spec.duration].every(Number.isFinite)) continue;
+                if ((event.beat || 0) > targetBeat && !(targetBeat<0 && (event.beat||0)===0 && spec.duration===0)) {
+                    if(targetBeat<0 && (event.beat||0)===0)continue;
+                    break;
+                }
                 from = at(event.beat || 0);
                 const nextAdvanced = event.type === 'CAMERA_ADV';
                 if(nextAdvanced && !from.advanced){
@@ -1978,13 +2257,13 @@
                     fillGuideRect(gameCtx, lx, yStart, yEnd, gameLaneW, n);
                 } else if (n.type === 'long') {
                     gameCtx.fillStyle = n.color ? n.color + "4c" : 'rgba(187, 128, 255, 0.4)';
-                    gameCtx.fillRect(lx + 4, yEnd, gameLaneW - 8, yStart - yEnd);
+                    gameCtx.fillRect(lx + 4, yEnd, gameLaneW * largeNoteSpan(n) - 8, yStart - yEnd);
                     const startIsHold = !!n.holdStart;
                     const endIsHold = n.holdMode === 'holdEnd' || !!n.holdEnd;
                     gameCtx.fillStyle = startIsHold ? '#d4a727' : (n.color || '#bc8cff');
-                    gameCtx.fillRect(lx + 2, yStart - (startIsHold ? 6 : 4), gameLaneW - 4, startIsHold ? 12 : 8);
+                    gameCtx.fillRect(lx + 2, yStart - (startIsHold ? 6 : 4), gameLaneW * largeNoteSpan(n) - 4, startIsHold ? 12 : 8);
                     gameCtx.fillStyle = endIsHold ? '#d4a727' : (n.color || '#bc8cff');
-                    gameCtx.fillRect(lx + 2, yEnd - (endIsHold ? 6 : 4), gameLaneW - 4, endIsHold ? 12 : 8);
+                    gameCtx.fillRect(lx + 2, yEnd - (endIsHold ? 6 : 4), gameLaneW * largeNoteSpan(n) - 4, endIsHold ? 12 : 8);
                 } else {
                     if (n.type === 'normal') gameCtx.fillStyle = n.color || ((n.lane % 2 === 1) ? '#ffffff' : '#58a6ff');
                     else if (n.type === 'hold') gameCtx.fillStyle = n.color || '#d4a727';
@@ -2021,6 +2300,7 @@
             let beat = 0, pos = 0, speed = 1;
             for (const event of events) {
                 const nextBeat = Number(event.beat) || 0;
+                if(nextBeat===0){const initial=Number(event.val);speed=Number.isFinite(initial)?initial:1;segments[0]={beat:0,pos:0,speed};continue;}
                 pos += (nextBeat - beat) * speed;
                 beat = nextBeat;
                 const parsedSpeed = Number(event.val);
@@ -2047,26 +2327,15 @@
         }
 
         function editorScrollEffectsEnabled() {
-            const input = document.getElementById('editor-scroll-effects');
-            return !input || input.checked;
+            return false;
         }
         function getEditorScrollPos(targetBeat) {
             if (editorScrollEffectsEnabled()) return getScrollPos(targetBeat);
             // 固定表示では拍差ではなく実時間差を使う。初期BPM時の1拍を
             // 1表示単位とするため、BPM変化後も画面上の移動速度は一定になる。
             const baseBpm = parseFloat(document.getElementById('meta-bpm').value) || 150;
-            const offset = (parseFloat(document.getElementById('meta-offset').value) || 0) / 1000;
+            const offset = effectiveOffsetSeconds();
             return (beatToTime(targetBeat) - offset) * baseBpm / 60;
-        }
-        function saveEditorScrollEffectSetting() {
-            const enabled = editorScrollEffectsEnabled();
-            localStorage.setItem('hyperlane-editor-scroll-effects', enabled ? '1' : '0');
-            draw(); drawGame();
-        }
-        function loadEditorScrollEffectSetting() {
-            const saved = localStorage.getItem('hyperlane-editor-scroll-effects');
-            const input = document.getElementById('editor-scroll-effects');
-            if (input && saved !== null) input.checked = saved !== '0';
         }
 
         function beatToY(beat) {
@@ -2082,6 +2351,8 @@
 
         function loadAudioFile(input) {
             const file = input.files[0]; if(!file) return;
+            if(chartData[currentDifficulty]?.audio){chartData[currentDifficulty].audio=file.name;document.getElementById('meta-difficulty-song').value=file.name;}else document.getElementById('meta-song').value=file.name;
+            requestedDifficultyAudio=file.name;
             document.getElementById('audio-label').textContent = `曲: ${file.name}`;
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -2113,7 +2384,7 @@
 
         function beatToTimeForLayer(targetBeat, layerNumber=currentLayer) {
             const baseBPM = parseFloat(document.getElementById('meta-bpm').value) || 150;
-            const offset = (parseFloat(document.getElementById('meta-offset').value) || 0) / 1000;
+            const offset = effectiveOffsetSeconds();
             if (targetBeat <= 0) return offset;
             let currentBeat = 0; let currentTime = offset; let currentBPM = baseBPM;
             const bpms = layerData(currentDifficulty,layerNumber).changeEvents.filter(e => e.type === 'BPM').slice().sort((a,b) => (a.beat || 0) - (b.beat || 0));
@@ -2160,7 +2431,7 @@
 
         function beatToTimeForDifficultyLayer(targetBeat,diff,layerNumber) {
             const baseBPM=parseFloat(document.getElementById('meta-bpm').value)||150;
-            const offset=(parseFloat(document.getElementById('meta-offset').value)||0)/1000;
+            const offset = effectiveOffsetSeconds();
             let beat=0,time=offset,bpm=baseBPM;
             const events=layerData(diff,layerNumber).changeEvents.filter(e=>e.type==='BPM').slice().sort((a,b)=>a.beat-b.beat);
             for(const event of events) {
@@ -2178,7 +2449,7 @@
 
         function timeToBeat(targetTime,layerNumber=currentLayer) {
             const baseBPM = parseFloat(document.getElementById('meta-bpm').value) || 150;
-            const offset = (parseFloat(document.getElementById('meta-offset').value) || 0) / 1000;
+            const offset = effectiveOffsetSeconds();
             if (targetTime <= offset) return 0;
             let currentBeat = 0; let currentTime = offset; let currentBPM = baseBPM;
             const bpms = layerData(currentDifficulty,layerNumber).changeEvents.filter(e => e.type === 'BPM').slice().sort((a,b) => (a.beat || 0) - (b.beat || 0));
@@ -2230,6 +2501,7 @@
                 document.getElementById('play-btn').textContent = "再生 (Space)";
             } else {
                 playedNotesMap.clear();
+                previewPlaybackStartBeat = viewBeat;
                 if (!audioBuffer) {
                     startTime = performance.now() - (beatToTime(viewBeat) * 1000 / playbackRate);
                     isPlaying = true;
@@ -2257,11 +2529,15 @@
         function checkAndPlaySE(currentBeat) {
             for (let i = 0; i < notes.length; i++) {
                 const n = notes[i];
-                if (n.type === 'guide') continue;
-                if (Math.abs(n.beat - currentBeat) > 2) continue;
-                if (currentBeat >= n.beat && !playedNotesMap.has(n)) {
-                    playedNotesMap.add(n);
-                    triggerClickSound();
+                if (n.type === 'guide' || n.type === 'laneOpacity') continue;
+                const beats = n.type === 'long' ? [n.beat,n.endBeat] : [n.beat];
+                for(const beat of beats) {
+                    if(!Number.isFinite(beat) || beat<previewPlaybackStartBeat-0.000001 || beat>currentBeat || currentBeat-beat>2)continue;
+                    // One voice per simultaneous chart instant, including Long endpoints.
+                    // Different beats remain separate, even when crossed in the same frame.
+                    const key=Math.round(beat*1000000);
+                    if(playedNotesMap.has(key))continue;
+                    playedNotesMap.add(key);triggerClickSound();
                 }
             }
         }
@@ -2335,7 +2611,7 @@
                 }
                 if (event.type !== 'CAMERA' && event.type !== 'CAMERA_ADV') continue;
                 const spec = parseCameraPreviewValue(event.val);
-                const duration = spec && Number.isFinite(spec.duration) ? Math.max(0, spec.duration) : 0;
+                const duration = cameraTotalDuration(spec);
                 const startY = beatToY(event.beat), endY = beatToY(event.beat + duration);
                 const top = Math.min(startY, endY), height = Math.max(7, Math.abs(startY - endY));
                 if (mouseY >= top && mouseY <= top + height) return event;
@@ -2487,10 +2763,26 @@
             isSelectMode = false;
             if (lane < 1 || lane > TOTAL_LANES) return;
 
-            if (currentNoteType === 'large' || currentNoteType === 'largeHold') {
+            // Delete the Large note actually under the pointer before tool-specific placement.
+            // Keep Hold endpoint toggles and an in-progress two-point placement intact.
+            if (longStartBeat === null && !['guide','laneOpacity'].includes(currentNoteType)) {
+                const largeHit = notes.findIndex(n => {
+                    if (largeNoteSpan(n)<=1 || lane<n.lane || lane>=n.lane+largeNoteSpan(n)) return false;
+                    if(n.type==='long') {
+                        const endpoint=currentNoteType==='hold' &&
+                            Math.min(Math.abs(snappedBeat-n.beat),Math.abs(snappedBeat-n.endBeat))<=Math.max(.03,18/BEAT_HEIGHT);
+                        return !endpoint && snappedBeat>=n.beat && snappedBeat<=n.endBeat;
+                    }
+                    return Math.abs(n.beat-snappedBeat)<.02;
+                });
+                if(largeHit>=0){recordUndo();notes.splice(largeHit,1);draw();return;}
+            }
+
+            if (isLargeTool(currentNoteType) && currentNoteType !== 'largeLong') {
                 const size = largeNoteSize;
                 const startLane = lane - largeNoteAnchor;
-                const existing = notes.findIndex(n => n.type === currentNoteType && Math.abs(n.beat - snappedBeat) < 0.02 &&
+                const placedType = currentNoteType === 'largeDamage' ? 'damage' : currentNoteType;
+                const existing = notes.findIndex(n => n.type === placedType && Math.abs(n.beat - snappedBeat) < 0.02 &&
                     startLane <= n.lane + largeNoteSpan(n) - 1 && n.lane <= startLane + size - 1);
                 if (existing >= 0) { recordUndo(); notes.splice(existing, 1); return; }
                 for (let coveredLane = Math.max(1,startLane); coveredLane <= Math.min(TOTAL_LANES,startLane + size - 1); coveredLane++) {
@@ -2499,7 +2791,7 @@
                         Math.abs(n.beat - snappedBeat) < 0.02 && coveredLane >= n.lane && coveredLane < n.lane + largeNoteSpan(n))) return;
                 }
                 recordUndo();
-                notes.push({ beat: snappedBeat, lane: startLane, type: currentNoteType, size });
+                notes.push({ beat: snappedBeat, lane: startLane, type: placedType, size });
                 return;
             }
 
@@ -2542,8 +2834,8 @@
                 return;
             }
 
-            if (currentNoteType === 'long') {
-                const existingLongIdx = notes.findIndex(n => n.lane === lane && n.type === 'long' && snappedBeat >= n.beat && snappedBeat <= n.endBeat);
+            if (currentNoteType === 'long' || currentNoteType === 'largeLong') {
+                const existingLongIdx = notes.findIndex(n => lane>=n.lane && lane<n.lane+largeNoteSpan(n) && n.type === 'long' && snappedBeat >= n.beat && snappedBeat <= n.endBeat);
                 if (existingLongIdx >= 0 && longStartBeat === null) {
                     recordUndo();
                     notes.splice(existingLongIdx, 1);
@@ -2551,14 +2843,15 @@
                 }
                 if (longStartBeat === null) {
                     longStartBeat = snappedBeat;
-                    longStartLane = lane;
+                    longStartLane = currentNoteType === 'largeLong' ? lane-largeNoteAnchor : lane;
                 } else {
                     let bStart = Math.min(longStartBeat, snappedBeat);
                     let bEnd = Math.max(longStartBeat, snappedBeat);
                     if (bStart === bEnd) bEnd += 0.25;
-                    if(rejectOverlappingLayerNote(bStart,longStartLane)||rejectOverlappingLayerNote(bEnd,longStartLane))return;
+                    const size=currentNoteType==='largeLong'?largeNoteSize:1;
+                    for(let covered=Math.max(1,longStartLane);covered<=Math.min(TOTAL_LANES,longStartLane+size-1);covered++)if(rejectOverlappingLayerNote(bStart,covered)||rejectOverlappingLayerNote(bEnd,covered))return;
                     recordUndo();
-                    notes.push({ beat: bStart, endBeat: bEnd, lane: longStartLane, type: 'long' });
+                    notes.push({ beat: bStart, endBeat: bEnd, lane: longStartLane, type: 'long', ...(size>1?{size}:{}) });
                     longStartBeat = null;
                     longStartLane = null;
                 }
@@ -2567,7 +2860,7 @@
 
             if (currentNoteType === 'hold') {
                 const endpointLongIdx = notes.findIndex(n => {
-                    if (n.lane !== lane || n.type !== 'long') return false;
+                    if (lane<n.lane || lane>=n.lane+largeNoteSpan(n) || n.type !== 'long') return false;
                     const tolerance = Math.max(0.03, 18 / BEAT_HEIGHT);
                     return Math.abs(snappedBeat - n.beat) <= tolerance || Math.abs(snappedBeat - n.endBeat) <= tolerance;
                 });
@@ -2641,7 +2934,7 @@
                 if (!laneBounds || x2 < laneBounds[0] || x1 > laneBounds[1]) return false;
                 if (event.type === 'JUDGE_LINE' || event.type === 'CAMERA' || event.type === 'CAMERA_ADV' || event.type === 'NS' || event.type === 'FILTER' || event.type === 'GLITCH' || event.type === 'LANE_VIS' || event.type === 'UI_VIS') {
                     const spec = event.type.endsWith('_VIS') ? null : parseCameraPreviewValue(event.val);
-                    const duration = event.type === 'JUDGE_LINE' ? parseJudgementLineSpec(event.val).duration : event.type === 'NS' ? parseNsSpec(event.val).duration : (event.type.endsWith('_VIS') || event.type === 'GLITCH' || event.type === 'FILTER') ? Math.max(0, parseFloat(String(event.val).split(',')[event.type === 'FILTER' ? 2 : 1]) || 0) : spec && Number.isFinite(spec.duration) ? Math.max(0, spec.duration) : 0;
+                    const duration = event.type === 'JUDGE_LINE' ? parseJudgementLineSpec(event.val).duration : event.type === 'NS' ? parseNsSpec(event.val).duration : (event.type.endsWith('_VIS') || event.type === 'GLITCH' || event.type === 'FILTER') ? Math.max(0, parseFloat(String(event.val).split(',')[event.type === 'FILTER' ? 2 : 1]) || 0) : cameraTotalDuration(spec);
                     const eventY1 = beatToY(event.beat), eventY2 = beatToY(event.type==='JUDGE_LINE'?judgementLineVisualEndBeat(event):event.type==='FILTER'||event.type==='GLITCH'?filterVisualEndBeat(event):event.beat+duration);
                     const top = Math.min(eventY1, eventY2), bottom = Math.max(eventY1, eventY2);
                     return Math.max(bottom, top + 7) >= y1 && top <= y2;
@@ -2779,6 +3072,7 @@
             document.getElementById('camera-rz').value = 0;
             document.getElementById('camera-mode').value = '1';
             document.getElementById('camera-duration').value = 1;
+            resetSecondCameraStage();
             updateGimmickDialogFields();
             document.getElementById('dialog-overlay').style.display = 'block';
             document.getElementById('gimmick-dialog').style.display = 'flex';
@@ -2892,22 +3186,32 @@
             document.getElementById('camera-rz').value = spec.rz || 0;
             document.getElementById('camera-mode').value = String(spec.mode || 1);
             document.getElementById('camera-duration').value = spec.duration;
+            resetSecondCameraStage();
+            if(spec.next){document.getElementById('camera-sequence').value='2';for(const key of ['x','y','z','rx','ry','rz','mode','duration'])document.getElementById('camera2-'+key).value=spec.next[key]??0;}
             updateGimmickDialogFields();
             document.getElementById('dialog-overlay').style.display = 'block';
             document.getElementById('gimmick-dialog').style.display = 'flex';
         }
 
-        function chooseCameraVariant(type) {
+        function resetSecondCameraStage(){document.getElementById('camera-sequence').value='1';for(const [key,value] of Object.entries({x:0,y:2.5,z:-6,rx:-12.8,ry:0,rz:0,mode:1,duration:1}))document.getElementById('camera2-'+key).value=value;}
+        function chooseCameraVariant(type,twoStep=false) {
             document.getElementById('dialog-type').value = type;
+            document.getElementById('camera-sequence').value=twoStep?'2':'1';
             updateGimmickDialogFields();
         }
 
         function updateGimmickDialogFields() {
             const type = document.getElementById('dialog-type').value;
+            if(type==='CAMERA')document.getElementById('camera-sequence').value='1';
+            const advancedCamera=type==='CAMERA_ADV';
+            for(const [key,lo,hi] of [['x',advancedCamera?-20:-4,advancedCamera?20:4],['y',advancedCamera?-20:.5,advancedCamera?20:8],['z',advancedCamera?-50:-20,advancedCamera?20:-1]]){const input=document.getElementById('camera-'+key);input.min=lo;input.max=hi;}
             document.getElementById('gimmick-dialog-delete').style.display = editingCameraEvent ? 'block' : 'none';
             document.getElementById('camera-variant-group').style.display = cameraLaneDialog ? 'flex' : 'none';
             document.getElementById('camera-variant-normal').classList.toggle('active', type === 'CAMERA');
-            document.getElementById('camera-variant-advanced').classList.toggle('active', type === 'CAMERA_ADV');
+            const twoStep=type==='CAMERA_ADV'&&document.getElementById('camera-sequence').value==='2';
+            document.getElementById('camera-variant-advanced').classList.toggle('active', type === 'CAMERA_ADV'&&!twoStep);
+            document.getElementById('camera-variant-sequence').classList.toggle('active',twoStep);
+            document.getElementById('camera-second-stage').style.display=twoStep?'block':'none';
             const camera = type === 'CAMERA' || type === 'CAMERA_ADV';
             const ns = type === 'NS';
             const filter = type === 'FILTER';
@@ -2948,7 +3252,10 @@
             const rx = number('camera-rx',-12.8), ry = number('camera-ry',0), rz = number('camera-rz',0);
             const mode = document.getElementById('camera-mode').value;
             const duration = Math.max(0, Math.min(32, number('camera-duration', 1)));
-            return advanced ? `(${x},${y},${z}),(${rx},${ry},${rz})${mode},${duration}` : `(${x},${y},${z})${mode},${duration}`;
+            const first=advanced ? `(${x},${y},${z}),(${rx},${ry},${rz})${mode},${duration}` : `(${x},${y},${z})${mode},${duration}`;
+            if(!advanced||document.getElementById('camera-sequence').value!=='2')return first;
+            const second={x:Math.max(-20,Math.min(20,number('camera2-x',0))),y:Math.max(-20,Math.min(20,number('camera2-y',2.5))),z:Math.max(-50,Math.min(20,number('camera2-z',-6))),rx:number('camera2-rx',-12.8),ry:number('camera2-ry',0),rz:number('camera2-rz',0),mode:Number(document.getElementById('camera2-mode').value)||1,duration:Math.max(0,Math.min(32,number('camera2-duration',1)))};
+            return first+';'+cameraStageValue(second);
         }
 
         function closeGimmickDialog() {
@@ -3007,6 +3314,41 @@
             nsScrollEvents = changeEvents.filter(event => event.type === 'NS');
             if (!testPlay.active) nsScrollSegments = buildNoteSpeedSegments(nsScrollEvents);
             feverSections.sort((a,b) => a.startBeat - b.startBeat);
+        }
+
+        function drawDifficultyComparison() {
+            const chosen=document.getElementById('compare-difficulty').value;
+            const status=document.getElementById('compare-difficulty-status');
+            const data=chartData[chosen];
+            let message='';
+            if(chosen===currentDifficulty)message='同じ難易度';
+            else if(chosen && !data)message='譜面なし';
+            else if(chosen && data && (data.lanes||TOTAL_LANES)!==TOTAL_LANES)message='レーン数不一致';
+            else if(chosen && data){
+                message=`${chosen} 比較中`;
+                ctx.save();
+                ctx.beginPath();ctx.rect(START_X,0,LANE_WIDTH*TOTAL_LANES,canvas.height);ctx.clip();
+                ctx.strokeStyle='#38d9ff';ctx.fillStyle='#38d9ff';ctx.globalAlpha=.45;ctx.lineWidth=2;
+                // Read arrays directly: never call layerData(), which can create missing layers.
+                const layers=[data,...Object.values(data.layers||{})];
+                for(const layer of layers)for(const note of layer.notes||[]){
+                    if(note.type==='guide'||note.type==='laneOpacity')continue;
+                    const span=largeNoteSpan(note);
+                    if(note.lane<1||note.lane>TOTAL_LANES)continue;
+                    const x=START_X+(note.lane-1)*LANE_WIDTH+4,width=Math.min(span,TOTAL_LANES-note.lane+1)*LANE_WIDTH-8;
+                    const y=beatToY(note.beat);
+                    if(note.type==='long'){
+                        const endY=beatToY(note.endBeat);
+                        if(Math.max(y,endY)<-10||Math.min(y,endY)>canvas.height+10)continue;
+                        ctx.strokeRect(x,Math.min(y,endY),width,Math.abs(y-endY));
+                        ctx.strokeRect(x,endY-5,width,10);
+                    }else if(y<-10||y>canvas.height+10)continue;
+                    ctx.strokeRect(x,y-5,width,10);
+                }
+                ctx.restore();
+            }
+            if(status.textContent!==message)status.textContent=message;
+            status.hidden=!message;
         }
 
         function draw() {
@@ -3121,7 +3463,7 @@
             changeEvents.forEach(e => {
                 if (e.type !== 'CAMERA' && e.type !== 'CAMERA_ADV') return;
                 const spec = parseCameraPreviewValue(e.val);
-                const duration = spec && Number.isFinite(spec.duration) ? Math.max(0, spec.duration) : 0;
+                const duration = cameraTotalDuration(spec);
                 // ロングノーツと同じく、区間が表示範囲へ入る直前まで描画しない。
                 if (e.beat + duration < minRenderBeat - 1 || e.beat > maxRenderBeat + 1) return;
                 const startY = beatToY(e.beat);
@@ -3135,7 +3477,8 @@
                 ctx.lineWidth = selectedEffects.has(e) ? 3 : 1;
                 ctx.strokeRect(cameraLaneX + 3, top, CAMERA_LANE_WIDTH - 6, height);
                 ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'left';
-                ctx.fillText(`${e.type === 'CAMERA_ADV' ? 'ADV ' : ''}${e.beat.toFixed(2)}拍`, cameraLaneX + 7, top + 12);
+                ctx.fillText(`${spec?.next?'2STEP ':e.type === 'CAMERA_ADV' ? 'ADV ' : ''}${e.beat.toFixed(2)}拍`, cameraLaneX + 7, top + 12);
+                if(spec?.next){const y=beatToY(e.beat+spec.duration);ctx.beginPath();ctx.moveTo(cameraLaneX+3,y);ctx.lineTo(cameraLaneX+CAMERA_LANE_WIDTH-3,y);ctx.stroke();}
             });
 
             ctx.fillStyle = '#bc8cff'; ctx.font = 'bold 9px Arial'; ctx.textAlign = 'center';
@@ -3309,9 +3652,10 @@
                 const x = START_X + (longStartLane - 1) * LANE_WIDTH;
                 const ys = beatToY(longStartBeat); const ye = beatToY(mouseCurrentBeat);
                 ctx.save();
-                if (currentNoteType === 'long') {
-                    ctx.fillStyle = 'rgba(187, 128, 255, 0.15)'; ctx.fillRect(x + 8, Math.min(ys, ye), LANE_WIDTH - 16, Math.abs(ys - ye));
-                    ctx.fillStyle = 'rgba(187, 128, 255, 0.5)'; ctx.fillRect(x + 4, ys - 6, LANE_WIDTH - 8, 12); ctx.fillRect(x + 4, ye - 6, LANE_WIDTH - 8, 12);
+                if (currentNoteType === 'long' || currentNoteType === 'largeLong') {
+                    const width=LANE_WIDTH*(currentNoteType==='largeLong'?largeNoteSize:1);
+                    ctx.fillStyle = 'rgba(187, 128, 255, 0.15)'; ctx.fillRect(x + 8, Math.min(ys, ye), width - 16, Math.abs(ys - ye));
+                    ctx.fillStyle = 'rgba(187, 128, 255, 0.5)'; ctx.fillRect(x + 4, ys - 6, width - 8, 12); ctx.fillRect(x + 4, ye - 6, width - 8, 12);
                 } else if (currentNoteType === 'guide') {
                     ctx.fillStyle = 'rgba(16, 185, 129, 0.1)'; ctx.fillRect(x, Math.min(ys, ye), LANE_WIDTH, Math.abs(ys - ye));
                     ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)'; ctx.lineWidth = 2; ctx.strokeRect(x, Math.min(ys, ye), LANE_WIDTH, Math.abs(ys - ye));
@@ -3323,6 +3667,7 @@
                 ctx.restore();
             }
 
+            drawDifficultyComparison();
             // Cache the other layers' beat conversion and scroll positions until the chart changes.
             ctx.save(); ctx.globalAlpha=.24;
             const ghostViewScroll=getEditorScrollPos(viewBeat);
@@ -3348,7 +3693,7 @@
                         const endY=canvas.height-60-(item.endScroll-ghostViewScroll)*BEAT_HEIGHT;
                         if(Math.max(y,endY)<-20||Math.min(y,endY)>canvas.height+20)continue;
                         ctx.fillStyle=ghost.type==='guide'?'#10b981':'#bc8cff';
-                        ctx.fillRect(x+8,Math.min(y,endY),LANE_WIDTH-16,Math.abs(y-endY));
+                        ctx.fillRect(x+8,Math.min(y,endY),LANE_WIDTH*largeNoteSpan(ghost)-16,Math.abs(y-endY));
                     } else if(y<-20||y>canvas.height+20)continue;
                     ctx.fillStyle=ghost.type==='large'?'#6fa88b':ghost.type==='largeHold'?'#d4a727':'#cbd5e1';ctx.fillRect(x+4,y-6,LANE_WIDTH*largeNoteSpan(ghost)-8,12);
                 }
@@ -3371,20 +3716,20 @@
                     ctx.fillStyle = customColor || '#d4a727'; ctx.fillRect(x + 4, y - 6, LANE_WIDTH - 8, 12);
                 } else if (n.type === 'damage') {
                     const y = beatToY(n.beat); if (y < -20 || y > canvas.height + 20) continue;
-                    ctx.fillStyle = customColor || '#f85149'; ctx.fillRect(x + 4, y - 6, LANE_WIDTH - 8, 12);
+                    ctx.fillStyle = customColor || '#f85149'; ctx.fillRect(x + 4, y - 6, LANE_WIDTH * largeNoteSpan(n) - 8, 12);
                 } else if (n.type === 'large' || n.type === 'largeHold') {
                     const y = beatToY(n.beat); if (y < -20 || y > canvas.height + 20) continue;
                     ctx.fillStyle = customColor || (n.type === 'largeHold' ? '#d4a727' : '#6fa88b'); ctx.fillRect(x + 4, y - 6, LANE_WIDTH * largeNoteSpan(n) - 8, 12);
                 } else if (n.type === 'long') {
                     const ys = beatToY(n.beat); const ye = beatToY(n.endBeat);
                     ctx.fillStyle = customColor ? customColor + "4c" : 'rgba(187, 128, 255, 0.3)';
-                    ctx.fillRect(x + 8, ye, LANE_WIDTH - 16, ys - ye);
+                    ctx.fillRect(x + 8, ye, LANE_WIDTH * largeNoteSpan(n) - 16, ys - ye);
                     const startIsHold = !!n.holdStart;
                     const endIsHold = n.holdMode === 'holdEnd' || !!n.holdEnd;
                     ctx.fillStyle = startIsHold ? '#d4a727' : (customColor || '#bc8cff');
-                    ctx.fillRect(x + 4, ys - (startIsHold ? 8 : 6), LANE_WIDTH - 8, startIsHold ? 16 : 12);
+                    ctx.fillRect(x + 4, ys - (startIsHold ? 8 : 6), LANE_WIDTH * largeNoteSpan(n) - 8, startIsHold ? 16 : 12);
                     ctx.fillStyle = endIsHold ? '#d4a727' : (customColor || '#bc8cff');
-                    ctx.fillRect(x + 4, ye - (endIsHold ? 8 : 6), LANE_WIDTH - 8, endIsHold ? 16 : 12);
+                    ctx.fillRect(x + 4, ye - (endIsHold ? 8 : 6), LANE_WIDTH * largeNoteSpan(n) - 8, endIsHold ? 16 : 12);
                 } else if (n.type === 'guide') {
                     const ys = beatToY(n.beat); const ye = beatToY(n.endBeat);
                     fillGuideRect(ctx, x, ys, ye, LANE_WIDTH, n);
@@ -3412,19 +3757,19 @@
                 }
                 if (isSelected) {
                     const y = beatToY(n.beat); ctx.strokeStyle = '#ffeb3b'; ctx.lineWidth = 2;
-                    if(n.type==='long'||n.type==='guide'||n.type==='laneOpacity'){ const ye=beatToY(n.endBeat); const sx=n.type==='laneOpacity'?START_X:x+2; const sw=n.type==='laneOpacity'?TOTAL_LANES*LANE_WIDTH:LANE_WIDTH-4; ctx.strokeRect(sx, ye-8, sw, (y-ye)+16); }
+                    if(n.type==='long'||n.type==='guide'||n.type==='laneOpacity'){ const ye=beatToY(n.endBeat); const sx=n.type==='laneOpacity'?START_X:x+2; const sw=n.type==='laneOpacity'?TOTAL_LANES*LANE_WIDTH:LANE_WIDTH*largeNoteSpan(n)-4; ctx.strokeRect(sx, ye-8, sw, (y-ye)+16); }
                     else { ctx.strokeRect(x + 2, y - 8, LANE_WIDTH * largeNoteSpan(n) - 4, 16); }
                 }
             }
 
-            if ((currentNoteType === 'large' || currentNoteType === 'largeHold') && mouseCurrentLane >= 1 && mouseCurrentLane <= TOTAL_LANES) {
+            if (isLargeTool(currentNoteType) && mouseCurrentLane >= 1 && mouseCurrentLane <= TOTAL_LANES) {
                 const startLane = mouseCurrentLane - largeNoteAnchor;
                 if (startLane <= TOTAL_LANES && startLane + largeNoteSize - 1 >= 1) {
                     const x = START_X + (startLane - 1) * LANE_WIDTH;
                     const y = beatToY(mouseCurrentBeat);
-                    ctx.fillStyle = currentNoteType === 'largeHold' ? 'rgba(212,167,39,0.35)' : 'rgba(111,168,139,0.35)';
+                    ctx.fillStyle = currentNoteType === 'largeHold' ? 'rgba(212,167,39,0.35)' : currentNoteType==='largeLong'?'rgba(187,128,255,0.35)':currentNoteType==='largeDamage'?'rgba(248,81,73,0.35)':'rgba(111,168,139,0.35)';
                     ctx.fillRect(x + 4, y - 6, LANE_WIDTH * largeNoteSize - 8, 12);
-                    ctx.strokeStyle = currentNoteType === 'largeHold' ? '#d4a727' : '#a8d4bb';
+                    ctx.strokeStyle = currentNoteType === 'largeHold' ? '#d4a727' : currentNoteType==='largeLong'?'#bc8cff':currentNoteType==='largeDamage'?'#f85149':'#a8d4bb';
                     ctx.lineWidth = 1;
                     ctx.strokeRect(x + 4, y - 6, LANE_WIDTH * largeNoteSize - 8, 12);
                 }
@@ -3457,6 +3802,14 @@
         }
 
         function importChartText(text, fileName) {
+                requestedDifficultyAudio='';
+                nativeAudioRequest++;
+                if(isPlaying)togglePlayback();audioBuffer=null;waveformData=[];
+                document.getElementById('meta-offset').value=0;
+                document.getElementById('meta-preview-start').value=0;
+                document.getElementById('meta-preview-end').value=16;
+                document.getElementById('meta-song').value='';
+                document.getElementById('meta-link').value='';
                 importedFileName = fileName;
                 document.getElementById('export-btn').textContent = `譜面を上書き保存 (${fileName})`;
                 document.getElementById('meta-composer').value = '';
@@ -3476,6 +3829,13 @@
                     
                     if (line.startsWith('TITLE:')) document.getElementById('meta-title').value = line.replace('TITLE:', '').trim();
                     else if (line.startsWith('COMPOSER:')) document.getElementById('meta-composer').value = line.replace('COMPOSER:', '').trim();
+                    else if (line.startsWith('BADGE:')) { if(insideDifficulty){const badge=JSON.parse(line.slice(6).trim());if(!validBadge(badge))throw new Error('称号の設定が不正です');(chartData[activeImportDiff].badges??=[]).push(badge);if(!validBadgeIds(chartData[activeImportDiff].badges))throw new Error('称号IDが重複しています');} }
+                    else if (line.startsWith('DIFFICULTY_CHART_DESIGNER:')) { if (insideDifficulty) chartData[activeImportDiff].chartDesigner = line.slice('DIFFICULTY_CHART_DESIGNER:'.length).trim(); }
+                    else if (line.startsWith('DIFFICULTY_SONG:')) { if(insideDifficulty)chartData[activeImportDiff].audio=line.slice('DIFFICULTY_SONG:'.length).trim(); }
+                    else if (line.startsWith('DIFFICULTY_LINK:')) { if(insideDifficulty)chartData[activeImportDiff].externalLink=line.slice('DIFFICULTY_LINK:'.length).trim(); }
+                    else if (line.startsWith('LINK:')) document.getElementById('meta-link').value=line.slice('LINK:'.length).trim();
+                    else if (line.startsWith('DIFFICULTY_OFFSET:')) {const n=Number(line.slice('DIFFICULTY_OFFSET:'.length).trim());if(insideDifficulty&&Number.isFinite(n))chartData[activeImportDiff].audioOffsetMs=n*1000;}
+                    else if (line.startsWith('DIFFICULTY_PREVIEW:')) {const r=line.slice('DIFFICULTY_PREVIEW:'.length).trim().split('-').map(Number);if(insideDifficulty&&r.length===2&&r.every(Number.isFinite)&&r[0]>=0&&r[1]>r[0]){chartData[activeImportDiff].previewStart=r[0];chartData[activeImportDiff].previewEnd=r[1];}}
                     else if (line.startsWith('CHART_DESIGNER:')) document.getElementById('meta-chart-designer').value = line.replace('CHART_DESIGNER:', '').trim();
                     else if (line.startsWith('CHARTDESIGNER:')) document.getElementById('meta-chart-designer').value = line.replace('CHARTDESIGNER:', '').trim();
                     else if (line.startsWith('CHARTER:')) document.getElementById('meta-chart-designer').value = line.replace('CHARTER:', '').trim();
@@ -3520,6 +3880,22 @@
                     else if (line.startsWith('LEVEL:')) {
                         chartData[activeImportDiff].level = clampLevel(line.replace('LEVEL:', '').trim());
                     }
+                    else if (line.startsWith('PANEL_FILTERS:')) {
+                        try { chartData[activeImportDiff].panelFilters = normalizePanelFilters(JSON.parse(line.slice('PANEL_FILTERS:'.length))); } catch { chartData[activeImportDiff].panelFilters=[]; }
+                    }
+                    else if (line.startsWith('JACKET_FILTERS:')) {
+                        try { chartData[activeImportDiff].jacketFilters = normalizePanelFilters(JSON.parse(line.slice('JACKET_FILTERS:'.length))); } catch { chartData[activeImportDiff].jacketFilters=[]; }
+                    }
+                    else if (line.startsWith('SELECTION_BG_FILTERS:')) {
+                        try { chartData[activeImportDiff].selectionBackgroundFilters = normalizePanelFilters(JSON.parse(line.slice('SELECTION_BG_FILTERS:'.length))); } catch { chartData[activeImportDiff].selectionBackgroundFilters=[]; }
+                    }
+                    else if (line.startsWith('SELECTION_AUDIO:')) {
+                        chartData[activeImportDiff].selectionAudioRaw = line.slice('SELECTION_AUDIO:'.length).trim();
+                    }
+                    else if (line.startsWith('TITLE_FILTERS:')) { chartData[activeImportDiff].titleFiltersRaw = line.slice('TITLE_FILTERS:'.length).trim(); }
+                    else if (line.startsWith('COMPOSER_FILTERS:')) { chartData[activeImportDiff].composerFiltersRaw = line.slice('COMPOSER_FILTERS:'.length).trim(); }
+                    else if (line.startsWith('DIFFICULTY_TEXT_FILTERS:')) { chartData[activeImportDiff].difficultyTextFiltersRaw = line.slice('DIFFICULTY_TEXT_FILTERS:'.length).trim(); }
+                    else if (line.startsWith('SELECTION_LEVEL_FILTERS:')) { chartData[activeImportDiff].selectionLevelFiltersRaw = line.slice('SELECTION_LEVEL_FILTERS:'.length).trim(); }
                     else if (line.startsWith('LEVEL_DISPLAY:')) {
                         chartData[activeImportDiff].levelLabel = clampLevelLabel(line.replace('LEVEL_DISPLAY:', '').trim());
                     }
@@ -3549,6 +3925,8 @@
                             if (sBStr.endsWith('H')) { holdStart = true; sBStr = sBStr.replace('H',''); }
                             if (eBStr.endsWith('G')) { type = 'guide'; eBStr = eBStr.replace('G',''); } else if (eBStr.endsWith('H')) { holdEnd = true; eBStr = eBStr.replace('H',''); }
                             const note = { beat: parseFloat(sBStr), endBeat: parseFloat(eBStr), lane: lane, type: type };
+                            const size=Number(parts.slice(2).map(p=>p.trim()).find(p=>/^SIZE=/i.test(p))?.slice(5));
+                            if(type==='long' && Number.isSafeInteger(size) && size>=2)note.size=size;
                             if (holdStart) note.holdStart = true;
                             if (holdEnd) note.holdEnd = true;
                             if (color) note.color = color;
@@ -3568,10 +3946,10 @@
                             else if (bStr.endsWith('M')) { type = 'large'; bStr = bStr.slice(0, -1); }
                             else if (bStr.endsWith('W')) { type = 'largeHold'; bStr = bStr.slice(0, -1); }
                             const note = { beat: parseFloat(bStr), lane: lane, type: type, color: color };
-                            if (type === 'large' || type === 'largeHold') {
+                            if (type === 'large' || type === 'largeHold' || type === 'damage') {
                                 const sizePart = parts.slice(2).map(p => p.trim()).find(p => /^SIZE=/i.test(p));
                                 const size = Number(sizePart?.slice(5));
-                                note.size = Number.isSafeInteger(size) && size >= 2 ? size : 2;
+                                note.size = Number.isSafeInteger(size) && size >= 2 ? size : (type==='damage'?1:2);
                             }
                             if (ss !== undefined) note.ss = ss;
                             layerData(activeImportDiff,activeImportLayer).notes.push(note);
@@ -3585,8 +3963,8 @@
                 if (!window.chrome?.webview) alert(`「${fileName}」をインポートしました！`);
         }
 
-        let nativeAudioParts = [], nativeAudioName = '';
-        function beginNativeAudio(fileName) { nativeAudioParts = []; nativeAudioName = fileName; }
+        let nativeAudioParts = [], nativeAudioName = '', nativeAudioRequest=0;
+        function beginNativeAudio(fileName) { nativeAudioParts = []; nativeAudioName = fileName;nativeAudioRequest++; }
         function appendNativeAudioChunk(base64) {
             const binary = atob(base64);
             const bytes = new Uint8Array(binary.length);
@@ -3601,8 +3979,10 @@
                 for (const part of nativeAudioParts) { bytes.set(part, offset); offset += part.length; }
                 nativeAudioParts = [];
                 if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                audioBuffer = await audioCtx.decodeAudioData(bytes.buffer);
-                extractWaveform(audioBuffer);
+                const loadingName=nativeAudioName,loadingRequest=nativeAudioRequest;
+                const buffer = await audioCtx.decodeAudioData(bytes.buffer);
+                if(loadingRequest!==nativeAudioRequest || (effectiveAudioFile() && loadingName !== effectiveAudioFile()))return;
+                audioBuffer=buffer;extractWaveform(audioBuffer);
                 document.getElementById('audio-label').textContent = `曲: ${nativeAudioName} (自動読み込み)`;
                 window.chrome?.webview.postMessage(JSON.stringify({ type: 'audio-loaded', filename: nativeAudioName }));
             } catch (error) {
@@ -3611,7 +3991,18 @@
 
         }
 
+        function exportOverviewImage() {
+            if (!window.chrome?.webview) { alert('譜面画像の書き出しはPC版エディタで使用できます。'); return; }
+            const data=chartData[currentDifficulty];
+            window.chrome.webview.postMessage(JSON.stringify({type:'chart-overview',
+                title:document.getElementById('meta-title').value,composer:document.getElementById('meta-composer').value,
+                difficulty:currentDifficulty,level:String(data.levelLabel || data.level || ''),lanes:TOTAL_LANES,
+                currentLayer,layers:layerNumbers().map(number=>({number,notes:layerData(currentDifficulty,number).notes.map(note=>({...note,size:largeNoteSpan(note)}))}))}));
+        }
+
         function exportChart(nativeTest = false) {
+            try {chartExternalLink(document.getElementById('meta-link').value);for(const diff of DIFFICULTIES)chartExternalLink(chartData[diff].externalLink);}
+            catch(error){alert(error.message);return;}
             for(const diff of DIFFICULTIES) if(!validateLayerCollisions(diff)) {
                 alert(`${diff}: 別レイヤーに同じレーン・同じ実時間のノーツがあります。`);
                 return;
@@ -3629,6 +4020,8 @@
             const previewEnd = Math.max(previewStart + 0.25, parseFloat(document.getElementById('meta-preview-end').value) || 16);
             output.push(`PREVIEW: ${previewStart}-${previewEnd}`);
             output.push(`SONG: ${document.getElementById('meta-song').value}`);
+            const externalLink=chartExternalLink(document.getElementById('meta-link').value);
+            if(externalLink)output.push(`LINK: ${externalLink}`);
             const backgroundName = document.getElementById('meta-background').value.trim();
             if (backgroundName) output.push(`BACKGROUND: ${backgroundName}`);
             const jacketName = document.getElementById('meta-jacket').value.trim();
@@ -3647,9 +4040,31 @@
 
                 output.push(`// ==========================================`);
                 output.push(`DIFFICULTY: ${d}`);
+                const badges=badgesForDifficulty(dData);if(!badges.every(validBadge)||!validBadgeIds(badges)){alert(`${d}の称号画像と獲得条件を確認してください。`);throw new Error('Invalid badge');}for(const badge of badges)output.push(`BADGE: ${JSON.stringify(badge)}`);
+                const designer = String(dData.chartDesigner || '').replace(/[\r\n]/g, ' ').trim();
+                if (designer) output.push(`DIFFICULTY_CHART_DESIGNER: ${designer}`);
+                if(dData.audio)output.push(`DIFFICULTY_SONG: ${String(dData.audio).replace(/[\r\n]/g,' ').trim()}`);
+                if(dData.externalLink)output.push(`DIFFICULTY_LINK: ${chartExternalLink(dData.externalLink)}`);
+                if(Number.isFinite(dData.audioOffsetMs))output.push(`DIFFICULTY_OFFSET: ${dData.audioOffsetMs/1000}`);
+                if(Number.isFinite(dData.previewStart)||Number.isFinite(dData.previewEnd)) {
+                    const start=dData.previewStart ?? previewStart,end=dData.previewEnd ?? previewEnd;
+                    if(end<=start){alert(`${d}のプレビュー終了拍は開始拍より後にしてください。`);throw new Error('Invalid difficulty preview range');}
+                    output.push(`DIFFICULTY_PREVIEW: ${start}-${end}`);
+                }
                 output.push(`LEVEL: ${clampLevel(dData.level)}`);
                 const levelLabel = clampLevelLabel(dData.levelLabel);
                 if (levelLabel) output.push(`LEVEL_DISPLAY: ${levelLabel}`);
+                const panelFilters = normalizePanelFilters(dData.panelFilters);
+                if (panelFilters.length) output.push(`PANEL_FILTERS: ${JSON.stringify(panelFilters)}`);
+                const jacketFilters = normalizePanelFilters(dData.jacketFilters);
+                if (jacketFilters.length) output.push(`JACKET_FILTERS: ${JSON.stringify(jacketFilters)}`);
+                const bgFilters = normalizePanelFilters(dData.selectionBackgroundFilters);
+                if (bgFilters.length) output.push(`SELECTION_BG_FILTERS: ${JSON.stringify(bgFilters)}`);
+                if (dData.selectionAudioRaw) output.push(`SELECTION_AUDIO: ${dData.selectionAudioRaw}`);
+                if (dData.titleFiltersRaw) output.push(`TITLE_FILTERS: ${dData.titleFiltersRaw}`);
+                if (dData.composerFiltersRaw) output.push(`COMPOSER_FILTERS: ${dData.composerFiltersRaw}`);
+                if (dData.difficultyTextFiltersRaw) output.push(`DIFFICULTY_TEXT_FILTERS: ${dData.difficultyTextFiltersRaw}`);
+                if (dData.selectionLevelFiltersRaw) output.push(`SELECTION_LEVEL_FILTERS: ${dData.selectionLevelFiltersRaw}`);
                 output.push(`LANES: ${dData.lanes || TOTAL_LANES}`);
                 output.push(`// ==========================================`);
 
@@ -3679,7 +4094,7 @@
                         lineStr = `${formatChartBeat(n.beat)}${suffix},${n.lane}`;
                     }
                     if(n.color) { lineStr += `,${n.color}`; }
-                    if(n.type === 'large' || n.type === 'largeHold') lineStr += `,SIZE=${largeNoteSpan(n)}`;
+                    if(largeNoteSpan(n)>1) lineStr += `,SIZE=${largeNoteSpan(n)}`;
                     if(n.type === 'guide') {
                         const opacity = getGuideOpacityValue(n);
                         if(n.guideOpacityMode === 'fade' || n.guideOpacityMode === 'rise' || opacity < 0.999) {
@@ -3726,7 +4141,7 @@
 
         function getCurrentBeat() {
             if (!isPlaying) return viewBeat;
-            const seconds = !audioBuffer ? (performance.now() - startTime) / 1000 * playbackRate : (mobileOutputTime(audioCtx) - startTime) * playbackRate;
+            const seconds = !audioBuffer ? (performance.now() - startTime) / 1000 * playbackRate : (audioCtx.currentTime - startTime) * playbackRate;
             return timeToBeat(seconds);
         }
 
@@ -3754,15 +4169,15 @@
             texture.fillRect(376, 0, 8, 128);
         }
         const TEST_KEYS = {3:['KeyF','KeyJ','KeyK'],4:['KeyD','KeyF','KeyJ','KeyK'],5:['KeyD','KeyF','KeyJ','KeyK','KeyL'],6:['KeyS','KeyD','KeyF','KeyJ','KeyK','KeyL'],8:['KeyA','KeyS','KeyD','KeyF','KeyJ','KeyK','KeyL','Semicolon'],12:['KeyA','KeyS','KeyD','KeyF','KeyG','KeyH','KeyJ','KeyK','KeyL','Semicolon','Quote','BracketRight']};
-        const TEST_JUDGE = [40,60,100,120];
+        const TEST_JUDGE = [50,80,100,120];
         // WebView2 の音声出力遅延に対するテストプレイ専用の同期補正。
         // 実測でノーツが126ms先行した「+30ms」状態から126ms戻した値。
         // 譜面OFFSETや通常のエディタ再生には加算しない。
-        const TEST_PLAY_SYNC_OFFSET_SECONDS = 0;
+        const TEST_PLAY_SYNC_OFFSET_SECONDS = -0.096;
 
         function testSongSeconds() {
             // 通常のエディタ再生と同じ AudioContext.currentTime をマスタークロックにする。
-            return testPlay.startSeconds + ((audioCtx ? mobileOutputTime(audioCtx) : testPlay.clockAt) - testPlay.clockAt) + TEST_PLAY_SYNC_OFFSET_SECONDS;
+            return testPlay.startSeconds + ((audioCtx?.currentTime||testPlay.clockAt) - testPlay.clockAt) + TEST_PLAY_SYNC_OFFSET_SECONDS;
         }
         function testCreateLayerState(number) {
             const layer=layerData(currentDifficulty,number),sorted=type=>layer.changeEvents.filter(e=>e.type===type).slice().sort((a,b)=>a.beat-b.beat);
@@ -3771,7 +4186,7 @@
         }
         function testLayerBeatTime(beat,layer) {
             let bpm=parseFloat(document.getElementById('meta-bpm').value)||150;
-            const offset=(parseFloat(document.getElementById('meta-offset').value)||0)/1000;
+            const offset=effectiveOffsetSeconds();
             for(const e of layer.bpmEvents){if(e.beat>0)break;bpm=Number(e.val)||bpm;}
             if(beat<=0)return offset+beat*60/bpm;
             let position=0,time=offset;
@@ -3780,7 +4195,7 @@
         }
         function testLayerTimeToBeat(seconds,layer) {
             let bpm=parseFloat(document.getElementById('meta-bpm').value)||150;
-            const offset=(parseFloat(document.getElementById('meta-offset').value)||0)/1000;
+            const offset=effectiveOffsetSeconds();
             for(const e of layer.bpmEvents){if(e.beat>0)break;bpm=Number(e.val)||bpm;}
             if(seconds<=offset)return (seconds-offset)*bpm/60;
             let position=0,time=offset;
@@ -3792,7 +4207,7 @@
         function testBeatTime(beat) {
             if(testPlay.active&&testPlay.layers)return testLayerBeatTime(beat,testPlay.layers.get(1));
             const bpm=parseFloat(document.getElementById('meta-bpm').value)||150;
-            const offset=(parseFloat(document.getElementById('meta-offset').value)||0)/1000;
+            const offset = effectiveOffsetSeconds();
             if(beat<=0)return offset+beat*60/bpm;
             let currentBeat=0,currentTime=offset,currentBpm=bpm;
             const events=testPlay.active?testPlay.bpmEvents:changeEvents.filter(event=>event.type==='BPM').slice().sort((a,b)=>(a.beat||0)-(b.beat||0));
@@ -3802,7 +4217,7 @@
         function testTimeToBeat(seconds) {
             if(testPlay.layers)return testLayerTimeToBeat(seconds,testPlay.layers.get(1));
             const baseBpm=parseFloat(document.getElementById('meta-bpm').value)||150;
-            const offset=(parseFloat(document.getElementById('meta-offset').value)||0)/1000;
+            const offset = effectiveOffsetSeconds();
             if(seconds<=offset)return (seconds-offset)*baseBpm/60;
             let currentBeat=0,currentTime=offset,currentBpm=baseBpm;
             for(const event of testPlay.bpmEvents){const next=event.beat||0,duration=(next-currentBeat)*60/currentBpm;if(seconds<currentTime+duration)break;currentTime+=duration;currentBeat=next;currentBpm=Number(event.val)||currentBpm;}
@@ -3870,7 +4285,7 @@
             testPlay.nsEvents=sorted('NS');
             testPlay.judgementLineEvents=sorted('JUDGE_LINE').map(event=>({...event,spec:parseJudgementLineSpec(event.val)}));
             testPlay.nsScrollSegments=buildNoteSpeedSegments(testPlay.nsEvents);
-            testPlay.cameraEvents=master.changeEvents.filter(event=>event.type==='CAMERA'||event.type==='CAMERA_ADV').slice().sort((a,b)=>(a.beat||0)-(b.beat||0));
+            testPlay.cameraEvents=expandCameraEvents(master.changeEvents);
             testPlay.feverSections=master.feverSections;
             testPlay.anchorSeconds??=testLayerBeatTime(testPlay.anchorBeat,testPlay.layers.get(currentLayer));
             testPlay.timing=new Map();
@@ -3957,12 +4372,16 @@
         function visibilityAtBeat(type, beat) {
             let from=1,to=1,start=0,duration=0;
             for(const event of testPlay.visibilityEvents?.[type] || []){
-                if(event.beat>beat)break;
+                const parts=String(event.val).split(',');
+                const eventDuration=Math.max(0,parseFloat(parts[1])||0);
+                if(event.beat>beat && !(beat<0 && event.beat===0 && eventDuration===0)){
+                    if(beat<0 && event.beat===0)continue;
+                    break;
+                }
                 const progress=duration<=0?1:Math.max(0,Math.min(1,(event.beat-start)/duration));
                 from=from+(to-from)*progress;
-                const parts=String(event.val).split(',');
                 to=Math.max(0,Math.min(1,(parseFloat(parts[0])||0)/100));
-                start=event.beat;duration=Math.max(0,parseFloat(parts[1])||0);
+                start=event.beat;duration=eventDuration;
             }
             return from+(to-from)*(duration<=0?1:Math.max(0,Math.min(1,(beat-start)/duration)));
         }
@@ -4033,6 +4452,7 @@
             };
             const line3d=(a,b,color,width)=>{let da=depthOf(a),db=depthOf(b);if(da<=nearDepth&&db<=nearDepth)return;if(da<=nearDepth)a=intersect(a,b);else if(db<=nearDepth)b=intersect(b,a);const pa=project(a),pb=project(b);if(!pa||!pb)return;g.beginPath();g.moveTo(pa.x,pa.y);g.lineTo(pb.x,pb.y);g.strokeStyle=color;g.lineWidth=width;g.stroke();};
             const half=1.15,near=-12,far=52,noteFar=45,lw=2.3/TOTAL_LANES,scroll=getTestPlayScrollPos(beat),nsMultiplier=getTestPlayNsMultiplierAt(beat),zOf=b=>(getTestPlayScrollPos(b)-scroll)*testPlay.speed*10;
+            window.drawMobileSideLights?.(poly,scroll,testPlay.speed,nsMultiplier);
             const judgementPositions=judgementLinePositionsAt(beat,testPlay.judgementLineEvents||[]);
             const depthAtFraction=fraction=>{
                 if(fraction<=0)return 0;if(fraction>=1)return noteFar;
@@ -4121,7 +4541,7 @@
         const EDITOR_BACKUP_KEY = "hyperlane-editor-autosave-v1";
 
         function collectEditorMetaForBackup() {
-            const ids = ["meta-title", "meta-composer", "meta-chart-designer", "meta-background", "meta-jacket", "meta-bpm", "meta-offset", "meta-preview-start", "meta-preview-end", "meta-song", "meta-movie", "meta-difficulty"];
+            const ids = ["meta-title", "meta-composer", "meta-chart-designer", "meta-background", "meta-jacket", "meta-bpm", "meta-offset", "meta-preview-start", "meta-preview-end", "meta-song", "meta-link", "meta-movie", "meta-difficulty"];
             const meta = {};
             ids.forEach(id => { const el = document.getElementById(id); if (el) meta[id] = el.value; });
             return meta;
@@ -4136,7 +4556,7 @@
             return { savedAt: new Date().toISOString(), importedFileName, currentDifficulty, currentLayer, totalLanes: TOTAL_LANES, chartData, meta: collectEditorMetaForBackup(), viewBeat, gridSnap, currentSnapSetting };
         }
 
-        function saveEditorBackupNow() { return;
+        function saveEditorBackupNow() {
             try {
                 const text = JSON.stringify(createEditorBackupPayload());
                 if (text !== lastEditorBackupText) { localStorage.setItem(EDITOR_BACKUP_KEY, text); lastEditorBackupText = text; }
@@ -4178,6 +4598,8 @@
                 applyEditorMetaFromBackup(backup.meta);
                 if (chartData[currentDifficulty]) { refreshChartRefs(); updateLayerSelector(); }
                 const diffSelect = document.getElementById("meta-difficulty"); if (diffSelect) diffSelect.value = currentDifficulty;
+                document.getElementById('meta-difficulty-designer').value = chartData[currentDifficulty]?.chartDesigner || '';
+                refreshDifficultyAudioFields();requestDifficultyAudio();
                 const exportBtn = document.getElementById("export-btn"); if (exportBtn) exportBtn.textContent = "譜面を上書き保存 (" + importedFileName + ")";
                 if (typeof updateDifficultyTabs === "function") updateDifficultyTabs();
                 if (typeof syncToGame === "function") syncToGame();
@@ -4217,7 +4639,7 @@
         }
 
         function installMetadataFileDrops() {
-            const fields = ['meta-song', 'meta-background', 'meta-jacket', 'meta-movie'];
+            const fields = ['meta-song', 'meta-difficulty-song', 'meta-background', 'meta-jacket', 'meta-movie'];
             const hasFiles = event => Array.from(event.dataTransfer?.types || []).includes('Files');
             // A file dropped outside these fields must not navigate WebView2 away from the chart.
             document.addEventListener('dragover', event => {
@@ -4228,7 +4650,7 @@
             });
             for (const id of fields) {
                 const input = document.getElementById(id);
-                const target = input.closest('.control-group');
+                const target = id === 'meta-difficulty-song' ? input : input.closest('.control-group');
                 target.addEventListener('dragover', event => {
                     if (!hasFiles(event)) return;
                     event.preventDefault();
@@ -4239,6 +4661,7 @@
                     event.preventDefault();
                     const file = event.dataTransfer.files?.[0];
                     if (!file) return;
+                    if (id === 'meta-difficulty-song' && !/^audio\//i.test(file.type || '') && !/\.(wav|mp3|m4a|aac|ogg|flac|aif|aiff|opus|wma)$/i.test(file.name)) return;
                     input.value = file.name;
                     input.dispatchEvent(new Event('input', { bubbles: true }));
                     input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -4251,7 +4674,7 @@
             initEditor();
             installEditorSafetyGuards();
             installMetadataFileDrops();
-            // Web: no automatic backup restore
+            // Web: no automatic backup restore.
         };
     </script>
 <script src="mobile-editor.js?v=20261019-layers"></script></body>
