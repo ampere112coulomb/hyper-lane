@@ -44,6 +44,7 @@ internal sealed partial class GameController : UIViewController
     public override void ViewDidLoad()
     {
         base.ViewDidLoad();
+        HyperLane.ReplayJudgementMigration.Apply(documents);
         Console.Error.WriteLine("HL startup: controller");
         Directory.CreateDirectory(documents);
         library = new MobileSongLibrary(documents);
@@ -212,6 +213,7 @@ internal sealed partial class GameController : UIViewController
         audio.FinishedPlaying += (_, _) => BeginInvokeOnMainThread(Finish);
         session = new MobileSession(song, difficulty) { AutoPlay = settings.AutoPlay };
         ConfigureDanSession();
+        danFailureAudio?.Dispose();danFailureAudio=null;if(activeDan?.Definition.Life.Enabled==true&&audio.Url?.Path is {} failurePath)try{danFailureAudio=new(failurePath);}catch(Exception ex){Console.Error.WriteLine("Dan effect prepare: "+ex.Message);}
         if(practice)MobilePracticeTiming.At(song.Chart,difficulty,practiceAnchor,settings.AudioOffsetMs).SkipPreviousNotes(difficulty);
         session.NoteSound += (_, _) => { if (MobileSoundPolicy.OnJudgement(settings.AutoPlay, settings.AutoNoteSound)) PlaySe(); };
         soundTimes = difficulty.Notes.Where(n => !n.Done && n.Kind is not ('D' or 'G')).SelectMany(n => n.Kind == 'L'
@@ -227,12 +229,14 @@ internal sealed partial class GameController : UIViewController
         if(displayRate!=rate){displayRate=rate;link.PreferredFramesPerSecond=rate;}
         UpdatePreview();
         if (!running || audio is null || session is null){stage.Refresh(CAAnimation.CurrentMediaTime());return;}
+        if(UpdateDanFailure())return;
         double raw=waitingForAudio?rawStart+CAAnimation.CurrentMediaTime()-startClock:audio.CurrentTime;
         if(waitingForAudio&&raw>=Math.Max(0,audio.CurrentTime)){waitingForAudio=false;audio.Play();stage.ResumeVideo();raw=audio.CurrentTime;}
         double seconds = MobilePlaybackTiming.ChartSeconds(raw, settings.AudioOffsetMs);
         while (nextSound < soundTimes.Length && soundTimes[nextSound] <= seconds)
         { nextSound++; if (MobileSoundPolicy.Scheduled(settings.AutoPlay, settings.AutoNoteSound)) PlaySe(); }
         session.AutoPlay=settings.AutoPlay;
+        session.StageMap.Enabled=settings.StageDecorations;session.StageMap.Speed=settings.NoteSpeed;
         recordEligible&=!settings.AutoPlay;if(activeDan!=null)danEligible&=!settings.AutoPlay;
         AdvanceReplay(seconds);
         if(!practice||!MobilePracticeTiming.At(session.Song.Chart,session.Difficulty,practiceAnchor,settings.AudioOffsetMs).IsPreroll(seconds))session.Advance(seconds, held);
@@ -244,6 +248,7 @@ internal sealed partial class GameController : UIViewController
 
     private void Finish()
     {
+        if(session?.Life?.Failed==true)return;
         if (session is null || audio is null || !running) return;
         session.Advance(Math.Max(audio.Duration, session.Difficulty.Notes.Select(n => n.EndSeconds).DefaultIfEmpty(0).Max()) + .2, held);
         running = false;
@@ -256,7 +261,7 @@ internal sealed partial class GameController : UIViewController
 
     private void InputChanged(IReadOnlySet<int> next, double timestamp)
     {
-        if (!running || audio is null || session is null || settings.AutoPlay || replaying) return;
+        if (!running || audio is null || session is null || session.Life?.Failed==true || settings.AutoPlay || replaying) return;
         double raw=waitingForAudio?rawStart+CAAnimation.CurrentMediaTime()-startClock:audio.CurrentTime;
         double seconds = MobilePlaybackTiming.ChartSeconds(raw, settings.AudioOffsetMs)
             - Math.Clamp(CAAnimation.CurrentMediaTime() - timestamp, 0, .25);

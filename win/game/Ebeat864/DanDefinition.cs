@@ -13,6 +13,7 @@ internal sealed class DanDefinition
     public string Title { get; set; } = "";
     public bool CarryGauge { get; set; } = true;
     public double InitialGauge { get; set; }
+    public DanLifeSettings Life { get; set; } = new();
     public List<DanTrack> Tracks { get; set; } = new();
     public DanConditions Conditions { get; set; } = new();
     internal static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = true };
@@ -22,9 +23,10 @@ internal sealed class DanDefinition
         var value = JsonSerializer.Deserialize<DanDefinition>(File.ReadAllText(path), JsonOptions) ?? throw new InvalidDataException("Dan.jsonが空です");
         if(value.Version != 1 || string.IsNullOrWhiteSpace(value.Title) || value.Tracks == null || value.Tracks.Count == 0 || value.Tracks.Any(t=>t==null || string.IsNullOrWhiteSpace(t.Chart) || string.IsNullOrWhiteSpace(t.Difficulty))) throw new InvalidDataException("段位名・課題曲・難易度を確認してください");
         if(!double.IsFinite(value.InitialGauge) || value.InitialGauge<0 || value.InitialGauge>100) throw new InvalidDataException("初期ゲージは0～100です");
+        value.Life ??= new();value.Life.Validate();
         value.Conditions?.Validate();
         foreach(var track in value.Tracks) track.Conditions?.Validate();
-        if(value.Conditions==null || !(value.Conditions.Descriptions().Any() || value.Tracks.Any(t=>t.Conditions?.Descriptions().Any()==true))) throw new InvalidDataException("合格条件が必要です");
+        if(value.Conditions==null || !(value.Life.Enabled || value.Conditions.Descriptions().Any() || value.Tracks.Any(t=>t.Conditions?.Descriptions().Any()==true))) throw new InvalidDataException("合格条件が必要です");
         if(string.IsNullOrWhiteSpace(value.Id)) value.Id=Path.GetFileName(Path.GetDirectoryName(path))!;
         return value;
     }

@@ -18,6 +18,8 @@ internal sealed class MobileChart
     public string Jacket { get; set; } = "";
     public string Background { get; set; } = "";
     public string Video { get; set; } = "";
+    public string ExternalLink {get;set;}="";
+    internal string LinkFor(MobileDifficulty? diff)=>HyperLane.ExternalChartLink.Normalize(string.IsNullOrWhiteSpace(diff?.ExternalLink)?ExternalLink:diff.ExternalLink);
     public double Bpm { get; set; } = 120;
     public double Offset { get; set; }
     public double MeasureLength { get; set; } = 4;
@@ -33,7 +35,7 @@ internal sealed class MobileChart
         int activeLayer = 1;
         foreach (string raw in text.Replace("\r", "").Split('\n'))
         {
-            string line = raw.Split("//", 2)[0].Trim();
+            string line = Regex.IsMatch(raw,@"^\s*(LINK|DIFFICULTY_LINK)\s*:")?raw.Trim():raw.Split("//", 2)[0].Trim();
             if (line.Length == 0) continue;
             Match field = Regex.Match(line, "^([A-Z_]+)\\s*:\\s*(.*)$");
             if (field.Success)
@@ -43,6 +45,8 @@ internal sealed class MobileChart
                 switch (key)
                 {
                     case "TITLE": chart.Title = value; break;
+                    case "LINK":chart.ExternalLink=HyperLane.ExternalChartLink.Normalize(value);break;
+                    case "DIFFICULTY_LINK":if(difficulty!=null)difficulty.ExternalLink=HyperLane.ExternalChartLink.Normalize(value);break;
                     case "COMPOSER": chart.Composer = value; break;
                     case "CHARTER": case "CHARTDESIGNER": case "CHART_DESIGNER": chart.ChartDesigner = value; break;
                     case "SONG": case "AUDIO": chart.Audio = value; break;
@@ -84,7 +88,7 @@ internal sealed class MobileChart
                                 difficulty.Layers[number] = new MobileDifficulty { Name = difficulty.Name, Lanes = difficulty.Lanes };
                         }
                         break;
-                    case "BADGE": if(difficulty is not null)difficulty.Badge=HyperLane.BadgeDefinition.Parse(value);break;
+                    case "BADGE": if(difficulty is not null&&HyperLane.BadgeDefinition.Parse(value) is {} badge){difficulty.Badges.Add(badge);difficulty.Badge??=badge;}break;
                     case "LEVEL": if (difficulty is not null) difficulty.Level = value; break;
                     case "LEVEL_DISPLAY": if (difficulty is not null) difficulty.LevelLabel = HyperLane.ChartLevel.NormalizeLabel(value); break;
                     case "FEVER":
@@ -127,9 +131,8 @@ internal sealed class MobileChart
                                 else if (parts[1].Equals("CAMERA", StringComparison.OrdinalIgnoreCase) &&
                                          CameraSpec(parts[2], out MobileCameraChange camera))
                                     difficulty.CameraChanges.Add(camera with { Beat = beat });
-                                else if (parts[1].Equals("CAMERA_ADV", StringComparison.OrdinalIgnoreCase) &&
-                                         AdvancedCameraSpec(parts[2], out MobileCameraChange advancedCamera))
-                                    difficulty.CameraChanges.Add(advancedCamera with { Beat = beat });
+                                else if (parts[1].Equals("CAMERA_ADV", StringComparison.OrdinalIgnoreCase))
+                                    difficulty.CameraChanges.AddRange(AdvancedCameraSequence(beat,parts[2]));
                                 else if (parts[1].Equals("LANE_VIS", StringComparison.OrdinalIgnoreCase) ||
                                          parts[1].Equals("UI_VIS", StringComparison.OrdinalIgnoreCase))
                                 {
@@ -219,7 +222,7 @@ internal sealed class MobileChart
             diff.LaneVisibilityChanges.Sort((a, b) => a.Beat.CompareTo(b.Beat));
             diff.UiVisibilityChanges.Sort((a, b) => a.Beat.CompareTo(b.Beat));
             diff.FilterChanges.Sort((a, b) => a.Beat.CompareTo(b.Beat));
-            diff.CameraChanges.Sort((a, b) => a.Beat.CompareTo(b.Beat));
+            var orderedCameras=diff.CameraChanges.OrderBy(c=>c.Beat).ToArray();diff.CameraChanges.Clear();diff.CameraChanges.AddRange(orderedCameras);
             diff.JudgementLineChanges.Sort((a, b) => a.Beat.CompareTo(b.Beat));
             diff.Timing = new MobileTiming(diff, chart.Bpm);
             diff.Notes.Sort((a, b) => a.Beat.CompareTo(b.Beat));
@@ -292,6 +295,11 @@ internal sealed class MobileChart
             Math.Clamp(z, -50, 20), rx, ry, rz, Math.Clamp(duration, 0, 32),
             int.Parse(match.Groups[7].Value, CultureInfo.InvariantCulture), true);
         return true;
+    }
+    private static IEnumerable<MobileCameraChange> AdvancedCameraSequence(double beat,string raw)
+    {
+        var stages=raw.Split(';',StringSplitOptions.TrimEntries);var changes=new List<MobileCameraChange>();if(stages.Length is <1 or >2)return changes;
+        foreach(string text in stages){if(!AdvancedCameraSpec(text,out var c)||!double.IsFinite(c.X)||!double.IsFinite(c.Y)||!double.IsFinite(c.Z)||!double.IsFinite(c.Rx)||!double.IsFinite(c.Ry)||!double.IsFinite(c.Rz)||!double.IsFinite(c.Duration))return Array.Empty<MobileCameraChange>();changes.Add(c with{Beat=beat});beat+=c.Duration;}return changes;
     }
 
     public static double BeatSeconds(MobileDifficulty diff, double initialBpm, double beat)
@@ -369,6 +377,8 @@ internal sealed class MobileChart
 internal sealed class MobileDifficulty
 {
     public HyperLane.BadgeDefinition? Badge {get;set;}
+    public string ExternalLink {get;set;}="";
+    public List<HyperLane.BadgeDefinition> Badges {get;}=new();
     public string ChartDesigner { get; set; } = "";
     public string Audio { get; set; } = "";
     public double? AudioOffset { get; set; }

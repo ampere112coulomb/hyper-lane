@@ -19,22 +19,30 @@ internal sealed class MobileSession
     public static int ScoreUnits(MobileDifficulty difficulty)=>Math.Max(1,difficulty.Notes.Sum(n=>n.Kind=='G'?0:n.Kind=='L'?2:1));
     public event Action<MobileNote, bool>? NoteSound;
     public MobileHitEffects HitEffects { get; } = new();
+    internal MobileStageMap StageMap { get; } = new();
+    internal MobileChordLinks ChordLinks { get; }
+    private double sceneSeconds;
+    internal HyperLane.DanLifeState? Life {get;set;}
     private readonly int scoreUnits;
     private int nextJudgeIndex;
     private readonly HashSet<MobileNote> activeLongs = new();
+    internal IEnumerable<MobileNote> ActiveLongs => activeLongs;
     private readonly HashSet<int> heldLanes = new();
 
     public MobileSession(MobileSong song, MobileDifficulty difficulty)
     {
         Song = song; Difficulty = difficulty;
+        ChordLinks=new(difficulty);
         NoteSound += (note, _) => { if (note.Done && note.Kind is not ('D' or 'G')) HitEffects.Add(note); };
+        NoteSound += (note, _) => StageMap.Register(this,note,sceneSeconds);
         scoreUnits = Math.Max(1, difficulty.Notes.Count(n => n.Kind != 'G') + difficulty.Notes.Count(n => n.Kind == 'L'));
         foreach (MobileNote note in difficulty.Notes) { note.Done = false; note.Started = false; }
     }
 
     public void Press(int lane, double seconds)
     {
-        if (AutoPlay) return;
+        sceneSeconds=seconds;
+        if (AutoPlay||Life?.Failed==true) return;
         heldLanes.Add(lane);
         MobileNote? closest = null, tap = null, hold = null;
         double delta = double.MaxValue;
@@ -69,7 +77,8 @@ internal sealed class MobileSession
 
     public void Release(int lane, double seconds)
     {
-        if (AutoPlay) return;
+        sceneSeconds=seconds;
+        if (AutoPlay||Life?.Failed==true) return;
         heldLanes.Remove(lane);
         foreach(var note in activeLongs.Where(n=>lane>=n.Lane&&(long)lane<(long)n.Lane+n.LaneSpan&&!AnyHeld(n,heldLanes)).ToArray()){
             activeLongs.Remove(note);note.Done = true;
@@ -81,10 +90,12 @@ internal sealed class MobileSession
 
     public void Advance(double seconds, IReadOnlySet<int> held)
     {
+        sceneSeconds=seconds;
         heldLanes.Clear();heldLanes.UnionWith(held);
         while (nextJudgeIndex < Difficulty.Notes.Count && (Difficulty.Notes[nextJudgeIndex].Done || Difficulty.Notes[nextJudgeIndex].Kind == 'G')) nextJudgeIndex++;
         for (int index = nextJudgeIndex; index < Difficulty.Notes.Count; index++)
         {
+            if(Life?.Failed==true)break;
             MobileNote note = Difficulty.Notes[index];
             if (note.Done || note.Kind == 'G') continue;
             if (note.StartSeconds > seconds + 0.2) break;
@@ -126,7 +137,7 @@ internal sealed class MobileSession
     public static int Grade(double milliseconds)
     {
         double ms = Math.Abs(milliseconds);
-        return ms <= 40 ? 0 : ms <= 60 ? 1 : ms <= 100 ? 2 : ms <= 120 ? 3 : -1;
+        return ms <= 50 ? 0 : ms <= 80 ? 1 : ms <= 100 ? 2 : ms <= 120 ? 3 : -1;
     }
 
     private static bool AnyHeld(MobileNote note, IReadOnlySet<int> held)
@@ -143,6 +154,7 @@ internal sealed class MobileSession
         JudgeUntilSeconds = seconds + 0.35;
         if (grade <= 2) { Combo++; MaxCombo = Math.Max(MaxCombo, Combo); }
         else Combo = 0;
+        Life?.Judge(grade,Combo);
         int total = scoreUnits;
         Score = (int)Math.Round((Counts[0] + Counts[1] * 0.75 + Counts[2] * 0.5 + Counts[3] * 0.25)
             / total * 1_000_000);

@@ -6,6 +6,10 @@
     <AssemblyName>HyperLane.MobileCore</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\win\game\Ebeat864\DanFailureDsp.cs" Link="Dan\DanFailureDsp.cs" />
+    <Compile Include="..\win\game\Ebeat864\ExternalChartLink.cs" Link="Library\ExternalChartLink.cs" />
+    <Compile Include="..\win\game\Ebeat864\StarMapMotion.cs" Link="Rendering\StarMapMotion.cs" />
+    <Compile Include="..\win\game\Ebeat864\StageDecorationMotion.cs" Link="Rendering\StageDecorationMotion.cs" />
     <Compile Include="..\win\game\Ebeat864\BadgeDefinition.cs" Link="Badges\BadgeDefinition.cs" />
     <Compile Include="..\win\game\Ebeat864\RankRules.cs" Link="Scores\RankRules.cs" />
     <Compile Include="..\apk\MobileBadges.cs" Link="Badges\MobileBadges.cs" />
@@ -19,6 +23,7 @@
     <Compile Include="..\apk\MobileSession.cs" Link="Judgement\MobileSession.cs" />
     <Compile Include="..\apk\MobileDanRules.cs" Link="Dan\MobileDanRules.cs" />
     <Compile Include="..\win\game\Ebeat864\DanDefinition.cs" Link="Dan\DanDefinition.cs" />
+    <Compile Include="..\win\game\Ebeat864\DanLifeRules.cs" Link="Dan\DanLifeRules.cs" />
     <Compile Include="..\win\game\Ebeat864\UserProfile.cs" Link="Profiles\UserProfile.cs" />
     <Compile Include="..\apk\MobileProjection.cs" Link="Rendering\MobileProjection.cs" />
     <Compile Include="..\apk\MobilePlaybackTiming.cs" Link="Timing\MobilePlaybackTiming.cs" />

@@ -23,12 +23,13 @@ internal sealed partial class GameController
         foreach(var course in courses)foreach(var track in course.Tracks)MigrationStage.PrepareMedia(track.Song);
         stage.Courses=courses;stage.Revealed=Revealed;stage.Passed=LoadSet("dan-progress.json");stage.DanStart=BeginDan;stage.Page=MigrationStage.Screen.Dan;if(errors.Count>0)Alert("段位読み込み",string.Join("\n",errors));
     }
-    private void BeginDan(IosDanCourse course){RestoreReplay();activeDan=course;danTrack=0;danResults.Clear();Array.Clear(danCounts);danEligible=!settings.AutoPlay;practice=false;Start(course.Tracks[0].Song,course.Tracks[0].Diff);}
+    private void BeginDan(IosDanCourse course){RestoreReplay();activeDan=course;danTrack=0;danResults.Clear();Array.Clear(danCounts);danEligible=!settings.AutoPlay;practice=false;danLife=course.Definition.Life.Enabled?new(course.Definition.Life):null;danFailureAt=0;stage.DanFailureStrength=0;Start(course.Tracks[0].Song,course.Tracks[0].Diff);}
     private void ConfigureDanSession()
     {
         if(activeDan==null||session==null){stage.ActiveDan=null;return;}
         double previous=danResults.Count==0?activeDan.Definition.InitialGauge:danResults[^1].Gauge,global=danResults.Count==0?activeDan.Definition.InitialGauge:danResults[^1].GlobalGauge;
         session.ConfigureDanGauge(activeDan.Definition.CarryGauge?previous:activeDan.Definition.InitialGauge,activeDan.Tracks.Sum(t=>MobileSession.ScoreUnits(t.Diff)),global);
+        session.Life=danLife;
         stage.ActiveDan=activeDan;stage.DanTrack=danTrack;stage.DanCounts=danCounts;stage.DanResults=danResults;
         string key=MigrationStage.RevealKey(activeDan,danTrack);var revealed=Revealed;revealed.Add(key);File.WriteAllText(Path.Combine(documents,"dan-progress.revealed.json"),JsonSerializer.Serialize(revealed));stage.Revealed=revealed;
     }
@@ -67,7 +68,7 @@ internal sealed partial class MigrationStage
         if(ActiveDan==null)return [];int[] n=(int[])DanCounts.Clone();if(live&&Session!=null)for(int i=0;i<5;i++)n[i]+=Session.Counts[i];var gauges=DanResults.Select(r=>r.GlobalGauge).ToList();if(live&&Session!=null)gauges.Add(Session.GlobalGauge);var meters=Meters(ActiveDan.Definition.Conditions,n,gauges);
         if(live&&Session!=null&&ActiveDan.Definition.Tracks[DanTrack].Conditions is {} own)meters.AddRange(Meters(own,Session.Counts,[Session.Gauge]));if(!live)for(int i=0;i<DanResults.Count;i++)if(ActiveDan.Definition.Tracks[i].Conditions is {} condition)meters.AddRange(Meters(condition,DanResults[i].Counts,[DanResults[i].Gauge]));return meters;
     }
-    private void DanHud(CGContext c){if(ActiveDan==null)return;var meters=DanMeters(true);double h=Math.Min(76,550.0/Math.Max(1,meters.Count));for(int i=0;i<meters.Count;i++)MeterDraw(c,meters[i],Rect(1300,30+i*h,550,h-6));}
+    private void DanHud(CGContext c){if(ActiveDan==null)return;double top=50;Text($"{ActiveDan.Definition.Title}  {DanTrack+1}/{ActiveDan.Tracks.Count}",Rect(1530,18,350,28),18);if(Session?.Life is {} life){Fill(c,Rect(1530,top,350,54),Color(8,12,30,.32));Text($"LIFE  {life.Value:0.##} / {life.Maximum:0.##}",Rect(1540,top+4,330,38),20);Fill(c,Rect(1540,top+47,330,3),Color(148,157,197,.25));Fill(c,Rect(1540,top+47,330*Math.Clamp(life.Value/life.Maximum,0,1),3),life.Value/life.Maximum<=.25?UIColor.SystemPink:Color(155,223,255));top+=58;}var meters=DanMeters(true);double h=Math.Min(58,500.0/Math.Max(1,meters.Count));for(int i=0;i<meters.Count;i++){var m=meters[i];double y=top+i*h;bool pass=m.Minimum?m.Value>=m.Limit:m.Exclusive?m.Value<m.Limit:m.Value<=m.Limit;var color=pass?Color(133,215,245):Color(244,144,166);Fill(c,Rect(1530,y,350,h-4),Color(8,12,30,.32));Text($"{(m.Percent?"GAUGE":"条件")}  {m.Value:0.##} / {(m.Exclusive?"< ":"")}{m.Limit:0.##}",Rect(1540,y+3,330,h-17),18,color);double max=m.Percent?100:Math.Max(1,m.Limit),f=m.Minimum?m.Value/max:m.Limit==0?pass?1:0:1-m.Value/max;Fill(c,Rect(1540,y+h-10,330,3),Color(148,157,197,.25));Fill(c,Rect(1540,y+h-10,330*Math.Clamp(f,0,1),3),color);}}
     private void DanResultScreen(CGContext c,double now)
     {
         if(ActiveDan==null)return;double elapsed=now-resultAt;double Phase(double at,double d)=>Math.Clamp((elapsed-at)/d,0,1);Fill(c,Rect(0,0,1920,1080),Color(24,3,33,Phase(0,1)));Image(selectionBackground??visuals.Blur(visuals.Asset("skin/background.png"),"default"),Rect(0,0,1920,1080),Phase(1,.7),crop:true);Text(ActiveDan.Definition.Title+" — DAN RESULT",Rect(65,65,1775,60),42,opacity:Phase(1,.5));double col=1170.0/Math.Max(3,DanResults.Count);

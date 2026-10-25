@@ -36,6 +36,8 @@ internal sealed partial class MigrationStage : UIView
     private readonly UIImageView background=new(){ContentMode=UIViewContentMode.ScaleAspectFill,ClipsToBounds=true};
     private readonly UIView dim=new(){BackgroundColor=UIColor.Black,UserInteractionEnabled=false};
     private readonly UIView filterShade=new(){UserInteractionEnabled=false,Hidden=true};
+    private readonly UIView danWhite=new(){UserInteractionEnabled=false,BackgroundColor=UIColor.White,Alpha=0};
+    internal double DanFailureStrength,DanReturnAt;
     private readonly ParticleOverlay particleOverlay;
     private readonly CAGradientLayer feverLeft=new(),feverRight=new();
     private readonly IosLaneRenderer gpu;
@@ -72,6 +74,7 @@ internal sealed partial class MigrationStage : UIView
         gpu=new IosLaneRenderer(CGRect.Empty,visuals);AddSubview(gpu.View);
         Console.Error.WriteLine("HL startup: GPU ready");
         overlay=new Overlay(this){BackgroundColor=UIColor.Clear,Opaque=false,UserInteractionEnabled=false};AddSubview(overlay);
+        AddSubview(danWhite);
     }
     private sealed class Overlay(MigrationStage owner):UIView
     {public override void Draw(CGRect rect){using var c=UIGraphics.GetCurrentContext();c.SaveState();c.TranslateCTM(owner.Origin.X,owner.Origin.Y);c.ScaleCTM(owner.Scale,owner.Scale);c.ClipToRect(new CGRect(0,0,1920,1080));owner.DrawScreen(c);c.RestoreState();}}
@@ -101,6 +104,7 @@ internal sealed partial class MigrationStage : UIView
         double pulse=0;if(play&&Session is {} current){double b=MobileChart.BeatAtSeconds(current.Difficulty,current.Song.Chart.Bpm,Seconds-current.Song.Chart.OffsetFor(current.Difficulty));var f=current.Difficulty.FeverSections.FirstOrDefault(s=>b>=s.Start&&b<=s.End);if(f.End>f.Start){double relative=b-f.Start;pulse=Math.Pow(1-(relative-Math.Floor(relative)),2)*Settings.FeverAuraBrightness/100.0;}}
         CATransaction.Begin();CATransaction.DisableActions=true;feverLeft.Opacity=feverRight.Opacity=(float)pulse;CATransaction.Commit();
         MobileFilterChange? active=null;if(play&&Session is {} filterSession){double filterBeat=MobileChart.BeatAtSeconds(filterSession.Difficulty,filterSession.Song.Chart.Bpm,Seconds-filterSession.Song.Chart.OffsetFor(filterSession.Difficulty));active=MobileFilters.At(filterSession.Difficulty.FilterChanges,filterBeat);}
+        if(DanFailureStrength>0)active=new MobileFilterChange(0,"GLITCH",DanFailureStrength*100,0,false);
         bool gpuEffects=active is {Kind:not "BRIGHTNESS"};gpu.ActiveFilter=gpuEffects?active:null;
         if(movieLayer!=null)movieLayer.Hidden=!play||gpuEffects;
         particleOverlay.Hidden=!play||!DefaultPlayBackground;if(!particleOverlay.Hidden)particleOverlay.SetNeedsDisplay();filterShade.Hidden=true;
@@ -115,6 +119,7 @@ internal sealed partial class MigrationStage : UIView
             if(active?.BackgroundOnly==false){RenderEffectOverlay(now);gpu.SceneOverlay=effectOverlay;}else gpu.SceneOverlay=null;
         }
         if(play)gpu.View.Display();overlay.SetNeedsDisplay();
+        danWhite.Frame=Viewport;danWhite.Alpha=(nfloat)(DanFailureStrength>0?DanFailureStrength:DanReturnAt>0?Math.Clamp(1-(now-DanReturnAt),0,1):0);if(DanReturnAt>0&&now-DanReturnAt>=1)DanReturnAt=0;
     }
     private void RenderEffectOverlay(double now)
     {
@@ -188,7 +193,7 @@ internal sealed partial class MigrationStage : UIView
         }else Text("楽曲ZIPを追加してください",Rect(100,430,690,100),32,center:true);
         Button(c,"play",Rect(1023,945,338,107),57);Button(c,mode==2?"モード選択":"replay",Rect(1373,945,338,107),mode==2?34:57);Fill(c,Rect(1757,970,110,110),Color(5,4,9,.63));Image(visuals.GearImage(),Rect(1778,991,68,68));Button(c,"←",Rect(100,12,160,64),26);Stroke(c,Rect(32,26,22,22),Color(187,178,210),2);Fill(c,Rect(54,50,3,15),Color(187,178,210));Fill(c,Rect(0,924,120,80),Color(5,3,12,.7));Fill(c,Rect(0,924,120,2),Color(210,214,232,.5));Fill(c,Rect(0,1002,120,2),Color(210,214,232,.5));Fill(c,Rect(118,924,2,80),Color(210,214,232,.5));Text("＋",Rect(0,924,120,80),46,center:true);if(Settings.AutoPlay)Text("AUTO",Rect(970,900,150,40),19,UIColor.Yellow);Name(c,false);
     }
-    private void Name(CGContext c,bool result){if(!UserProfile.ValidName(UserName))return;if(result){Polygon(c,[0,0,420,0,388,48,0,48],Color(5,3,12,.82));Text(UserName,Rect(25,0,355,48),UserName.Length>15?22:30);}else{Polygon(c,[0,1018,240,1018,278,1080,0,1080],Color(5,3,12,.82));Text(UserName,Rect(25,1018,208,62),29);}BadgeHeader(c);BadgeOverlay(c,CAAnimation.CurrentMediaTime());}
+    private void Name(CGContext c,bool result){if(Page==Screen.Select&&Selected?.Chart.LinkFor(SelectedDifficulty) is {Length:>0}){Fill(c,Rect(1664,96,56,56),Color(8,12,29,.65));Image(visuals.Asset("external-link.png"),Rect(1664,96,56,56));}if(!UserProfile.ValidName(UserName))return;if(result){Polygon(c,[0,0,420,0,388,48,0,48],Color(5,3,12,.82));Text(UserName,Rect(25,0,355,48),UserName.Length>15?22:30);}else{Polygon(c,[0,1018,240,1018,278,1080,0,1080],Color(5,3,12,.82));Text(UserName,Rect(25,1018,208,62),29);}BadgeHeader(c);BadgeOverlay(c,CAAnimation.CurrentMediaTime());}
     private void Loading(CGContext c,double now)
     {
         double e=now-loadingAt,exit=exitAt==0?0:Math.Clamp((now-exitAt)/.5,0,1),p=exitAt==0?Ease(e/.5):exit*exit*(3-2*exit),edge=-134.4+2188.8*p;c.SaveState();Polygon(c,exitAt==0?[0,0,edge+134.4,0,edge-134.4,1080,0,1080]:[edge+134.4,0,1920,0,1920,1080,edge-134.4,1080],clip:true);Fill(c,Rect(0,0,1920,1080),Color(9,12,24));Image(visuals.Asset("FusumaSkin.png"),Rect(0,0,1920,1080),crop:true);
@@ -231,8 +236,8 @@ internal sealed partial class MigrationStage : UIView
         double beat=MobileChart.BeatAtSeconds(s.Difficulty,s.Song.Chart.Bpm,Seconds-s.Song.Chart.OffsetFor(s.Difficulty));
         return MobileProjection.At(s.Difficulty,beat).HitLane(s.Difficulty.Lanes,x,y);
     }
-    private void PauseBox(CGContext c){Fill(c,Rect(0,0,1920,1080),Color(0,0,0,.6));string[] labels=["再開","リトライ","設定","曲選択"];for(int i=0;i<4;i++)Button(c,labels[i],Rect(650,360+i*130,620,110),45);}
-    private void Result(CGContext c,double now)
+    private void PauseBox(CGContext c){Fill(c,Rect(0,0,1920,1080),Color(2,4,14,.68));Polygon(c,[-100,300,2020,300,1900,770,-220,770],Color(7,8,24,.8));Text("HYPER LANE  /  BREAK",Rect(70,74,660,46),21,opacity:.65);Text("PAUSE",Rect(510,330,900,80),64,center:true);Text("一時停止",Rect(710,416,500,35),23,center:true,opacity:.8);string[] labels=["曲選択へ戻る","再開","リトライ"],icons=["⇥","▶","↻"];for(int i=0;i<3;i++){double x=430+i*380;Text(icons[i],Rect(x,495,300,105),76,center:true);Text(labels[i],Rect(x,618,300,52),30,center:true);}Button(c,"設定",Rect(1740,60,110,130),25);if(Session is {} s){Text(s.Song.Chart.Title,Rect(110,875,1290,75),42);Text(DifficultyName(s.Difficulty.Name)+" Lv."+s.Difficulty.DisplayLevel,Rect(110,950,1290,50),26,opacity:.7);}}
+    private void LegacyResult(CGContext c,double now)
     {
         if(Session is not {} s)return;double t=now-resultAt;double Phase(double at,double d)=>Math.Clamp((t-at)/d,0,1);double info=Phase(1,1),band=Phase(2,.5),bg=Ease(Phase(1,.7));Fill(c,Rect(0,0,1920,1080),Color(24,3,33,Phase(0,1)));c.SaveState();Polygon(c,[282,0,1898,0,1635,1080,22,1080],clip:true);Image(selectionBackground??visuals.Blur(visuals.Asset("skin/background.png"),"default"),Rect(0,-155*(1-bg),1920,1080),bg,crop:true);Fill(c,Rect(0,0,1920,1080),Color(6,4,16,.235*bg));c.RestoreState();Image(jacket,Rect(350,108,406,406),info,crop:true);Stroke(c,Rect(346,104,414,414),Difficulty(s.Difficulty.Name).ColorWithAlpha((nfloat)info),8);Text(s.Song.Chart.Title,Rect(790,92,1040,94),79,opacity:info);Text(s.Song.Chart.Composer,Rect(790,174,960,70),50,opacity:info);Text("DESIGNER: "+s.Song.Chart.DesignerFor(s.Difficulty),Rect(793,257,960,56),39,opacity:info);Text(DifficultyName(s.Difficulty.Name)+" Lv."+s.Difficulty.DisplayLevel,Rect(792,464,650,66),42,opacity:info);Polygon(c,[127,642,1742,642,1635,1080,22,1080],Color(8,7,14,.78*band));Polygon(c,[112,641,427,641,507,692,427,743,103,743],Color(8,7,14,.84*band));Text(s.Score.ToString("D7"),Rect(148,648,328,83),70,opacity:band);string[] labels=["PERFECT","GREAT","GOOD","BAD","MISS","MAX COMBO"];for(int i=0;i<6;i++){double a=Phase(2.5+i*.1,.1),y=763+i*45;Text(labels[i],Rect(145,y,260,46),35,opacity:a);Text((i==5?s.MaxCombo:s.Counts[i]).ToString(),Rect(405,y,63,46),31,opacity:a);}
         double rp=Phase(3.3,.5),scale=1.5-.5*Ease(rp);Image(visuals.Asset("skin/rank_box.png"),Rect(682-152*scale,874-152*scale,304*scale,304*scale),rp);string rank=Rank(s.Score);if(rank.Length>0)Image(MobileRank(s.Score,RankRules.IsFullCombo(s.Counts)),Rect(682-112*scale,874-112*scale,224*scale,224*scale),rp);double line=Phase(3.1,.2);Fill(c,Rect(911,1023,227,3),Color(255,255,255,line));Text("late",Rect(958,1022,76,37),26,Color(255,142,77),opacity:line);Text("fast",Rect(1040,1022,76,37),26,Color(88,216,220),opacity:line);double red=Phase(3.8,.2);for(int i=0;i<45;i++){Fill(c,Rect(899+i*2,717,2,306),Color(200,24,31,.686*red*i/44));Fill(c,Rect(1052+i*2,717,2,306),Color(200,24,31,.608*red*(1-i/44.0)));}double graph=Phase(4,.5);int[] bins=new int[12];foreach(double offset in s.TimingOffsets)bins[Math.Clamp((int)Math.Floor((120-offset)/20),0,11)]++;int max=Math.Max(1,bins.Max());for(int i=0;i<12;i++){double h=230.0*bins[i]/max*Ease(graph);Fill(c,Rect(924+i*16,1022-h,16,h),(i<5?Color(255,142,77):i>6?Color(88,216,220):UIColor.White).ColorWithAlpha((nfloat)graph));}string[] actions=["曲選択","リトライ","見返す"];for(int i=0;i<3;i++){var r=Rect(1250,694+i*91,387,89);Fill(c,r,Color(4,3,10,.8*Phase(4.5,.4)));Stroke(c,r,Color(25,4,34,.92*Phase(4.5,.4)),4);Text(actions[i],r,42,center:true,opacity:Phase(4.5,.4));}Name(c,true);
@@ -241,6 +246,8 @@ internal sealed partial class MigrationStage : UIView
     {
         foreach(UITouch touch in changed){var p=touch.LocationInView(this);float x=(float)((p.X-Origin.X)/Scale),y=(float)((p.Y-Origin.Y)/Scale);bool release=phase==2;
             if(TouchBadge(x,y,phase))continue;
+            if(DanFailureStrength>0||DanReturnAt>0)continue;
+            if(Page==Screen.Select&&x>=1664&&x<=1720&&y>=96&&y<=152&&Selected?.Chart.LinkFor(SelectedDifficulty) is {Length:>0} url){if(release)UIApplication.SharedApplication.OpenUrl(new NSUrl(url),new UIApplicationOpenUrlOptions(),null);continue;}
             if(x<0||x>1920||y<0||y>1080){
                 if(Page==Screen.Playing){touches.Remove(touch);var remaining=touches.Values.Where(l=>l>0).ToHashSet();gpu.Held=remaining;InputChanged?.Invoke(remaining,touch.Timestamp);}
                 if(release)dragging=false;continue;
@@ -257,8 +264,8 @@ internal sealed partial class MigrationStage : UIView
             if(Page==Screen.Title){if(UserProfile.ValidName(UserName))Transition(Screen.Modes);else NameRequested?.Invoke();}
             else if(Page==Screen.Modes){if(x<300&&y<120)Transition(Screen.Title);else if(x>=650&&x<=1270&&y>=510&&y<=846){mode=Math.Clamp((int)((y-510)/120),0,2);if(mode==1)DanRequested?.Invoke();else Transition(Screen.Select);}}
             else if(Page==Screen.Select){bool dragged=dragging&&Math.Abs(y-downY)>35;dragging=false;if(x>=1688&&y<62)Page=Screen.Best30;else if(x>=100&&x<=260&&y<76)Transition(Screen.Modes);else if(x>=0&&x<=120&&y>=924&&y<=1004)ImportRequested?.Invoke();else if(x>=1757&&x<=1867&&y>=970){settingsReturn=Page;Page=Screen.Settings;}else if(x>=1023&&x<=1361&&y>=945){if(mode==2){Page=Screen.Practice;practiceBeat=0;}else if(Selected!=null&&SelectedDifficulty!=null)StartRequested?.Invoke(Selected,SelectedDifficulty);}else if(x>=1373&&x<=1711&&y>=945){if(mode==2)Transition(Screen.Modes);else ReplayRequested?.Invoke();}else if(x>=978&&y>=738&&y<=893){foreach(var slot in Plates())if(slot.Index>=0&&slot.Rect.Contains(x,y))difficulty=slot.Index;}else if(x<960&&Songs.Count>0){int pos=dragged?(int)Math.Round(position):(int)Math.Round(position+(y-501.5)/92);string name=SelectedDifficulty?.Name??"";index=Math.Clamp(pos,0,Songs.Count-1);difficulty=Math.Max(0,Selected!.Chart.Difficulties.FindIndex(d=>d.Name.Equals(name,StringComparison.OrdinalIgnoreCase)));}}
-            else if(Page==Screen.Paused){if(x<650||x>1270)continue;if(y>=360&&y<=470)ResumeRequested?.Invoke();else if(y>=490&&y<=600&&Session!=null)RetryRequested?.Invoke();else if(y>=620&&y<=730){settingsReturn=Page;Page=Screen.Settings;}else if(y>=750&&y<=860)BackRequested?.Invoke();}
-            else if(Page==Screen.Result){if(CAAnimation.CurrentMediaTime()-resultAt<4.5)continue;if(y<48&&x>=1720)Page=Screen.Best30;else if(x>=1250&&x<=1637){if(y>=694&&y<=783)BackRequested?.Invoke();else if(y>=785&&y<=874&&Session!=null)StartRequested?.Invoke(Session.Song,Session.Difficulty);else if(y>=876&&y<=965)ReplayRequested?.Invoke();}}
+            else if(Page==Screen.Paused){if(x>=1740&&x<=1850&&y>=60&&y<=190){settingsReturn=Page;Page=Screen.Settings;}else if(y>=480&&y<=700){if(x>=810&&x<=1110)ResumeRequested?.Invoke();else if(x>=1190&&x<=1490&&Session!=null)RetryRequested?.Invoke();else if(x>=430&&x<=730)BackRequested?.Invoke();}}
+            else if(Page==Screen.Result){if(CAAnimation.CurrentMediaTime()-resultAt<1.5)continue;if(y<48&&x>=1720)Page=Screen.Best30;else if(y>=960&&y<=1040){if(x>=850&&x<=1070)BackRequested?.Invoke();else if(x>=1085&&x<=1305&&Session!=null)StartRequested?.Invoke(Session.Song,Session.Difficulty);else if(x>=1320&&x<=1540)ReplayRequested?.Invoke();}}
             else if(Page==Screen.Best30){if(x>=1700&&y>=1000)Page=Screen.Select;}
             else if(Page==Screen.Practice){if(x>=1700&&y>=980)Page=Screen.Select;else if(x<=210&&y>=920&&Selected!=null&&SelectedDifficulty!=null)PracticeRequested?.Invoke(Selected,SelectedDifficulty,practiceBeat);}
             else if(Page==Screen.Dan||Page==Screen.DanResult)TouchDan(x,y);

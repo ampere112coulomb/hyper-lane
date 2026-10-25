@@ -85,7 +85,9 @@ internal sealed partial class IosLaneRenderer : GLKViewDelegate
         var p=MobileProjection.At(diff,beat);int lanes=diff.Lanes;double width=2.3/lanes,alpha=Visibility(diff.LaneVisibilityChanges,beat)*(1-Settings.LaneTransparency/100.0);
         if(depths.Length!=lanes)depths=new double[lanes];HyperLane.JudgementLineMotion.Evaluate(diff.JudgementLineChanges,beat,depths);
         for(int i=0;i<lanes;i++)depths[i]=p.DepthAtScreenFraction(depths[i]/100);
+        if(Settings.ChordLinks)s.ChordLinks.Append(geometry,s,p,Seconds,Settings.NoteSpeed,depths,true);
         MobileSideLights.Append(geometry,p,MobileChart.ScrollPosition(diff,chart.Bpm,beat),Settings.NoteSpeed,MobileChart.NsMultiplierAt(diff,beat),true);
+        if(Settings.StageDecorations)s.StageMap.Append(geometry,s,p,Seconds,Settings.NoteSpeed,true);
         for(int lane=1;lane<=lanes;lane++)Quad(p,1.15-lane*width,1.15-(lane-1)*width,-12,52,.004,lane%2==1?8:11,lane%2==1?20:25,lane%2==1?37:44,alpha);
         for(int edge=0;edge<=lanes;edge++){double x=-1.15+edge*width;bool outside=edge==0||edge==lanes;Quad(p,x-(outside?.012:.005),x+(outside?.012:.005),-12,52,.014,outside?85:37,outside?170:77,outside?215:110,alpha);}
         double scroll=MobileChart.ScrollPosition(diff,chart.Bpm,beat),speed=Settings.NoteSpeed*10;
@@ -103,8 +105,9 @@ internal sealed partial class IosLaneRenderer : GLKViewDelegate
         {
             var timing=grouping.Key==1?diff:diff.Layers[grouping.Key];double layerBeat=MobileChart.BeatAtSeconds(timing,chart.Bpm,Seconds-chart.OffsetFor(diff));
             double root=MobileChart.ScrollPosition(timing,chart.Bpm,layerBeat),ns=MobileChart.NsMultiplierAt(timing,layerBeat);
-            foreach(var note in grouping.Value)
+            for(int ni=grouping.Value.Length-1;ni>=0;ni--)
             {
+                var note=grouping.Value[ni];
                 if(note.Done||note.Lane>lanes||(long)note.Lane+note.LaneSpan-1<1)continue;
                 int first=Math.Max(1,note.Lane),last=(int)Math.Min(lanes,(long)note.Lane+note.LaneSpan-1);double depth=depths[first-1];
                 bool split=false;for(int l=first+1;l<=last;l++)if(Math.Abs(depths[l-1]-depth)>.0001)split=true;

@@ -25,18 +25,20 @@ internal sealed partial class MigrationStage
     internal Action<int,bool>? PresetRequested;
     private void SettingsScreen(CGContext c)
     {
-        c.SaveState();c.TranslateCTM(960,540);c.ScaleCTM(1.4f,1.4f);c.TranslateCTM(-960,-540);Fill(c,Rect(550,190,820,700),Color(0,0,0,.88));Text("設 定",Rect(570,202,500,35),25);
+        c.SaveState();Fill(c,Rect(0,0,1920,1080),Color(7,9,22));Fill(c,Rect(550,190,820,700),Color(8,10,24));Text("設 定",Rect(570,202,500,35),25);
         string[] tabs=["プレイ・音声","映像・演出","プリセット"];for(int i=0;i<3;i++){Fill(c,Rect(566+i*250,240,250,40),i==settingsTab?Color(47,40,57):Color(15,13,19));Text(tabs[i],Rect(566+i*250,240,250,40),21,center:true);}
         if(settingsTab==2)for(int i=0;i<3;i++){Text("プリセット "+(i+1),Rect(586,317+i*125,200,55),26);Button(c,"現在の設定を保存",Rect(795,317+i*125,245,55),22);Button(c,"読み込み",Rect(1055,317+i*125,253,55),22);}
         for(int row=0;settingsTab<2&&row<SettingLabels[settingsTab].Length;row++){double y=300+row*48,v=Value(row);Text(SettingLabels[settingsTab][row],Rect(586,y+7,480,35),22);string value=settingsTab==0&&row==9?(Settings.LaneTouch?"レーンタッチ":"パネルタッチ"):settingsTab==0&&row==0?$"{v:0.00} ×":((settingsTab==0&&row is 5 or 6)||(settingsTab==1&&row==5))?v>0?"ON":"OFF":$"{v:0}";
             if(Slider(row)){double f=settingsTab==0&&row==0?(v-.5)/9.5:v/100;Fill(c,Rect(1080,y+19,125,3),Color(85,85,90));Fill(c,Rect(1080,y+19,125*f,3),Color(178,146,225));c.SetFillColor(UIColor.White.CGColor);c.FillEllipseInRect(Rect(1074+125*f,y+15,12,12));Text(value,Rect(1220,y,90,42),20,center:true);}
             else{Button(c,"−",Rect(1080,y,50,42),23);Text(value,Rect(1138,y,112,42),21,UIColor.Cyan,true);Button(c,"+",Rect(1258,y,50,42),23);}}
         if(settingsTab==0)Text(AudioBufferStatus,Rect(586,795,730,28),17,UIColor.Cyan);
+        if(settingsTab==1){Button(c,"星座の3D装飾  "+(Settings.StageDecorations?"ON":"OFF"),Rect(586,732,722,42),22);Button(c,"同時押しの線  "+(Settings.ChordLinks?"ON":"OFF"),Rect(586,780,722,42),22);}
         Button(c,"保存して閉じる",Rect(1080,832,260,46),23);c.RestoreState();
     }
     private void TouchSettings(float x,float y,int phase)
     {
-        double sx=960+(x-960)/1.4,sy=540+(y-540)/1.4;int row=(int)((sy-300)/48);
+        double sx=x,sy=y;int row=(int)((sy-300)/48);
+        if(settingsTab==1&&phase==2&&sx>=586&&sx<=1308&&sy>=732&&sy<=822){if(sy<=774)Settings.StageDecorations=!Settings.StageDecorations;else if(sy>=780)Settings.ChordLinks=!Settings.ChordLinks;SaveSettings?.Invoke();return;}
         if(settingsTab<2&&row>=0&&row<SettingLabels[settingsTab].Length&&Slider(row)&&sx>=1065&&sx<=1215&&sy>=300){double f=Math.Clamp((sx-1080)/125,0,1);SetValue(row,settingsTab==0&&row==0?.5+f*9.5:f*100);if(phase==2)SaveSettings?.Invoke();return;}
         if(phase!=2)return;if(sy>=240&&sy<=280&&sx>=566&&sx<=1316)settingsTab=Math.Clamp((int)((sx-566)/250),0,2);
         else if(sx>=1080&&sy>=832){SaveSettings?.Invoke();Page=settingsReturn;}

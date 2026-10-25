@@ -17,6 +17,8 @@ internal sealed class IosSettings
     public int KeyBeamOpacity { get; set; }
     public int KeyBeamLength { get; set; } = 50;
     public bool PreferMusicVideo { get; set; } = true;
+    public bool StageDecorations { get; set; } = true;
+    public bool ChordLinks { get; set; } = true;
     public int PreviewVolume { get; set; } = 40;
     public int PreviewBackgroundBrightness { get; set; } = 100;
     public int StartMarginMs { get; set; } = 1300;
