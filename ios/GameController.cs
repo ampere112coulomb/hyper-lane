@@ -287,6 +287,7 @@ internal sealed partial class GameController : UIViewController
     }
     private void EndPlay()
     {
+        danFailureAudio?.Dispose();danFailureAudio=null;
         running=false;audio?.Stop();noteSound?.Pause();held.Clear();stage.ClearTouches();stage.PauseVideo();
         if(practice){stage.Page=MigrationStage.Screen.Practice;return;}
         if(activeDan!=null){activeDan=null;stage.ActiveDan=null;OpenDan();return;}

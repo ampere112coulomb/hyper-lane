@@ -66,6 +66,7 @@ internal sealed class MobileSession
 
     private void ApplyPress(MobileNote closest,double seconds,int lane)
     {
+        if(Life?.Failed==true)return;
         double delta=(seconds-closest.StartSeconds)*1000;
         int grade = Grade(delta);
         if (grade < 0) return;
@@ -148,6 +149,7 @@ internal sealed class MobileSession
 
     private void Judge(int grade, double seconds, double offset = 0)
     {
+        if(Life?.Failed==true)return;
         if (grade < 4 && double.IsFinite(offset)) TimingOffsets.Add(Math.Clamp(offset, -120, 120));
         Counts[grade]++;
         LastJudgement = AutoPlay && grade == 0 ? "AUTO" : new[] { "PERFECT", "GREAT", "GOOD", "BAD", "MISS" }[grade];
