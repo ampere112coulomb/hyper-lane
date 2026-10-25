@@ -1,6 +1,7 @@
 import {clamp,filterAt} from './core.mjs';
 import {Projection,scalarAt,lineAt,touchRect} from './motion.mjs';
 import {glitch,fever} from './effects.mjs';
+import {Constellations} from './constellations.mjs';
 const vertex=`attribute vec4 position;attribute vec2 uv;attribute vec4 color;varying vec2 vUv;varying vec4 vColor;void main(){gl_Position=position;vUv=uv;vColor=color;}`;
 const fragment=`precision mediump float;uniform sampler2D frameTex;uniform float textured;varying vec2 vUv;varying vec4 vColor;void main(){vec4 c=textured>.5?texture2D(frameTex,vUv):vec4(1.);if(c.a<.001)discard;gl_FragColor=c*vColor;}`;
 const effect=`precision highp float;uniform sampler2D frameTex;uniform int mode;uniform float intensity,time;uniform vec2 texel;varying vec2 vUv;
@@ -26,6 +27,9 @@ export class GPU{
   draw({chart,diff,session,seconds,settings,held,image,jacket,danHUD,practice=false,debug=true}){if(!this.ready)return;this.resize();const gl=this.gl,beat=diff.timing.beat(seconds),p=new Projection(diff.camera,beat),f=filterAt(diff.filters,beat),lanes=diff.lanes,lw=2.3/lanes,alpha=scalarAt(diff.laneVisibility,beat)*(1-settings.laneTransparency/100),depths=lineAt(diff.lines,beat,lanes).map(v=>p.depthFraction(v/100)),cover=settings.laneCover>0?p.depthFraction(1-settings.laneCover/100):52;
     this.background(image,settings.backgroundBrightness,!image,performance.now()/1000);if(f?.backgroundOnly){this.target(this.scene);gl.disable(gl.DEPTH_TEST);gl.disable(gl.BLEND);this.screen(this.bg);this.apply(this.scene,this.filtered,f,seconds);}
     this.target(this.scene,this.w,this.h,true);gl.clearColor(0,0,0,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.disable(gl.DEPTH_TEST);gl.disable(gl.BLEND);this.screen(f?.backgroundOnly?this.filtered:this.bg,this.program,!!f?.backgroundOnly);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+    if(this.constellations?.session!==session)this.constellations=new Constellations(diff,session);
+    const stars=this.constellations.geometry(p,seconds,settings.speed,settings.stageDecorations!==false);
+    if(stars.length){gl.depthMask(false);this.coloredTriangles(stars);gl.depthMask(true);}
     for(let lane=1;lane<=lanes;lane++){const l=1.15-lane*lw;this.quad(p,l,l+lw,-12,52,.004,lane%2?'#081425':'#0b192c',alpha);}
     for(let i=0;i<=lanes;i++){const x=-1.15+i*lw,out=i===0||i===lanes,th=out?.012:.005;this.quad(p,x-th,x+th,-12,52,.014,out?'#55aad7':'#254d6e',alpha);}
     const root=diff.timing.scroll(beat),speed=settings.speed*10;
@@ -49,5 +53,6 @@ export class GPU{
     if(s.combo){text(s.combo.toLocaleString(),960,626,45,'#fff','center');text('COMBO',960,682,16,'#00ffff','center');}text(s.last,960,834,32,'#fff','center');if(s.auto)text('AUTO',28,1000,18,'#ffd700');if(debug)text(`BPM ${diff.timing.find(diff.timing.tempo,beat).bpm} / 拍子 ${this.signature(diff,chart,beat)} / 拍 ${beat.toFixed(2)}`,28,1030,18);c.globalAlpha=1;
     if(!s.auto)for(let lane=0;lane<diff.lanes;lane++){const [l,t,r,b]=touchRect(diff.lanes,lane,1920,1080,settings.touchHeight);c.strokeStyle='#8bdff544';c.strokeRect(l,t,r-l,b-t);}if(danHUD)danHUD(c,text);if(practice)text('↻',40,20,44);
   }
+  coloredTriangles(data){const gl=this.gl;gl.useProgram(this.program);gl.bindBuffer(gl.ARRAY_BUFFER,this.buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(data),gl.STREAM_DRAW);for(const [name,size,offset] of [['position',4,0],['uv',2,16],['color',4,24]]){const loc=gl.getAttribLocation(this.program,name);gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,size,gl.FLOAT,false,40,offset);}gl.uniform1f(gl.getUniformLocation(this.program,'textured'),0);gl.drawArrays(gl.TRIANGLES,0,data.length/10);}
   signature(diff,chart,beat){let v=chart.signature||'4/4';for(const e of diff.sig){if(e.beat>beat)break;v=e.label||`${e.value}/4`;}return v;}
 }

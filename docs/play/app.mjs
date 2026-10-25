@@ -8,8 +8,8 @@ import {PracticeView} from './practice.mjs';
 import {setupSettings,sanitizeSettings} from './settings.mjs';
 const $=id=>document.getElementById(id),profile=new Profile(),library=new Library(),audio=new AudioEngine();
 // Preserve text editing in settings while blocking native selection during play.
-$('stage').addEventListener('selectstart',e=>{if(!e.target.closest('input,textarea,[contenteditable="true"]'))e.preventDefault();});
-$('stage').addEventListener('dragstart',e=>{if(!e.target.closest('input,textarea,[contenteditable="true"]'))e.preventDefault();});
+$('stage').addEventListener('selectstart',e=>{if(!e.target.closest?.('input,textarea,[contenteditable="true"]'))e.preventDefault();});
+$('stage').addEventListener('dragstart',e=>{if(!e.target.closest?.('input,textarea,[contenteditable="true"]'))e.preventDefault();});
 profile.data.settings=sanitizeSettings(profile.data.settings);let page='title',mode='free',selected=null,diff=null,course=null,dan=null,run=null,gpu=null,generation=0,previewTimer,debug=true;
 const held=new Set(),pointers=new Map();
 function notice(message){$('notice').textContent=message;clearTimeout(notice.timer);notice.timer=setTimeout(()=>$('notice').textContent='',7000);}
