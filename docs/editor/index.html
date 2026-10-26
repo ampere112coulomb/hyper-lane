@@ -4407,7 +4407,7 @@
                     continue;
                 }
                 if(note.type==='damage'){if(ms>=80){state.done=true;testRegisterJudge(testCoveredHeld(note)?4:0);}continue;}
-                if(note.type==='long'&&!state.started&&ms>=0&&ms<=130&&testCoveredHeld(note)){state.started=true;testRegisterJudge(0);testPlaySE();continue;}
+                if(note.type==='long'&&note.holdStart&&!state.started&&ms>=0&&ms<=60&&testCoveredHeld(note)){state.started=true;testRegisterJudge(0);testPlaySE();continue;}
                 if(note.type==='long'&&state.started&&note.holdEnd&&now>=end&&testCoveredHeld(note)){state.done=true;testRegisterJudge(0);testPlaySE();continue;}
                 if(!state.started&&ms>130){state.started=true;if(note.type!=='long')state.done=true;testRegisterJudge(4);}
                 else if(note.type==='long'&&state.started&&now-end>.13){state.done=true;testRegisterJudge(4);}
@@ -4416,7 +4416,7 @@
         function hitTestLane(lane) {
             const now=testSongSeconds();let best=null,bestMs=999;
             for(const note of testPlay.playNotes){const state=testStateFor(note);if(!testNoteEligible(note)||state.done||state.started||lane<note.lane||lane>=note.lane+largeNoteSpan(note)||note.type==='damage'||note.type==='guide'||note.type==='laneOpacity')continue;
-                const ms=(now-testPlay.timing.get(note).start)*1000;if((note.type==='hold'||note.type==='largeHold')&&(ms<0||ms>60))continue;if(Math.abs(ms)<Math.abs(bestMs)&&Math.abs(ms)<=120){best={note,state};bestMs=ms;}}
+                const ms=(now-testPlay.timing.get(note).start)*1000;if((note.type==='hold'||note.type==='largeHold'||(note.type==='long'&&note.holdStart))&&(ms<0||ms>60))continue;if(Math.abs(ms)<Math.abs(bestMs)&&Math.abs(ms)<=120){best={note,state};bestMs=ms;}}
             if(!best)return;const j=testJudgeIndex(bestMs);if(j<0)return;best.state.started=true;if(best.note.type!=='long')best.state.done=true;testRegisterJudge(j);testPlaySE();
         }
         function releaseTestLane(lane) {
