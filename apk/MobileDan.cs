@@ -11,6 +11,7 @@ internal sealed record MobileDanResult(MobileSong Song,MobileDifficulty Difficul
 internal sealed partial class GameSurface
 {
     private bool danMode,danPlaying,danEligible;
+    private DanLifeState? danLife;
     private List<MobileDanCourse> danCourses=[];
     private int danIndex,danTrackIndex;
     private MobileDanCourse? activeDan;
@@ -57,6 +58,7 @@ internal sealed partial class GameSurface
     {
         activeDan=SelectedMobileDan;if(activeDan==null)return;
         danResults.Clear();Array.Clear(danCounts);danTrackIndex=0;danGlobalGauge=activeDan.Definition.InitialGauge;
+        danLife=activeDan.Definition.Life.Enabled?new(activeDan.Definition.Life):null;danFailureAt=danReturnWhiteAt=0;
         danEligible=!settings.AutoPlay;danPlaying=true;practiceMode=practicePlaying=false;pendingMobileReplay=null;page=Page.Select;StartSelected();
     }
     private List<(string Label,bool Passed)> MobileDanChecks(bool intermediate=false)
@@ -165,8 +167,9 @@ internal sealed partial class GameSurface
         var gauges=danResults.Select(r=>r.GlobalGauge).Append(session.GlobalGauge).ToArray();
         var meters=MobileDanMeters(activeDan.Definition.Conditions,live,gauges);
         if(activeDan.Definition.Tracks[danTrackIndex].Conditions is {} own)meters.AddRange(MobileDanMeters(own,session.Counts,new[]{session.Gauge}));
-        FitMobileText(canvas,$"{activeDan.Definition.Title}  {danTrackIndex+1}/{activeDan.Tracks.Count}",new RectF(1320,10,1890,46),22,1);
-        float row=Math.Min(67,500f/Math.Max(1,meters.Count));for(int i=0;i<meters.Count;i++)DrawMobileDanMeter(canvas,meters[i],new RectF(1320,52+i*row,1890,52+(i+1)*row-7),1);
+        FitMobileText(canvas,$"{activeDan.Definition.Title}  {danTrackIndex+1}/{activeDan.Tracks.Count}",new(1530,18,1880,46),18,1);
+        float top=50;if(danLife is {} life){Fill(canvas,new(1530,top,1880,top+54),Color.Argb(82,8,12,30));FitMobileText(canvas,$"LIFE  {life.Value:0.##} / {life.Maximum:0.##}",new(1540,top+4,1870,top+42),20,1);Fill(canvas,new(1540,top+47,1870,top+50),Color.Argb(65,148,157,197));Fill(canvas,new(1540,top+47,1540+330*(float)Math.Clamp(life.Value/life.Maximum,0,1),top+50),life.Value/life.Maximum<=.25?Color.Salmon:Color.Rgb(155,223,255));top+=58;}
+        float row=Math.Min(58,500f/Math.Max(1,meters.Count));for(int i=0;i<meters.Count;i++){var m=meters[i];float y=top+i*row;bool pass=m.Minimum?m.Value>=m.Limit:m.Exclusive?m.Value<m.Limit:m.Value<=m.Limit;var color=pass?Color.Rgb(133,215,245):Color.Rgb(244,144,166);Fill(canvas,new(1530,y,1880,y+row-4),Color.Argb(82,8,12,30));FitMobileText(canvas,$"{(m.Percent?"GAUGE":"条件")}  {m.Value:0.##} / {(m.Exclusive?"< ":"")}{m.Limit:0.##}",new(1540,y+3,1870,y+row-14),18,1);double max=m.Percent?100:Math.Max(1,m.Limit),fraction=m.Minimum?m.Value/max:m.Limit==0?(pass?1:0):1-m.Value/max;Fill(canvas,new(1540,y+row-10,1870,y+row-7),Color.Argb(65,148,157,197));Fill(canvas,new(1540,y+row-10,1540+330*(float)Math.Clamp(fraction,0,1),y+row-7),color);}
     }
     private void BeginDanResultTransition(){ /* Result's wipe and reveal use resultStartedAt. */ }
     private void DrawMobileDanResult(Canvas canvas)

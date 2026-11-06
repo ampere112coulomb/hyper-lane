@@ -101,6 +101,7 @@ internal sealed partial class GameSurface
                 ResultImage(canvas,selectionJacket,new RectF(1152+(582-w)/2,82+(582-h)/2,1152+(582+w)/2,82+(582+h)/2),1);
             }
             int? high=BestScore(SelectedSong!,SelectedDifficulty);
+            DrawExternalSongLink(canvas);
             Fill(canvas,new RectF(1152,677,1734,722),Color.Argb(160,5,4,9));
             ResultText(canvas,"HIGH SCORE  "+(high.HasValue?high.Value.ToString("N0"):"—"),new RectF(1152,677,1734,722),26,1,Paint.Align.Center);
             foreach(var(name,index,_,rect)in SelectionPlates())
@@ -161,6 +162,7 @@ internal sealed partial class GameSurface
 
     private bool TouchSelection(MotionEvent e,float x,float y)
     {
+        if(TouchExternalSongLink(e,x,y))return true;
         if(SongSortEnabled&&x>=25&&x<=240&&y>=80&&y<=130){selectionDragging=false;if(e.ActionMasked==MotionEventActions.Up){songSort=(songSort+1)%3;var sorted=SelectionIndices();selectionPosition=selectionTarget=Math.Max(0,sorted.IndexOf(songIndex));Invalidate();}return true;}
         if(e.ActionMasked==MotionEventActions.Down) { selectionDownY=y;selectionDragging=x<960&&y>80;selectionDragStart=selectionPosition; }
         if(e.ActionMasked==MotionEventActions.Move&&selectionDragging) { selectionPosition=Math.Clamp(selectionDragStart+(selectionDownY-y)/92,0,Math.Max(0,SelectionIndices().Count-1));Invalidate();return true; }

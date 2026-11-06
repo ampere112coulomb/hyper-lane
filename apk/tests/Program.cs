@@ -1,5 +1,15 @@
 using HyperLane.Android;
 {
+ var c=MobileChart.Parse("BPM:120\nDIFFICULTY:Master\nLEVEL:10\nLANES:4\n0H-8H,1,SIZE=3\n10D,2,SIZE=3\nCHANGE:0,CAMERA,(2,3,-7)1,0\nCHANGE:0,FILTER,MONO,75,0,RAMP,ALL\n");
+ var d=c.Difficulties[0];var n=d.Notes[0];if(n.LaneSpan!=3||!n.HoldStart||!n.HoldEnd||d.Notes[1].LaneSpan!=3)throw new Exception("Large metadata");
+ var s=new MobileSession(new MobileSong("large.2d",".",c),d);s.Press(1,0);s.Press(2,1);s.Release(1,1);if(n.Done)throw new Exception("Large Long handoff broke");
+ s.Advance(4,new HashSet<int>{2});if(!n.Done||s.Counts[0]!=2)throw new Exception("Large Long held endpoint");
+ s.Advance(5.1,new HashSet<int>{4});if(s.Counts[4]!=1)throw new Exception("Large Damage coverage");
+ if(MobileFilters.At(d.FilterChanges,-8)?.Strength!=75)throw new Exception("Initial RAMP filter");
+ var p0=MobileProjection.At(d,-8);var p1=MobileProjection.At(d,0);p0.Project(0,0,5,out float x0,out float y0);p1.Project(0,0,5,out float x1,out float y1);if(Math.Abs(x0-x1)>.001||Math.Abs(y0-y1)>.001)throw new Exception("Initial camera");
+ Console.WriteLine("Large Long/Damage parser, Hold endpoints, handoff, damage coverage and initial gimmicks: OK");
+}
+{
     var c=MobileChart.Parse("BPM:120\nDIFFICULTY:Master\nLEVEL:10\nLANES:4\n0,1\n0.0625H,1\n");
     var d=c.Difficulties[0];var s=new MobileSession(new MobileSong("cohit.2d",".",c),d);
     s.Press(1,.04);
@@ -370,6 +380,28 @@ var touchSettings=new HyperLane.iOS.IosSettings{LaneTouch=true};
 var touchReload=System.Text.Json.JsonSerializer.Deserialize<HyperLane.iOS.IosSettings>(System.Text.Json.JsonSerializer.Serialize(touchSettings));
 if(touchReload?.LaneTouch!=true)throw new Exception("Touch selection did not survive serialization");
 Console.WriteLine("Lane touch projection, multiple heights, outside rejection and default panel mode: OK");
+foreach (int lanes in new[] { 4, 6, 8 })
+foreach (int amount in new[] { -100, -50, 50, 100 })
+{
+    var chart = MobileChart.Parse($"BPM:120\nDIFFICULTY:Master\nLANES:{lanes}\nCHANGE:0,LANE_FOLD,{amount},4\n");
+    var diff = chart.Difficulties[0];
+    if (Math.Abs(MobileLaneFold.At(diff, 2) - amount / 2.0) > 1e-8 ||
+        Math.Abs(MobileLaneFold.At(diff, 4) - amount) > 1e-8) throw new Exception("Lane fold parsing or transition");
+    var foldProjection = MobileProjection.At(diff, 4);
+    foldProjection.FoldEnabled = true;
+    for (int lane = 0; lane < lanes; lane++)
+    {
+        double x = -1.15 + (lane + .5) * 2.3 / lanes;
+        if (!foldProjection.Project(x, 0, 5, out float sx, out float sy) ||
+            !float.IsFinite(sx) || !float.IsFinite(sy)) throw new Exception("Fold projection invalid");
+        if (sx >= 0 && sx < 1920 && sy >= 0 && sy < 1080)
+        {
+            int hit = foldProjection.HitLane(lanes, sx, sy);
+            if (hit < 0 || hit >= lanes) throw new Exception("Folded lane touch gave invalid lane");
+        }
+    }
+}
+Console.WriteLine("Fold transitions and finite projection on 4/6/8 lanes: OK");
 {
     var chart=MobileChart.Parse("BPM: 120\nSONG: common.wav\nOFFSET: 0.2\nPREVIEW: 2-6\nCHART_DESIGNER: Common\nDIFFICULTY: Normal\nLEVEL: 5\n1,1\nDIFFICULTY: Master\nLEVEL: 11.5\nDIFFICULTY_CHART_DESIGNER: Master Person\nDIFFICULTY_SONG: master.wav\nDIFFICULTY_OFFSET: -0.3\nDIFFICULTY_PREVIEW: 8-12\n1,1\nLAYER: 2\n1,2\nDIFFICULTY: Hard\nDIFFICULTY_OFFSET: 0\n1,1\n");
     var normal=chart.Difficulties[0];var master=chart.Difficulties[1];var hard=chart.Difficulties[2];

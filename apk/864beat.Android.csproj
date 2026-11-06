@@ -6,8 +6,8 @@
     <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
     <ApplicationId>com.ampere112coulomb.hyperlane</ApplicationId>
     <ApplicationTitle>Hyper Lane</ApplicationTitle>
-    <ApplicationDisplayVersion>0.7.0</ApplicationDisplayVersion>
-    <ApplicationVersion>17</ApplicationVersion>
+    <ApplicationDisplayVersion>0.8.2</ApplicationDisplayVersion>
+    <ApplicationVersion>23</ApplicationVersion>
     <RootNamespace>HyperLane.Android</RootNamespace>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -15,6 +15,11 @@
     <AndroidPackageFormats>apk</AndroidPackageFormats>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\win\game\Ebeat864\DanFailureDsp.cs" Link="Shared\DanFailureDsp.cs" />
+    <Compile Include="..\win\game\Ebeat864\ExternalChartLink.cs" Link="Shared\ExternalChartLink.cs" />
+    <AndroidAsset Include="..\assets\external-link.png" Link="external-link.png" />
+    <Compile Include="..\shared\CosmosScene.cs;..\shared\MobileStageMap.cs;..\shared\MobileChordLinks.cs" Link="Shared\%(Filename)%(Extension)" />
+    <Compile Include="..\win\game\Ebeat864\StarMapMotion.cs;..\win\game\Ebeat864\StageDecorationMotion.cs" Link="Shared\%(Filename)%(Extension)" />
     <Compile Include="..\win\game\Ebeat864\BadgeDefinition.cs" Link="Shared\BadgeDefinition.cs" />
     <Compile Include="..\win\game\Ebeat864\RankRules.cs" Link="Shared\RankRules.cs" />
     <Compile Include="..\win\game\Ebeat864\HitSparkleMotion.cs" Link="Shared\HitSparkleMotion.cs" />
@@ -24,6 +29,7 @@
     <Compile Include="..\win\game\Ebeat864\ChartLevel.cs" Link="Shared\ChartLevel.cs" />
     <Compile Include="..\win\game\Ebeat864\UserProfile.cs" Link="Shared\UserProfile.cs" />
     <Compile Include="..\win\game\Ebeat864\DanDefinition.cs" Link="Shared\DanDefinition.cs" />
+    <Compile Include="..\win\game\Ebeat864\DanLifeRules.cs" Link="Shared\DanLifeRules.cs" />
     <Compile Include="..\win\game\Ebeat864\ReplayData.cs" Link="Shared\ReplayData.cs" />
     <Compile Include="..\win\game\Ebeat864\ReplayInput.cs" Link="Shared\ReplayInput.cs" />
     <Compile Include="..\win\game\Ebeat864\ReplayJudgement.cs" Link="Shared\ReplayJudgement.cs" />

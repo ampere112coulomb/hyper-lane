@@ -545,6 +545,14 @@
             <div class="panel-section">
                 <h2>SELECTION</h2>
                 <div id="select-info" style="font-size:13px; color:var(--text-muted);">選択中のオブジェクト: 0コ</div>
+                <div id="bs-series-zone" style="display:none; flex-direction:column; gap:7px; margin-top:10px; padding:10px; border:1px solid #34739a; background:#102535;">
+                    <label for="bs-series-start">選択したBSを拍順に一括変更</label>
+                    <input id="bs-series-start" type="number" step="any" value="1" aria-label="最初のBS" oninput="updateBsSeriesPreview()">
+                    <span style="text-align:center; line-height:1; color:#8ecfff;">～</span>
+                    <input id="bs-series-end" type="number" step="any" value="10" aria-label="最後のBS" oninput="updateBsSeriesPreview()">
+                    <div id="bs-series-preview" style="font-size:11px; color:var(--text-muted);"></div>
+                    <button type="button" onclick="applyBsSeries()" style="background:#1a6387;">選択したBSに適用</button>
+                </div>
                 
                 <div id="batch-edit-zone" style="display:none; flex-direction:column; gap:10px; margin-top:10px;">
                     <div class="control-group" style="background:#21262d; padding:8px; border-radius:6px;">
@@ -598,6 +606,8 @@
                         <option value="SIG">Time Signature (4/4, 6/8)</option>
                         <option value="LANE_VIS">レーン表示</option>
                         <option value="UI_VIS">UI表示</option>
+                        <option value="STAGE_VIS">星座表示</option>
+                        <option value="LANE_FOLD">レーン折り曲げ</option>
                     </select>
                     <input type="text" id="batch-gimmick-val" value="1.0">
                     <button onclick="applyBatchGimmick()" style="background: var(--accent-active);">ギミックを適用</button>
@@ -626,7 +636,7 @@
             <span id="note-count-display" style="font-size:13px; color:var(--text-muted); white-space:nowrap;" title="選択中の難易度の全レイヤーを集計。Longは始点・終点で1つ、Guideとレーン透明度は対象外です。">
                 ノーツ数: <strong id="note-count-value" style="color:#fff;">0</strong>
             </span>
-            <span id="note-kind-counts" style="font-size:13px; color:var(--text-muted); white-space:nowrap;" title="Large NotesはNormal、Large HoldはHoldに合算します。">Normal : 0　Hold : 0　Long : 0　Damage : 0</span>
+            <span id="note-kind-counts" style="font-size:13px; color:var(--text-muted); white-space:nowrap;" title="Longは始点と終点をそれぞれ1ノーツとして数えます。Large NotesはNormal、Large HoldはHoldに合算します。">Normal : 0　Hold : 0　Long : 0　Damage : 0</span>
         </div>
         <div style="margin-left:auto; white-space:nowrap;">
             <span id="update-status" role="status" aria-live="polite" style="display:none; margin-right:12px; color:#79c7d8; font-size:12px; white-space:nowrap; vertical-align:middle;"></span>
@@ -641,8 +651,8 @@
         <div id="test-speed-panel">
             <div id="test-speed-box">
                 <div style="font-size:19px;font-weight:bold;margin-bottom:18px;">ノーツスピード</div>
-                <input id="test-speed-range" type="range" min="0.5" max="10" step="0.1" value="1.6">
-                <div style="display:flex;justify-content:space-between;margin-top:12px;"><span>0.5</span><b id="test-speed-value">1.6</b><span>10.0</span></div>
+                <input id="test-speed-range" type="range" min="0.5" max="10" step="0.05" value="1.6">
+                <div style="display:flex;justify-content:space-between;margin-top:12px;"><span>0.5</span><b id="test-speed-value">1.60</b><span>10.0</span></div>
                 <div style="margin-top:18px;color:#9fb5ca;font-size:12px;">F2 または Esc で閉じます</div>
             </div>
         </div>
@@ -676,6 +686,8 @@
                 <option value="SIG">Time Signature (4/4, 6/8)</option>
                 <option value="LANE_VIS">レーン表示</option>
                 <option value="UI_VIS">UI表示</option>
+                <option value="STAGE_VIS">星座表示</option>
+                <option value="LANE_FOLD">レーン折り曲げ</option>
         </select>
         <div class="control-group" id="camera-variant-group" style="display:none;">
             <label>カメラの種類</label>
@@ -735,6 +747,14 @@
             <label>変化にかける拍数</label>
             <input type="number" id="ns-duration" min="0" max="32" step="0.25" value="1">
             <div style="font-size:11px;color:var(--text-muted);">0拍なら瞬時に切り替わります。</div>
+        </div>
+        <div class="control-group" id="lane-fold-value-group" style="display:none;gap:7px;">
+            <label>折り曲げ（-100：外側 / 0：平面 / 100：内側）</label>
+            <input type="range" id="lane-fold-slider" min="-100" max="100" step="1" value="0" oninput="document.getElementById('lane-fold-target').value=this.value">
+            <input type="number" id="lane-fold-target" min="-100" max="100" step="any" value="0" oninput="document.getElementById('lane-fold-slider').value=this.value">
+            <label>変化にかける拍数</label>
+            <input type="number" id="lane-fold-duration" min="0" max="32" step="0.25" value="1">
+            <div style="font-size:11px;color:var(--text-muted);">最大値で両端のレーンが接します。0拍で瞬時に切り替わります。</div>
         </div>
         <div class="control-group" id="visibility-value-group" style="display:none;gap:7px;">
             <label>切り替え先</label>
@@ -873,20 +893,19 @@
             switchLayer(1,songTime);
         }
         let notes = chartData[currentDifficulty].notes;
-        let countedNotesRef = null;
-        let countedNotesLength = -1;
         function updateNoteCount(force = false) {
-            if (!force && countedNotesRef === notes && countedNotesLength === notes.length) return;
-            countedNotesRef = notes;
-            countedNotesLength = notes.length;
             const counts = {normal:0,hold:0,long:0,damage:0};
             for (const number of layerNumbers()) for (const note of layerData(currentDifficulty,number).notes) {
                 if (!note) continue;
                 const kind = note.type === 'large' ? 'normal' : note.type === 'largeHold' ? 'hold' : note.type;
-                if (Object.hasOwn(counts,kind)) counts[kind]++;
+                if (Object.hasOwn(counts,kind)) counts[kind] += kind === 'long' ? 2 : 1;
             }
-            document.getElementById('note-count-value').textContent = Object.values(counts).reduce((sum,count)=>sum+count,0).toLocaleString();
-            document.getElementById('note-kind-counts').textContent = `Normal : ${counts.normal.toLocaleString()}　Hold : ${counts.hold.toLocaleString()}　Long : ${counts.long.toLocaleString()}　Damage : ${counts.damage.toLocaleString()}`;
+            const totalText = Object.values(counts).reduce((sum,count)=>sum+count,0).toLocaleString();
+            const detailText = `Normal : ${counts.normal.toLocaleString()}　Hold : ${counts.hold.toLocaleString()}　Long : ${counts.long.toLocaleString()}　Damage : ${counts.damage.toLocaleString()}`;
+            const totalElement = document.getElementById('note-count-value');
+            const detailElement = document.getElementById('note-kind-counts');
+            if (totalElement.textContent !== totalText) totalElement.textContent = totalText;
+            if (detailElement.textContent !== detailText) detailElement.textContent = detailText;
         }
         let changeEvents = chartData[currentDifficulty].changeEvents;
         let nsScrollEvents = [];
@@ -940,6 +959,7 @@
         let activeFeverBeat = 0;
 
         let dragStartPos = { x: 0, y: 0 };
+        let dragStartBeat = 0;
         let dragCurrentPos = { x: 0, y: 0 };
         let lastMouseY = 0;          
         let selectedNotes = [];
@@ -948,6 +968,7 @@
         let selectedCameraEvent = null;
         let copiedCameraEvent = null;
         let selectedEffectEvents = [];
+        let selectedBsSeriesKey = '';
         let copiedEffectEvents = [];
         let editingCameraEvent = null;
         let cameraLaneDialog = false;
@@ -991,6 +1012,49 @@
             const mode=[1,2,3].includes(Number(parts[1]))?Number(parts[1]):1;
             const duration=Math.max(0,Math.min(32,parseFloat(parts[2])||0));
             return {target,mode,duration};
+        }
+        function parseLaneFoldSpec(rawValue) {
+            const parts=String(rawValue??'0,0').split(','),target=Number(parts[0]),duration=Number(parts[1]);
+            return {target:Number.isFinite(target)?Math.max(-100,Math.min(100,target)):0,duration:Number.isFinite(duration)?Math.max(0,Math.min(32,duration)):0};
+        }
+        function laneFoldAtBeat(beat,events=layerData(currentDifficulty,1).changeEvents) {
+            let from=0,target=0,start=0,duration=0;
+            for(const event of events.filter(e=>e.type==='LANE_FOLD').sort((a,b)=>a.beat-b.beat)){
+                if(event.beat>beat)break;
+                from+= (target-from)*(duration<=0?1:Math.max(0,Math.min(1,(event.beat-start)/duration)));
+                const spec=parseLaneFoldSpec(event.val);target=spec.target;start=event.beat;duration=spec.duration;
+            }
+            return from+(target-from)*(duration<=0?1:Math.max(0,Math.min(1,(beat-start)/duration)));
+        }
+        function laneFoldCenterY(amount,lanes=TOTAL_LANES) {
+            if(Math.abs(amount)<.00001)return 0;
+            const step=2.3/lanes;
+            return Array.from({length:lanes},(_,i)=>mapLaneFold({x:-1.15+(i+.5)*step,y:0,z:0},amount,lanes).y).reduce((a,b)=>a+b,0)/lanes;
+        }
+        function mapLaneFold(point,amount,lanes=TOTAL_LANES,liftScale=1) {
+            if(Math.abs(amount)<.00001)return point;
+            const step=2.3/lanes,turn=2*Math.PI/lanes*Math.min(1,Math.abs(amount)/100);
+            let totalX=0,totalY=0;
+            for(let i=0;i<lanes;i++){const a=(i-(lanes-1)/2)*turn;totalX+=step*Math.cos(a);totalY+=step*Math.sin(a);}
+            const lane=Math.max(0,Math.min(lanes-1,Math.floor((point.x+1.15)/step)));
+            let x=-totalX/2,y=-totalY/2;
+            for(let i=0;i<lane;i++){const a=(i-(lanes-1)/2)*turn;x+=step*Math.cos(a);y+=step*Math.sin(a);}
+            const a=(lane-(lanes-1)/2)*turn,along=point.x-(-1.15+lane*step);
+            const height=.004+(point.y-.004)*liftScale,sign=Math.sign(amount);
+            return {...point,x:x+along*Math.cos(a)-sign*height*Math.sin(a),y:sign*(y+along*Math.sin(a))+height*Math.cos(a)};
+        }
+        function drawFoldedQuad(points,amount,paint,liftScale=1) {
+            if(Math.abs(amount)<.00001){paint(points);return;}
+            const [a,b,c,d]=points,lerp=(v,w,t)=>({x:v.x+(w.x-v.x)*t,y:v.y+(w.y-v.y)*t,z:v.z+(w.z-v.z)*t});
+            if(points.length!==4||b.x<=a.x+.000001){paint(points.map(p=>mapLaneFold(p,amount,TOTAL_LANES,liftScale)));return;}
+            const step=2.3/TOTAL_LANES,left=a.x,right=b.x;
+            for(let at=left;at<right-.000001;){
+                const seam=Math.floor((at+1.15+.000001)/step)+1;
+                let next=Math.min(right,-1.15+seam*step);if(next<=at+.000001)next=right;
+                const t0=(at-left)/(right-left),t1=(next-left)/(right-left);
+                paint([lerp(a,b,t0),lerp(a,b,t1),lerp(d,c,t1),lerp(d,c,t0)].map(p=>mapLaneFold(p,amount,TOTAL_LANES,liftScale)));
+                at=next;
+            }
         }
         function parseJudgementLineSpec(rawValue) {
             const parts=String(rawValue ?? '').split(',');
@@ -1057,12 +1121,13 @@
         }
 
         function parseChangeValue(type, rawValue) {
+            if(type==='LANE_FOLD'){const spec=parseLaneFoldSpec(rawValue);return `${spec.target},${spec.duration}`;}
             if(type==='JUDGE_LINE'){const spec=parseJudgementLineSpec(rawValue);return spec.positions.join(';')+','+spec.duration+','+spec.mode;}
             if (type === 'SIG') return normalizeTimeSignature(rawValue);
             if (type === 'LANE') return String(rawValue || '100').trim();
             if (type === 'CAMERA') return String(rawValue || '(0,2.5,-6)1,0').trim();
             if (type === 'CAMERA_ADV') return String(rawValue || '(0,2.5,-6),(0,0,0)1,0').trim();
-            if (type === 'LANE_VIS' || type === 'UI_VIS') return String(rawValue || '0,1').trim();
+            if (type === 'LANE_VIS' || type === 'UI_VIS' || type === 'STAGE_VIS') return String(rawValue || '0,1').trim();
             const numeric = parseFloat(rawValue);
             if (type === 'NS') {const ns=parseNsSpec(rawValue);return `${ns.target},${ns.mode},${ns.duration}`;}
             if (type === 'FILTER') {
@@ -1541,6 +1606,7 @@
                     const delta = e.deltaY * 0.005;
                     viewBeat = Math.max(0, viewBeat + delta);
                 }
+                if(isDragging && isSelectMode)calculateSelection();
             }, { passive: false });
 
             window.addEventListener('keydown', e => {
@@ -1570,8 +1636,10 @@
                     copiedCameraEvent = copiedEffectEvents.length === 1 ? copiedEffectEvents[0] : null;
                     return;
                 }
-                if ((e.ctrlKey || e.metaKey) && e.code === 'KeyV' && (copiedEffectEvents.length > 0 || copiedNotes.length > 0) && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) {
+                if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyV' || e.code === 'KeyB') && (copiedEffectEvents.length > 0 || copiedNotes.length > 0) && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName) && !document.activeElement?.isContentEditable && !e.isComposing && !testPlay?.active) {
                     e.preventDefault();
+                    if(e.repeat)return;
+                    const mirrorPaste=e.code==='KeyB';
                     const targetBeat = Math.max(0, getSnappedBeat(viewBeat));
                     const beatOffset = targetBeat - copiedSelectionBeat;
                     const pasted = copiedEffectEvents.map(event => {
@@ -1583,13 +1651,14 @@
                         const copy = JSON.parse(JSON.stringify(note));
                         copy.beat = Math.max(0, (note.beat || 0) + beatOffset);
                         if (Number.isFinite(note.endBeat)) copy.endBeat = Math.max(copy.beat, note.endBeat + beatOffset);
+                        if(mirrorPaste && note.type!=='laneOpacity')copy.lane=TOTAL_LANES+2-note.lane-largeNoteSpan(note);
                         return copy;
                     });
                     if(pastedNotes.some(note=>Array.from({length:Math.max(0,Math.min(TOTAL_LANES,note.lane+largeNoteSpan(note)-1)-Math.max(1,note.lane)+1)},(_,i)=>Math.max(1,note.lane)+i).some(lane=>
                         occupiedByOtherLayer(note.beat,lane) || (note.type==='long'&&occupiedByOtherLayer(note.endBeat,lane))))) {
                         alert('貼り付け先の別レイヤーに、同じレーン・同じ実時間のノーツがあります。');return;
                     }
-                    if(currentLayer!==1 && pasted.some(event=>['JUDGE_LINE','FILTER','GLITCH','LANE_VIS','UI_VIS','CAMERA','CAMERA_ADV'].includes(event.type))) {
+                    if(currentLayer!==1 && pasted.some(event=>['JUDGE_LINE','FILTER','GLITCH','LANE_VIS','UI_VIS','STAGE_VIS','CAMERA','CAMERA_ADV','LANE_FOLD'].includes(event.type))) {
                         alert('この演出はレイヤー1にのみ貼り付けできます。');return;
                     }
                     recordUndo();
@@ -2077,8 +2146,11 @@
         const PREVIEW_NOTE_SPEED_KEY = 'hyperlane-editor-preview-note-speed';
         function setPreviewNoteSpeed(value, persist = true) {
             previewNoteSpeed=Math.max(.5,Math.min(10,parseFloat(value)||1.6));
+            testPlay.speed=previewNoteSpeed;
             document.getElementById('preview-note-speed').value = previewNoteSpeed;
             document.getElementById('preview-note-speed-value').textContent=previewNoteSpeed.toFixed(2);
+            document.getElementById('test-speed-range').value = previewNoteSpeed;
+            document.getElementById('test-speed-value').textContent=previewNoteSpeed.toFixed(2);
             if (persist) localStorage.setItem(PREVIEW_NOTE_SPEED_KEY, String(previewNoteSpeed));
             drawGame();
         }
@@ -2125,7 +2197,7 @@
         function cameraAtPreviewBeat(targetBeat) {
             let from = {x:0,y:2.5,z:-6,rx:0,ry:0,rz:0}, to = {...from}, start = 0, duration = 0, mode = 1, advanced = false, transitionFromAdvanced = false;
             const lookAngles = position => {
-                const dx=-position.x,dy=-position.y,dz=5-position.z,length=Math.hypot(dx,dy,dz)||1;
+                const dx=-position.x,dy=laneFoldCenterY(laneFoldAtBeat(targetBeat))-position.y,dz=5-position.z,length=Math.hypot(dx,dy,dz)||1;
                 return {rx:Math.asin(dy/length)*180/Math.PI,ry:Math.atan2(dx,dz)*180/Math.PI,rz:0};
             };
             const at = beat => {
@@ -2162,7 +2234,7 @@
             const gradient=gameCtx.createLinearGradient(0,0,0,h);
             gradient.addColorStop(0,'#070c16');gradient.addColorStop(1,'#02050a');
             gameCtx.fillStyle=gradient;gameCtx.fillRect(0,0,w,h);
-            const eye=cameraAtPreviewBeat(viewBeat),target={x:0,y:0,z:5};
+            const eye=cameraAtPreviewBeat(viewBeat),target={x:0,y:laneFoldCenterY(laneFoldAtBeat(viewBeat)),z:5};
             const normalize=v=>{const l=Math.hypot(v.x,v.y,v.z)||1;return{x:v.x/l,y:v.y/l,z:v.z/l};};
             const forward=eye.advanced?normalize({x:Math.cos(eye.rx*Math.PI/180)*Math.sin(eye.ry*Math.PI/180),y:Math.sin(eye.rx*Math.PI/180),z:Math.cos(eye.rx*Math.PI/180)*Math.cos(eye.ry*Math.PI/180)}):normalize({x:target.x-eye.x,y:target.y-eye.y,z:target.z-eye.z});
             let side=normalize({x:-forward.z,y:0,z:forward.x});
@@ -2182,21 +2254,26 @@
                 if(fill){gameCtx.fillStyle=fill;gameCtx.fill();}if(stroke){gameCtx.strokeStyle=stroke;gameCtx.lineWidth=width;gameCtx.stroke();}
             };
             const half=1.15,near=-4,far=52,laneWidth=half*2/TOTAL_LANES;
+            const fold=laneFoldAtBeat(viewBeat),foldProject=p=>project(mapLaneFold(p,fold));
             const cameraFever=feverSections.some(fs=>viewBeat>=fs.startBeat&&viewBeat<=fs.endBeat);
             for(let lane=0;lane<TOTAL_LANES;lane++){
                 const left=-half+lane*laneWidth,right=left+laneWidth;
-                polygon([{x:left,y:0,z:near},{x:right,y:0,z:near},{x:right,y:0,z:far},{x:left,y:0,z:far}],cameraFever?'rgba(255,255,255,.20)':lane%2?'rgba(11,25,44,.92)':'rgba(8,20,37,.92)',null);
+                drawFoldedQuad([{x:left,y:0,z:near},{x:right,y:0,z:near},{x:right,y:0,z:far},{x:left,y:0,z:far}],fold,ps=>polygon(ps,cameraFever?'rgba(255,255,255,.20)':lane%2?'rgba(11,25,44,.92)':'rgba(8,20,37,.92)',null));
             }
             for(let line=0;line<=TOTAL_LANES;line++){
-                const x=-half+line*laneWidth,a=project({x,y:.012,z:near}),b=project({x,y:.012,z:far});if(!a||!b)continue;
+                const x=-half+line*laneWidth,a=foldProject({x,y:.012,z:near}),b=foldProject({x,y:.012,z:far});if(!a||!b)continue;
                 gameCtx.beginPath();gameCtx.moveTo(a.x,a.y);gameCtx.lineTo(b.x,b.y);gameCtx.strokeStyle=line===0||line===TOTAL_LANES?'#55aad7':'#254d6e';gameCtx.lineWidth=line===0||line===TOTAL_LANES?2:1;gameCtx.stroke();
             }
             for(let z=4;z<=48;z+=4){
-                const a=project({x:-half,y:.022,z}),b=project({x:half,y:.022,z});if(!a||!b)continue;
-                gameCtx.beginPath();gameCtx.moveTo(a.x,a.y);gameCtx.lineTo(b.x,b.y);gameCtx.strokeStyle='rgba(90,170,230,.45)';gameCtx.lineWidth=1;gameCtx.stroke();
+                for(let lane=0;lane<TOTAL_LANES;lane++){
+                    const a=foldProject({x:-half+lane*laneWidth,y:.022,z}),b=foldProject({x:-half+(lane+1)*laneWidth,y:.022,z});if(!a||!b)continue;
+                    gameCtx.beginPath();gameCtx.moveTo(a.x,a.y);gameCtx.lineTo(b.x,b.y);gameCtx.strokeStyle='rgba(90,170,230,.45)';gameCtx.lineWidth=1;gameCtx.stroke();
+                }
             }
-            const judgeA=project({x:-half,y:.065,z:0}),judgeB=project({x:half,y:.065,z:0});
-            if(judgeA&&judgeB){gameCtx.beginPath();gameCtx.moveTo(judgeA.x,judgeA.y);gameCtx.lineTo(judgeB.x,judgeB.y);gameCtx.strokeStyle='#00ffff';gameCtx.lineWidth=3;gameCtx.stroke();}
+            for(let lane=0;lane<TOTAL_LANES;lane++){
+                const judgeA=foldProject({x:-half+lane*laneWidth,y:.065,z:0}),judgeB=foldProject({x:-half+(lane+1)*laneWidth,y:.065,z:0});
+                if(judgeA&&judgeB){gameCtx.beginPath();gameCtx.moveTo(judgeA.x,judgeA.y);gameCtx.lineTo(judgeB.x,judgeB.y);gameCtx.strokeStyle='#00ffff';gameCtx.lineWidth=3;gameCtx.stroke();}
+            }
             gameCtx.fillStyle='rgba(0,0,0,.68)';gameCtx.fillRect(5,h-43,w-10,38);
             gameCtx.fillStyle='#dbeafe';gameCtx.font='11px monospace';gameCtx.textAlign='left';gameCtx.fillText(`拍 ${viewBeat.toFixed(2)}  CAMERA (${eye.x.toFixed(2)}, ${eye.y.toFixed(2)}, ${eye.z.toFixed(2)})`,10,h-27);
             gameCtx.fillStyle='#7dd3fc';gameCtx.fillText(eye.advanced?`角度 (${eye.rx.toFixed(1)}, ${eye.ry.toFixed(1)}, ${eye.rz.toFixed(1)})`:'注視点 (0, 0, 5)',10,h-12);
@@ -2566,6 +2643,24 @@
             const inBpm = mouseX >= bpmLaneX && mouseX <= bpmLaneX + BPM_LANE_WIDTH;
             const inSig = mouseX >= sigLaneX && mouseX <= sigLaneX + SIG_LANE_WIDTH;
             if (effectLanePage === 2) {
+                if(inBpm){
+                    for(let i=changeEvents.length-1;i>=0;i--){
+                        const event=changeEvents[i];if(event.type!=='LANE_FOLD')continue;
+                        const duration=parseLaneFoldSpec(event.val).duration;
+                        const a=beatToY(event.beat),b=beatToY(event.beat+duration);
+                        if(mouseY>=Math.min(a,b)-8&&mouseY<=Math.max(a,b)+8)return event;
+                    }
+                    return null;
+                }
+                if(inBs){
+                    for(let i=changeEvents.length-1;i>=0;i--){
+                        const event=changeEvents[i];if(event.type!=='STAGE_VIS')continue;
+                        const duration=Math.max(0,parseFloat(String(event.val).split(',')[1])||0);
+                        const a=beatToY(event.beat),b=beatToY(event.beat+duration);
+                        if(mouseY>=Math.min(a,b)-8&&mouseY<=Math.max(a,b)+8)return event;
+                    }
+                    return null;
+                }
                 if(!inCamera)return null;
                 for(let i=changeEvents.length-1;i>=0;i--){
                     const event=changeEvents[i];if(event.type!=='JUDGE_LINE')continue;
@@ -2648,10 +2743,40 @@
             if (e.shiftKey) {
                 isSelectMode = true; isDragging = true;
                 dragStartPos = { x: mouseX, y: mouseY }; dragCurrentPos = { x: mouseX, y: mouseY };
+                dragStartBeat = rawBeat;
                 return;
             }
 
             if (effectLanePage === 2 && mouseX >= cameraLaneX) {
+                if(mouseX>=bpmLaneX&&mouseX<=bpmLaneX+BPM_LANE_WIDTH){
+                    const hit=findEffectEventAt(mouseX,mouseY);
+                    if(hit){selectedCameraEvent=hit;selectedEffectEvents=[hit];updateSelection();openSelectedEffectEditor();return;}
+                    activeDialogBeat=snappedBeat;editingCameraEvent=null;
+                    document.getElementById('dialog-beat-disp').textContent=snappedBeat.toFixed(2);
+                    document.getElementById('gimmick-dialog-title').textContent='レーン折り曲げの追加';
+                    document.getElementById('dialog-type').value='LANE_FOLD';
+                    document.getElementById('lane-fold-target').value='0';
+                    document.getElementById('lane-fold-slider').value='0';
+                    document.getElementById('lane-fold-duration').value='1';
+                    updateGimmickDialogFields();
+                    document.getElementById('dialog-overlay').style.display='block';
+                    document.getElementById('gimmick-dialog').style.display='flex';
+                    return;
+                }
+                if(mouseX>=bsLaneX&&mouseX<=bsLaneX+BS_LANE_WIDTH){
+                    const hit=findEffectEventAt(mouseX,mouseY);
+                    if(hit){selectedCameraEvent=hit;selectedEffectEvents=[hit];updateSelection();openSelectedEffectEditor();return;}
+                    activeDialogBeat=snappedBeat;editingCameraEvent=null;
+                    document.getElementById('dialog-beat-disp').textContent=snappedBeat.toFixed(2);
+                    document.getElementById('gimmick-dialog-title').textContent='星座表示の変更';
+                    document.getElementById('dialog-type').value='STAGE_VIS';
+                    document.getElementById('visibility-target').value='0';
+                    document.getElementById('visibility-duration').value='1';
+                    updateGimmickDialogFields();
+                    document.getElementById('dialog-overlay').style.display='block';
+                    document.getElementById('gimmick-dialog').style.display='flex';
+                    return;
+                }
                 if(mouseX<=cameraLaneX+CAMERA_LANE_WIDTH){
                     const hit=findEffectEventAt(mouseX,mouseY);
                     if(hit){selectedCameraEvent=hit;selectedEffectEvents=[hit];updateSelection();}
@@ -2769,6 +2894,7 @@
                 const largeHit = notes.findIndex(n => {
                     if (largeNoteSpan(n)<=1 || lane<n.lane || lane>=n.lane+largeNoteSpan(n)) return false;
                     if(n.type==='long') {
+                        if(currentNoteType==='hold'||currentNoteType==='largeHold')return false;
                         const endpoint=currentNoteType==='hold' &&
                             Math.min(Math.abs(snappedBeat-n.beat),Math.abs(snappedBeat-n.endBeat))<=Math.max(.03,18/BEAT_HEIGHT);
                         return !endpoint && snappedBeat>=n.beat && snappedBeat<=n.endBeat;
@@ -2885,7 +3011,7 @@
             if (existingIndex >= 0) { recordUndo(); notes.splice(existingIndex, 1); return; }
             
             const existingLongIdx = notes.findIndex(n => n.lane === lane && n.type === 'long' && snappedBeat >= n.beat && snappedBeat <= n.endBeat);
-            if (existingLongIdx >= 0) { recordUndo(); notes.splice(existingLongIdx, 1); return; }
+            if (existingLongIdx >= 0 && currentNoteType !== 'hold') { recordUndo(); notes.splice(existingLongIdx, 1); return; }
 
             if(rejectOverlappingLayerNote(snappedBeat,lane))return;
             recordUndo();
@@ -2917,13 +3043,14 @@
         }
 
         function calculateSelection() {
+            dragStartPos.y = beatToY(dragStartBeat);
             const x1 = Math.min(dragStartPos.x, dragCurrentPos.x); const x2 = Math.max(dragStartPos.x, dragCurrentPos.x);
             const y1 = Math.min(dragStartPos.y, dragCurrentPos.y); const y2 = Math.max(dragStartPos.y, dragCurrentPos.y);
             const cameraLaneX = START_X + TOTAL_LANES * LANE_WIDTH + CAMERA_LANE_GAP;
             const bsLaneX = cameraLaneX + CAMERA_LANE_WIDTH + BS_LANE_GAP;
             const bpmLaneX = bsLaneX + BS_LANE_WIDTH + BPM_LANE_GAP;
             const sigLaneX = bpmLaneX + BPM_LANE_WIDTH + SIG_LANE_GAP;
-            const effectLanes = effectLanePage === 2 ? { JUDGE_LINE: [cameraLaneX, cameraLaneX + CAMERA_LANE_WIDTH] } : effectLanePage === 1 ? {
+            const effectLanes = effectLanePage === 2 ? { JUDGE_LINE: [cameraLaneX, cameraLaneX + CAMERA_LANE_WIDTH], STAGE_VIS: [bsLaneX, bsLaneX + BS_LANE_WIDTH], LANE_FOLD: [bpmLaneX, bpmLaneX+BPM_LANE_WIDTH] } : effectLanePage === 1 ? {
                 LANE_VIS: [cameraLaneX, cameraLaneX + CAMERA_LANE_WIDTH], UI_VIS: [bsLaneX, bsLaneX + BS_LANE_WIDTH], NS: [bpmLaneX, bpmLaneX + BPM_LANE_WIDTH], FILTER: [sigLaneX, sigLaneX + SIG_LANE_WIDTH], GLITCH: [sigLaneX, sigLaneX + SIG_LANE_WIDTH]
             } : {
                 CAMERA: [cameraLaneX, cameraLaneX + CAMERA_LANE_WIDTH], CAMERA_ADV: [cameraLaneX, cameraLaneX + CAMERA_LANE_WIDTH],
@@ -2932,9 +3059,9 @@
             selectedEffectEvents = changeEvents.filter(event => {
                 const laneBounds = effectLanes[event.type];
                 if (!laneBounds || x2 < laneBounds[0] || x1 > laneBounds[1]) return false;
-                if (event.type === 'JUDGE_LINE' || event.type === 'CAMERA' || event.type === 'CAMERA_ADV' || event.type === 'NS' || event.type === 'FILTER' || event.type === 'GLITCH' || event.type === 'LANE_VIS' || event.type === 'UI_VIS') {
+                if (event.type === 'JUDGE_LINE' || event.type === 'CAMERA' || event.type === 'CAMERA_ADV' || event.type === 'NS' || event.type === 'FILTER' || event.type === 'GLITCH' || event.type === 'LANE_VIS' || event.type === 'UI_VIS' || event.type === 'STAGE_VIS' || event.type === 'LANE_FOLD') {
                     const spec = event.type.endsWith('_VIS') ? null : parseCameraPreviewValue(event.val);
-                    const duration = event.type === 'JUDGE_LINE' ? parseJudgementLineSpec(event.val).duration : event.type === 'NS' ? parseNsSpec(event.val).duration : (event.type.endsWith('_VIS') || event.type === 'GLITCH' || event.type === 'FILTER') ? Math.max(0, parseFloat(String(event.val).split(',')[event.type === 'FILTER' ? 2 : 1]) || 0) : cameraTotalDuration(spec);
+                    const duration = event.type === 'JUDGE_LINE' ? parseJudgementLineSpec(event.val).duration : event.type === 'NS' ? parseNsSpec(event.val).duration : event.type==='LANE_FOLD' ? parseLaneFoldSpec(event.val).duration : (event.type.endsWith('_VIS') || event.type === 'GLITCH' || event.type === 'FILTER') ? Math.max(0, parseFloat(String(event.val).split(',')[event.type === 'FILTER' ? 2 : 1]) || 0) : cameraTotalDuration(spec);
                     const eventY1 = beatToY(event.beat), eventY2 = beatToY(event.type==='JUDGE_LINE'?judgementLineVisualEndBeat(event):event.type==='FILTER'||event.type==='GLITCH'?filterVisualEndBeat(event):event.beat+duration);
                     const top = Math.min(eventY1, eventY2), bottom = Math.max(eventY1, eventY2);
                     return Math.max(bottom, top + 7) >= y1 && top <= y2;
@@ -2963,6 +3090,19 @@
 
         function updateSelection() {
             const info = document.getElementById('select-info'); const zone = document.getElementById('batch-edit-zone');
+            const bsZone = document.getElementById('bs-series-zone');
+            const bsEvents = selectedEffectEvents.length > 1 && selectedEffectEvents.every(event => event.type === 'BS')
+                ? selectedEffectEvents.slice().sort((a,b) => a.beat - b.beat) : [];
+            bsZone.style.display = bsEvents.length ? 'flex' : 'none';
+            if (bsEvents.length) {
+                const key = bsEvents.map(event => event.beat).join('|');
+                if (key !== selectedBsSeriesKey) {
+                    document.getElementById('bs-series-start').value = bsEvents[0].val;
+                    document.getElementById('bs-series-end').value = bsEvents[bsEvents.length - 1].val;
+                    selectedBsSeriesKey = key;
+                }
+                updateBsSeriesPreview();
+            } else selectedBsSeriesKey = '';
             if (selectedEffectEvents.length > 0) {
                 info.textContent = `選択中のイベント: ${selectedEffectEvents.length}コ` + (selectedEffectEvents.length === 1 ? ` (${selectedEffectEvents[0].type} / ${selectedEffectEvents[0].beat.toFixed(2)}拍)` : ''); zone.style.display = 'none';
             } else if (selectedCameraEvent) {
@@ -2975,6 +3115,39 @@
                 const ssValues = [...new Set(selectedNotes.map(n => Number.isFinite(+n.ss) ? +n.ss : null))];
                 if (ssValues.length === 1 && ssValues[0] !== null) document.getElementById('note-ss-value').value = ssValues[0];
             } else { info.textContent = `選択中のオブジェクト: 0コ`; zone.style.display = 'none'; }
+        }
+
+        function calculateBsSeries(start, end, count) {
+            if (!Number.isFinite(start) || !Number.isFinite(end) || count < 2) return null;
+            const step = (end - start) / (count - 1);
+            return Array.from({length:count}, (_,i) => i === count - 1 ? end : Number((start + step * i).toFixed(6)));
+        }
+
+        function updateBsSeriesPreview() {
+            const preview = document.getElementById('bs-series-preview');
+            const startInput = document.getElementById('bs-series-start').value;
+            const endInput = document.getElementById('bs-series-end').value;
+            const events = selectedEffectEvents.filter(event => event.type === 'BS');
+            if (!startInput.trim() || !endInput.trim()) { preview.textContent = '開始値と終了値を入力してください。'; return; }
+            const values = calculateBsSeries(Number(startInput), Number(endInput), events.length);
+            if (!values || values.some(value => !Number.isFinite(value))) { preview.textContent = '有効な数値を入力してください。'; return; }
+            const step = Number(((values.at(-1) - values[0]) / (values.length - 1)).toFixed(6));
+            preview.textContent = `${values.length}個 / 刻み ${step >= 0 ? '+' : ''}${step} / ${values[0]} → ${values.at(-1)}`;
+        }
+
+        function applyBsSeries() {
+            const events = selectedEffectEvents.filter(event => event.type === 'BS').slice().sort((a,b) => a.beat - b.beat);
+            if (events.length < 2 || events.length !== selectedEffectEvents.length) return;
+            const startInput = document.getElementById('bs-series-start').value;
+            const endInput = document.getElementById('bs-series-end').value;
+            if (!startInput.trim() || !endInput.trim()) { alert('開始値と終了値を入力してください。'); return; }
+            const values = calculateBsSeries(Number(startInput), Number(endInput), events.length);
+            if (!values || values.some(value => !Number.isFinite(value))) { alert('有効な数値を入力してください。'); return; }
+            recordUndo();
+            events.forEach((event,i) => { event.val = values[i]; });
+            updateGimmickList();
+            updateSelection();
+            draw(); drawGame();
         }
 
         function applySsToSelected() {
@@ -3137,7 +3310,7 @@
         function openSelectedEffectEditor() {
             if (!selectedCameraEvent) return;
             if(selectedCameraEvent.type==='JUDGE_LINE'){openJudgementLineDialog(selectedCameraEvent.beat,selectedCameraEvent);return;}
-            if (selectedCameraEvent.type === 'BS' || selectedCameraEvent.type === 'NS' || selectedCameraEvent.type === 'BPM' || selectedCameraEvent.type === 'SIG' || selectedCameraEvent.type === 'FILTER' || selectedCameraEvent.type === 'GLITCH' || selectedCameraEvent.type === 'LANE_VIS' || selectedCameraEvent.type === 'UI_VIS') {
+            if (selectedCameraEvent.type === 'BS' || selectedCameraEvent.type === 'NS' || selectedCameraEvent.type === 'BPM' || selectedCameraEvent.type === 'SIG' || selectedCameraEvent.type === 'FILTER' || selectedCameraEvent.type === 'GLITCH' || selectedCameraEvent.type === 'LANE_VIS' || selectedCameraEvent.type === 'UI_VIS' || selectedCameraEvent.type === 'STAGE_VIS' || selectedCameraEvent.type === 'LANE_FOLD') {
                 editingCameraEvent = selectedCameraEvent;
                 activeDialogBeat = selectedCameraEvent.beat;
                 document.getElementById('dialog-beat-disp').textContent = selectedCameraEvent.beat.toFixed(2);
@@ -3149,6 +3322,12 @@
                     document.getElementById('ns-target').value=ns.target;
                     document.getElementById('ns-mode').value=String(ns.mode);
                     document.getElementById('ns-duration').value=ns.duration;
+                }
+                if (selectedCameraEvent.type === 'LANE_FOLD') {
+                    const spec=parseLaneFoldSpec(selectedCameraEvent.val);
+                    document.getElementById('lane-fold-target').value=spec.target;
+                    document.getElementById('lane-fold-slider').value=spec.target;
+                    document.getElementById('lane-fold-duration').value=spec.duration;
                 }
                 if (selectedCameraEvent.type === 'FILTER' || selectedCameraEvent.type === 'GLITCH') {
                     const parts=String(selectedCameraEvent.val).split(',');
@@ -3217,8 +3396,9 @@
             const filter = type === 'FILTER';
             const judgementLine = type === 'JUDGE_LINE';
             document.getElementById('judgement-line-value-group').style.display=judgementLine?'flex':'none';
-            const visibility = type === 'LANE_VIS' || type === 'UI_VIS';
-            document.getElementById('dialog-value-group').style.display = camera || visibility || ns || filter || judgementLine ? 'none' : 'flex';
+            const visibility = type === 'LANE_VIS' || type === 'UI_VIS' || type === 'STAGE_VIS';
+            document.getElementById('dialog-value-group').style.display = camera || visibility || ns || filter || judgementLine || type==='LANE_FOLD' ? 'none' : 'flex';
+            document.getElementById('lane-fold-value-group').style.display = type==='LANE_FOLD' ? 'flex' : 'none';
             document.getElementById('ns-value-group').style.display = ns ? 'flex' : 'none';
             document.getElementById('filter-value-group').style.display = filter ? 'flex' : 'none';
             if(filter)updateFilterModeHint();
@@ -3281,13 +3461,14 @@
 
         function saveGimmickDialog() {
             const type = document.getElementById('dialog-type').value;
-            if(currentLayer!==1 && ['JUDGE_LINE','FILTER','GLITCH','LANE_VIS','UI_VIS','CAMERA','CAMERA_ADV'].includes(type)) {
+            if(currentLayer!==1 && ['JUDGE_LINE','FILTER','GLITCH','LANE_VIS','UI_VIS','STAGE_VIS','CAMERA','CAMERA_ADV','LANE_FOLD'].includes(type)) {
                 alert('この演出はレイヤー1でのみ設定できます。'); return;
             }
             const judgementLineValue=type==='JUDGE_LINE'?judgementLineDialogValue():undefined;
             if(judgementLineValue===null)return;
             const rawVal = type==='JUDGE_LINE'?judgementLineValue:(type === 'CAMERA' || type === 'CAMERA_ADV') ? cameraDialogValue() :
-                (type === 'LANE_VIS' || type === 'UI_VIS') ? `${document.getElementById('visibility-target').value},${Math.max(0,Math.min(32,parseFloat(document.getElementById('visibility-duration').value) || 0))}` :
+                type === 'LANE_FOLD' ? `${document.getElementById('lane-fold-target').value},${document.getElementById('lane-fold-duration').value}` :
+                (type === 'LANE_VIS' || type === 'UI_VIS' || type === 'STAGE_VIS') ? `${document.getElementById('visibility-target').value},${Math.max(0,Math.min(32,parseFloat(document.getElementById('visibility-duration').value) || 0))}` :
                 type === 'NS' ? `${document.getElementById('ns-target').value},${document.getElementById('ns-mode').value},${document.getElementById('ns-duration').value}` :
                 type === 'FILTER' ? `${document.getElementById('filter-kind').value},${document.getElementById('filter-strength').value},${document.getElementById('filter-duration').value},${document.getElementById('filter-mode').value},${document.getElementById('filter-target').value}` : document.getElementById('dialog-val').value.trim();
             const val = parseChangeValue(type, rawVal);
@@ -3433,7 +3614,7 @@
             });
 
             changeEvents.forEach(e => {
-                if (e.type === 'JUDGE_LINE' || e.type === 'CAMERA' || e.type === 'CAMERA_ADV' || e.type === 'BS' || e.type === 'NS' || e.type === 'BPM' || e.type === 'SIG' || e.type === 'FILTER' || e.type === 'GLITCH' || e.type === 'LANE_VIS' || e.type === 'UI_VIS') return;
+                if (e.type === 'JUDGE_LINE' || e.type === 'CAMERA' || e.type === 'CAMERA_ADV' || e.type === 'BS' || e.type === 'NS' || e.type === 'BPM' || e.type === 'SIG' || e.type === 'FILTER' || e.type === 'GLITCH' || e.type === 'LANE_VIS' || e.type === 'UI_VIS' || e.type === 'STAGE_VIS' || e.type === 'LANE_FOLD') return;
                 if (e.beat < minRenderBeat - 1 || e.beat > maxRenderBeat + 1) return;
                 const y = beatToY(e.beat); ctx.strokeStyle = '#ff55ff'; ctx.lineWidth = 2;
                 ctx.beginPath(); ctx.moveTo(START_X, y); ctx.lineTo(START_X + TOTAL_LANES * LANE_WIDTH, y); ctx.stroke();
@@ -3644,6 +3825,40 @@
                     ctx.fillStyle='#fff';ctx.font='bold 9px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(parseJudgementLineSpec(event.val).mode!=='INSTANT'?'変化':'固定',x+width/2,Math.max(24,top+9));
                 }
                 ctx.fillStyle='#9de9da';ctx.font='bold 10px Arial';ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillText('判定線',x+width/2,15);
+                const starX=x+CAMERA_LANE_WIDTH+BS_LANE_GAP;
+                ctx.fillStyle='rgba(160,130,240,.08)';ctx.fillRect(starX,0,BS_LANE_WIDTH,canvas.height);
+                ctx.strokeStyle='rgba(180,150,255,.65)';ctx.lineWidth=1;ctx.strokeRect(starX,0,BS_LANE_WIDTH,canvas.height);
+                for(let b=cameraGridStart;b<=maxRenderBeat+cameraGridStep;b+=cameraGridStep){
+                    const y=beatToY(b);ctx.strokeStyle=Math.abs(b-Math.round(b))<.001?'rgba(255,255,255,.32)':'rgba(160,130,240,.13)';
+                    ctx.beginPath();ctx.moveTo(starX,y);ctx.lineTo(starX+BS_LANE_WIDTH,y);ctx.stroke();
+                }
+                for(const event of changeEvents){
+                    if(event.type!=='STAGE_VIS')continue;
+                    const parts=String(event.val).split(','),duration=Math.max(0,parseFloat(parts[1])||0);
+                    if(event.beat+duration<minRenderBeat-1||event.beat>maxRenderBeat+1)continue;
+                    const a=beatToY(event.beat),b=beatToY(event.beat+duration),top=Math.min(a,b),height=Math.max(8,Math.abs(a-b));
+                    ctx.fillStyle='rgba(145,105,215,.72)';ctx.fillRect(starX+3,top,BS_LANE_WIDTH-6,height);
+                    ctx.strokeStyle=selectedEffects.has(event)?'#fff':'#d2bcff';ctx.lineWidth=selectedEffects.has(event)?3:1;ctx.strokeRect(starX+3,top,BS_LANE_WIDTH-6,height);
+                    ctx.fillStyle='#fff';ctx.font='bold 9px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(parseFloat(parts[0])>=50?'表示':'非表示',starX+BS_LANE_WIDTH/2,top+Math.min(11,height/2));
+                }
+                ctx.fillStyle='#d2bcff';ctx.font='bold 10px Arial';ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillText('星座',starX+BS_LANE_WIDTH/2,15);
+                const foldX=starX+BS_LANE_WIDTH+BPM_LANE_GAP;
+                ctx.fillStyle='rgba(88,205,235,.08)';ctx.fillRect(foldX,0,BPM_LANE_WIDTH,canvas.height);
+                ctx.strokeStyle='rgba(88,205,235,.65)';ctx.lineWidth=1;ctx.strokeRect(foldX,0,BPM_LANE_WIDTH,canvas.height);
+                for(let b=cameraGridStart;b<=maxRenderBeat+cameraGridStep;b+=cameraGridStep){
+                    const y=beatToY(b);ctx.strokeStyle=Math.abs(b-Math.round(b))<.001?'rgba(255,255,255,.32)':'rgba(88,205,235,.13)';
+                    ctx.beginPath();ctx.moveTo(foldX,y);ctx.lineTo(foldX+BPM_LANE_WIDTH,y);ctx.stroke();
+                }
+                for(const event of changeEvents){
+                    if(event.type!=='LANE_FOLD')continue;
+                    const spec=parseLaneFoldSpec(event.val);
+                    if(event.beat+spec.duration<minRenderBeat-1||event.beat>maxRenderBeat+1)continue;
+                    const a=beatToY(event.beat),b=beatToY(event.beat+spec.duration),top=Math.min(a,b),height=Math.max(14,Math.abs(a-b));
+                    ctx.fillStyle='rgba(62,163,205,.76)';ctx.fillRect(foldX+3,top,BPM_LANE_WIDTH-6,height);
+                    ctx.strokeStyle=selectedEffects.has(event)?'#fff':'#b5f2ff';ctx.lineWidth=selectedEffects.has(event)?3:1;ctx.strokeRect(foldX+3,top,BPM_LANE_WIDTH-6,height);
+                    ctx.fillStyle='#fff';ctx.font='bold 9px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(spec.target),foldX+BPM_LANE_WIDTH/2,top+8);
+                }
+                ctx.fillStyle='#8de8ff';ctx.font='bold 10px Arial';ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillText('FOLD',foldX+BPM_LANE_WIDTH/2,15);
             }
             ctx.fillStyle='#8b949e';ctx.font='10px Arial';ctx.textAlign='left';ctx.textBaseline='alphabetic';
             ctx.fillText((effectLanePage+1)+'/3  ← →',START_X+TOTAL_LANES*LANE_WIDTH+CAMERA_LANE_GAP,canvas.height-8);
@@ -3781,6 +3996,7 @@
             ctx.beginPath(); ctx.moveTo(START_X, judgeLineY); ctx.lineTo(START_X + TOTAL_LANES * LANE_WIDTH, judgeLineY); ctx.stroke();
 
             if (isDragging && isSelectMode) {
+                dragStartPos.y = beatToY(dragStartBeat);
                 ctx.strokeStyle = 'rgba(255, 235, 59, 0.8)'; ctx.lineWidth = 1; ctx.fillStyle = 'rgba(255, 235, 59, 0.1)';
                 ctx.fillRect(dragStartPos.x, dragStartPos.y, dragCurrentPos.x - dragStartPos.x, dragCurrentPos.y - dragStartPos.y);
                 ctx.strokeRect(dragStartPos.x, dragStartPos.y, dragCurrentPos.x - dragStartPos.x, dragCurrentPos.y - dragStartPos.y);
@@ -3909,7 +4125,7 @@
                             const type = parts[1].trim();
                             if (type === 'TS' || type === 'LANE') return;
                             const rawVal = parts.slice(2).join(',').trim();
-                            if(activeImportLayer===1 || !['JUDGE_LINE','FILTER','GLITCH','LANE_VIS','UI_VIS','CAMERA','CAMERA_ADV'].includes(type))
+                            if(activeImportLayer===1 || !['JUDGE_LINE','FILTER','GLITCH','LANE_VIS','UI_VIS','STAGE_VIS','CAMERA','CAMERA_ADV','LANE_FOLD'].includes(type))
                                 layerData(activeImportDiff,activeImportLayer).changeEvents.push({ beat: parseFloat(parts[0]), type: type, val: parseChangeValue(type, rawVal) });
                         }
                     } else {
@@ -3997,7 +4213,8 @@
             window.chrome.webview.postMessage(JSON.stringify({type:'chart-overview',
                 title:document.getElementById('meta-title').value,composer:document.getElementById('meta-composer').value,
                 difficulty:currentDifficulty,level:String(data.levelLabel || data.level || ''),lanes:TOTAL_LANES,
-                currentLayer,layers:layerNumbers().map(number=>({number,notes:layerData(currentDifficulty,number).notes.map(note=>({...note,size:largeNoteSpan(note)}))}))}));
+                bpm:Number(document.getElementById('meta-bpm').value)||120,timeSignature:getInitialTimeSignature().text,
+                currentLayer,layers:layerNumbers().map(number=>({number,notes:layerData(currentDifficulty,number).notes.map(note=>({...note,size:largeNoteSpan(note)})),changes:layerData(currentDifficulty,number).changeEvents.filter(e=>e.type==='BPM'||e.type==='SIG').map(e=>({beat:e.beat,type:e.type,val:String(e.val)}))}))}));
         }
 
         function exportChart(nativeTest = false) {
@@ -4072,7 +4289,7 @@
                 const layer=layerData(d,layerNumber);
                 if(layerNumber>1 && !layer.notes.length && !layer.changeEvents.length) continue;
                 output.push(`LAYER: ${layerNumber}`);
-                const exportedChanges = layer.changeEvents.filter(e => e.type !== 'TS' && e.type !== 'LANE' && (layerNumber===1 || !['JUDGE_LINE','FILTER','GLITCH','LANE_VIS','UI_VIS','CAMERA','CAMERA_ADV'].includes(e.type)));
+                const exportedChanges = layer.changeEvents.filter(e => e.type !== 'TS' && e.type !== 'LANE' && (layerNumber===1 || !['JUDGE_LINE','FILTER','GLITCH','LANE_VIS','UI_VIS','STAGE_VIS','CAMERA','CAMERA_ADV','LANE_FOLD'].includes(e.type)));
                 exportedChanges.sort((a,b) => (a.beat || 0) - (b.beat || 0));
                 exportedChanges.forEach(e => { output.push(`CHANGE: ${formatChartBeat(e.beat)}, ${e.type}, ${formatChangeValue(e)}`); });
                 
@@ -4335,6 +4552,7 @@
         }
         function startTestPlay(restart=false) {
             if(!audioBuffer){alert('先に譜面の音源を読み込んでください。');return;}
+            if (!restart) testPlay.speed=previewNoteSpeed;
             if(isPlaying) togglePlayback();
             if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
             if(!bgmGainNode){bgmGainNode=audioCtx.createGain();bgmGainNode.connect(audioCtx.destination);}
@@ -4429,7 +4647,7 @@
             const canvas=document.getElementById('test-play-canvas'),g=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
             g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,w,h);g.fillStyle='#02050a';g.fillRect(0,0,w,h);
             window.testPlayFilterBackground?.(canvas,beat);
-            const eye=cameraAtPreviewBeat(beat),target={x:0,y:0,z:5},norm=v=>{const l=Math.hypot(v.x,v.y,v.z)||1;return{x:v.x/l,y:v.y/l,z:v.z/l};};
+            const eye=cameraAtPreviewBeat(beat),target={x:0,y:laneFoldCenterY(laneFoldAtBeat(beat)),z:5},norm=v=>{const l=Math.hypot(v.x,v.y,v.z)||1;return{x:v.x/l,y:v.y/l,z:v.z/l};};
             const f=eye.advanced?norm({x:Math.cos(eye.rx*Math.PI/180)*Math.sin(eye.ry*Math.PI/180),y:Math.sin(eye.rx*Math.PI/180),z:Math.cos(eye.rx*Math.PI/180)*Math.cos(eye.ry*Math.PI/180)}):norm({x:-eye.x,y:-eye.y,z:5-eye.z});
             let s=norm({x:-f.z,y:0,z:f.x}),u={x:s.y*f.z-s.z*f.y,y:s.z*f.x-s.x*f.z,z:s.x*f.y-s.y*f.x};
             if(eye.advanced&&eye.rz){const a=eye.rz*Math.PI/180,c=Math.cos(a),q=Math.sin(a),o={...s};s={x:o.x*c+u.x*q,y:o.y*c+u.y*q,z:o.z*c+u.z*q};u={x:u.x*c-o.x*q,y:u.y*c-o.y*q,z:u.z*c-o.z*q};}
@@ -4441,29 +4659,42 @@
             const largeTexture=(left,right,nearZ,farZ,textureSource=testLargeTexture)=>{
                 const edge=Math.min((right-left)*.18,(right-left)/3),xs=[left,left+edge,right-edge,right];
                 for(let i=0;i<3;i++){
-                    const a=project({x:xs[i],y:.052,z:nearZ}),b=project({x:xs[i+1],y:.052,z:nearZ}),c=project({x:xs[i],y:.052,z:farZ});
-                    if(!a||!b||!c)return false;
-                    g.save();
-                    g.setTransform((b.x-a.x)/128,(b.y-a.y)/128,(c.x-a.x)/128,(c.y-a.y)/128,a.x,a.y);
-                    g.drawImage(textureSource,i*128,0,128,128,0,0,128,128);
-                    g.restore();
+                    const step=2.3/TOTAL_LANES;
+                    for(let x0=xs[i];x0<xs[i+1]-.000001;){
+                        const seam=-1.15+(Math.floor((x0+1.15+.000001)/step)+1)*step;
+                        let x1=Math.min(xs[i+1],seam);if(x1<=x0+.000001)x1=xs[i+1];
+                        const lift=1-.9*Math.abs(fold)/100;
+                        const a=project(mapLaneFold({x:x0,y:.052,z:nearZ},fold,TOTAL_LANES,lift)),b=project(mapLaneFold({x:x1,y:.052,z:nearZ},fold,TOTAL_LANES,lift)),c=project(mapLaneFold({x:x0,y:.052,z:farZ},fold,TOTAL_LANES,lift));
+                        if(!a||!b||!c)return false;
+                        const srcX=i*128+(x0-xs[i])/(xs[i+1]-xs[i])*128,srcWidth=(x1-x0)/(xs[i+1]-xs[i])*128;
+                        g.save();
+                        g.setTransform((b.x-a.x)/128,(b.y-a.y)/128,(c.x-a.x)/128,(c.y-a.y)/128,a.x,a.y);
+                        g.drawImage(textureSource,srcX,0,srcWidth,128,0,0,128,128);
+                        g.restore();
+                        x0=x1;
+                    }
                 }
                 return true;
             };
             const line3d=(a,b,color,width)=>{let da=depthOf(a),db=depthOf(b);if(da<=nearDepth&&db<=nearDepth)return;if(da<=nearDepth)a=intersect(a,b);else if(db<=nearDepth)b=intersect(b,a);const pa=project(a),pb=project(b);if(!pa||!pb)return;g.beginPath();g.moveTo(pa.x,pa.y);g.lineTo(pb.x,pb.y);g.strokeStyle=color;g.lineWidth=width;g.stroke();};
             const half=1.15,near=-12,far=52,noteFar=45,lw=2.3/TOTAL_LANES,scroll=getTestPlayScrollPos(beat),nsMultiplier=getTestPlayNsMultiplierAt(beat),zOf=b=>(getTestPlayScrollPos(b)-scroll)*testPlay.speed*10;
+            const fold=laneFoldAtBeat(beat),lanePoly=(ps,fill)=>drawFoldedQuad(ps,fold,vertices=>poly(vertices,fill),1-.9*Math.abs(fold)/100);
             window.drawMobileSideLights?.(poly,scroll,testPlay.speed,nsMultiplier);
             const judgementPositions=judgementLinePositionsAt(beat,testPlay.judgementLineEvents||[]);
-            const depthAtFraction=fraction=>{
+            const depthAtFraction=(fraction,lane)=>{
                 if(fraction<=0)return 0;if(fraction>=1)return noteFar;
-                const screenY=z=>project({x:0,y:0,z})?.y;
-                const nearY=screenY(0),farY=screenY(noteFar);
-                if(!Number.isFinite(nearY)||!Number.isFinite(farY)||Math.abs(farY-nearY)<1)return noteFar*fraction;
-                const targetY=nearY+(farY-nearY)*fraction;let low=0,high=noteFar;
+                const laneCenter=mapLaneFold({x:-half+(lane+.5)*lw,y:0,z:0},fold);
+                const screenY=z=>project({x:laneCenter.x,y:laneCenter.y,z})?.y;
+                let nearZ=0,nearY=screenY(nearZ);const farY=screenY(noteFar);
+                if(!Number.isFinite(nearY))for(const candidate of [.11,.25,.5,1,2,4]){
+                    nearY=screenY(candidate);if(Number.isFinite(nearY)){nearZ=candidate;break;}
+                }
+                if(!Number.isFinite(nearY)||!Number.isFinite(farY)||Math.abs(farY-nearY)<1)return nearZ+(noteFar-nearZ)*fraction;
+                const targetY=nearY+(farY-nearY)*fraction;let low=nearZ,high=noteFar;
                 for(let i=0;i<18;i++){const mid=(low+high)/2,y=screenY(mid);if(!Number.isFinite(y))break;if((y-targetY)*(farY-nearY)<0)low=mid;else high=mid;}
                 return(low+high)/2;
             };
-            const judgementDepths=judgementPositions.map(value=>depthAtFraction(value/100)),maxJudgementDepth=Math.max(0,...judgementDepths);
+            const judgementDepths=judgementPositions.map((value,lane)=>Math.max(depthAtFraction(value/100,lane),2*Math.abs(fold)/100)),maxJudgementDepth=Math.max(0,...judgementDepths);
             const fever=(testPlay.feverSections||feverSections).find(x=>beat>=x.startBeat&&beat<=x.endBeat);
             if(fever){
                 const elapsedBeat=beat-fever.startBeat,phase=elapsedBeat-Math.floor(elapsedBeat),pulse=Math.pow(1-phase,2),band=w*.14,maxAlpha=(205/255)*pulse;
@@ -4479,17 +4710,21 @@
                 g.fillStyle=rightAura;g.fillRect(w-band,0,band,h);
             }
             g.globalAlpha=visibilityAtBeat('LANE_VIS',beat);
-            for(let lane=1;lane<=TOTAL_LANES;lane++){const l=half-lane*lw;poly([{x:l,y:.004,z:near},{x:l+lw,y:.004,z:near},{x:l+lw,y:.004,z:far},{x:l,y:.004,z:far}],lane%2?'rgb(8,20,37)':'rgb(11,25,44)');}
-            for(let line=0;line<=TOTAL_LANES;line++){const x=-half+line*lw;line3d({x,y:.014,z:near},{x,y:.014,z:far},line===0||line===TOTAL_LANES?'rgb(85,170,215)':'rgb(37,77,110)',(line===0||line===TOTAL_LANES?2:1)*(devicePixelRatio||1));}
+            for(let lane=1;lane<=TOTAL_LANES;lane++){const l=half-lane*lw;lanePoly([{x:l,y:.004,z:near},{x:l+lw,y:.004,z:near},{x:l+lw,y:.004,z:far},{x:l,y:.004,z:far}],lane%2?'rgb(8,20,37)':'rgb(11,25,44)');}
+            for(let line=0;line<=TOTAL_LANES;line++){const x=-half+line*lw;line3d(mapLaneFold({x,y:.014,z:near},fold),mapLaneFold({x,y:.014,z:far},fold),line===0||line===TOTAL_LANES?'rgb(85,170,215)':'rgb(37,77,110)',(line===0||line===TOTAL_LANES?2:1)*(devicePixelRatio||1));}
             g.globalAlpha=1;
             const unit=testPlay.speed*10,minScroll=scroll+near/unit,maxScroll=scroll+noteFar/unit;
             g.globalAlpha=visibilityAtBeat('LANE_VIS',beat);
-            for(const record of visibleTestRecords(testPlay.measureIndex,minScroll,maxScroll)){const z=(record.scrollStart-scroll)*unit;poly([{x:-half,y:.022,z:z-.012},{x:half,y:.022,z:z-.012},{x:half,y:.022,z:z+.012},{x:-half,y:.022,z:z+.012}],'rgba(90,170,230,.39)');}
+            for(const record of visibleTestRecords(testPlay.measureIndex,minScroll,maxScroll)){const z=(record.scrollStart-scroll)*unit;lanePoly([{x:-half,y:.022,z:z-.012},{x:half,y:.022,z:z-.012},{x:half,y:.022,z:z+.012},{x:-half,y:.022,z:z+.012}],'rgba(90,170,230,.39)');}
             g.globalAlpha=1;
             const reverseExtent=Math.max(noteFar,Math.abs(near-maxJudgementDepth)),visible=[],songSeconds=testSongSeconds();
             for(const layer of testPlay.layers.values()){
                 const layerBeat=testLayerTimeToBeat(songSeconds,layer),layerScroll=testLayerScrollAt(layerBeat,layer),layerNs=previewLayerNsAt(layerBeat,layer.nsSegments);
-                const cullUnit=unit*Math.max(Math.abs(layerNs),.1)*layer.minSs,min=layerScroll-reverseExtent/cullUnit,max=layerScroll+reverseExtent/cullUnit;
+                // Match the rendered depth even when NS is 0.001 or zero.
+                // A 0.1 floor makes distant notes pop in just before judgement.
+                const cullUnit=unit*Math.abs(layerNs)*layer.minSs;
+                const min=cullUnit>0?layerScroll-reverseExtent/cullUnit:-Infinity;
+                const max=cullUnit>0?layerScroll+reverseExtent/cullUnit:Infinity;
                 for(const record of [...visibleTestRecords(layer.guideIndex,min,max),...visibleTestRecords(layer.noteIndex,min,max)])visible.push({...record,currentScroll:layerScroll,nsMultiplier:layerNs});
             }
             const segments=[];
@@ -4502,22 +4737,22 @@
             }
             segments.sort((a,b)=>(b.record.scrollStart-b.record.currentScroll)*b.record.nsMultiplier-(a.record.scrollStart-a.record.currentScroll)*a.record.nsMultiplier);
             for(const segment of segments){const {record,lane,span,offset}=segment,n=record.note;const state=testStateFor(n);if(state.done&&!state.missed)continue;const ss=Number.isFinite(+n.ss)?Math.sign(+n.ss||1)*Math.max(.01,Math.min(1000,Math.abs(+n.ss))):1;let z=(record.scrollStart-record.currentScroll)*unit*record.nsMultiplier*ss+offset,end=(record.scrollEnd-record.currentScroll)*unit*record.nsMultiplier*ss+offset,l=half-(lane+span-1)*lw,r=half-(lane-1)*lw;
-                if(n.type==='long'||n.type==='guide'){let nz=Math.max(near,Math.min(z,end)),fz=Math.min(noteFar,Math.max(z,end));if(n.type==='long'&&state.started){if(ss<0)fz=Math.min(fz,offset);else nz=Math.max(nz,offset);}if(fz>nz){if(n.type==='guide'){const segments=12,base=n.color||'#10b981',opacity=Number.isFinite(+n.guideOpacity)?Math.max(0,Math.min(1,+n.guideOpacity)):1;for(let k=0;k<segments;k++){const a=nz+(fz-nz)*k/segments,b=nz+(fz-nz)*(k+1)/segments,fraction=(a-z)/(end-z||1);let fade=n.guideOpacityMode==='fade'?1-fraction:n.guideOpacityMode==='rise'?fraction:1;poly([{x:l+.018,y:.014,z:a},{x:r-.018,y:.014,z:a},{x:r-.018,y:.014,z:b},{x:l+.018,y:.014,z:b}],colorWithAlpha(base,opacity*Math.max(0,Math.min(1,fade))));}}else poly([{x:l+.009,y:.034,z:nz},{x:r-.009,y:.034,z:nz},{x:r-.009,y:.034,z:fz},{x:l+.009,y:.034,z:fz}],'rgba(170,105,255,.53)');}if(n.type==='guide')continue;if(end>=near&&end<=noteFar)poly([{x:l+.015,y:.072,z:end-.14},{x:r-.015,y:.072,z:end-.14},{x:r-.015,y:.072,z:end+.14},{x:l+.015,y:.072,z:end+.14}],n.holdEnd?'#ffd700':(n.color||'#ba85ff'));if(state.started)continue;}
-                if(z<near||z>noteFar)continue;const thick=.22+.009*Math.max(0,z),color=n.color||(n.type==='large'?'#6fa88b':n.type==='largeHold'?'#ffd700':n.type==='damage'?'#ff4b5a':n.type==='long'?'#ba85ff':n.type==='hold'?'#ffd700':n.lane%2===0?'#1e90ff':'#fff');if(n.type==='large'&&largeTexture(l+.006,r-.006,z-thick/2-.018,z+thick/2+.018))continue;poly([{x:l+.006,y:.041,z:z-thick/2-.018},{x:r-.006,y:.041,z:z-thick/2-.018},{x:r-.006,y:.041,z:z+thick/2+.018},{x:l+.006,y:.041,z:z+thick/2+.018}],'rgba(245,250,255,.86)');poly([{x:l+.015,y:.052,z:z-thick/2},{x:r-.015,y:.052,z:z-thick/2},{x:r-.015,y:.052,z:z+thick/2},{x:l+.015,y:.052,z:z+thick/2}],color);}
+                if(n.type==='long'||n.type==='guide'){let nz=Math.max(near,Math.min(z,end)),fz=Math.min(noteFar,Math.max(z,end));if(n.type==='long'&&state.started){if(ss<0)fz=Math.min(fz,offset);else nz=Math.max(nz,offset);}if(fz>nz){if(n.type==='guide'){const segments=12,base=n.color||'#10b981',opacity=Number.isFinite(+n.guideOpacity)?Math.max(0,Math.min(1,+n.guideOpacity)):1;for(let k=0;k<segments;k++){const a=nz+(fz-nz)*k/segments,b=nz+(fz-nz)*(k+1)/segments,fraction=(a-z)/(end-z||1);let fade=n.guideOpacityMode==='fade'?1-fraction:n.guideOpacityMode==='rise'?fraction:1;lanePoly([{x:l+.018,y:.014,z:a},{x:r-.018,y:.014,z:a},{x:r-.018,y:.014,z:b},{x:l+.018,y:.014,z:b}],colorWithAlpha(base,opacity*Math.max(0,Math.min(1,fade))));}}else lanePoly([{x:l+.009,y:.034,z:nz},{x:r-.009,y:.034,z:nz},{x:r-.009,y:.034,z:fz},{x:l+.009,y:.034,z:fz}],'rgba(170,105,255,.53)');}if(n.type==='guide')continue;if(end>=near&&end<=noteFar)lanePoly([{x:l+.015,y:.072,z:end-.14},{x:r-.015,y:.072,z:end-.14},{x:r-.015,y:.072,z:end+.14},{x:l+.015,y:.072,z:end+.14}],n.holdEnd?'#ffd700':(n.color||'#ba85ff'));if(state.started)continue;}
+                if(z<near||z>noteFar)continue;const thick=.22+.009*Math.max(0,z),color=n.color||(n.type==='large'?'#6fa88b':n.type==='largeHold'?'#ffd700':n.type==='damage'?'#ff4b5a':n.type==='long'?'#ba85ff':n.type==='hold'?'#ffd700':n.lane%2===0?'#1e90ff':'#fff');if(n.type==='large'&&largeTexture(l+.006,r-.006,z-thick/2-.018,z+thick/2+.018))continue;lanePoly([{x:l+.006,y:.041,z:z-thick/2-.018},{x:r-.006,y:.041,z:z-thick/2-.018},{x:r-.006,y:.041,z:z+thick/2+.018},{x:l+.006,y:.041,z:z+thick/2+.018}],'rgba(245,250,255,.86)');lanePoly([{x:l+.015,y:.052,z:z-thick/2},{x:r-.015,y:.052,z:z-thick/2},{x:r-.015,y:.052,z:z+thick/2},{x:l+.015,y:.052,z:z+thick/2}],color);}
             g.globalAlpha=visibilityAtBeat('LANE_VIS',beat);
             for(let lane=1;lane<=TOTAL_LANES;lane++){
                 const l=half-lane*lw,z=judgementDepths[lane-1];
-                poly([{x:l,y:.065,z:z-.028},{x:l+lw,y:.065,z:z-.028},{x:l+lw,y:.065,z:z+.028},{x:l,y:.065,z:z+.028}],'#00ffff');
+                lanePoly([{x:l,y:.065,z:z-.028},{x:l+lw,y:.065,z:z-.028},{x:l+lw,y:.065,z:z+.028},{x:l,y:.065,z:z+.028}],'#00ffff');
             }
             g.globalAlpha=1;
             g.globalAlpha=visibilityAtBeat('UI_VIS',beat);
             const scale=devicePixelRatio||1;g.textAlign='center';g.textBaseline='middle';if(testPlay.combo>0){g.font=`bold ${34*scale}px Arial`;g.fillStyle='#f5fbff';g.fillText(String(testPlay.combo),w/2,h*.68);g.font=`${13*scale}px Arial`;g.fillStyle='#9ad9ff';g.fillText('COMBO',w/2,h*.68+30*scale);}if(performance.now()<testPlay.judgeUntil){g.font=`bold ${25*scale}px Arial`;g.fillStyle=testPlay.judge==='MISS'?'#ff5263':'#fff';g.fillText(testPlay.judge,w/2,h*.78);}
-            g.textAlign='left';g.font=`${13*scale}px monospace`;g.fillStyle='#dbeafe';g.fillText(`F3 AUTO: ${testPlay.auto?'ON':'OFF'}   SPEED ${testPlay.speed.toFixed(1)}`,18*scale,54*scale);
+            g.textAlign='left';g.font=`${13*scale}px monospace`;g.fillStyle='#dbeafe';g.fillText(`F3 AUTO: ${testPlay.auto?'ON':'OFF'}   SPEED ${testPlay.speed.toFixed(2)}`,18*scale,54*scale);
             g.globalAlpha=1;
         }
         function testPlayLoop(){if(!testPlay.active)return;const beat=testCurrentBeat();updateTestJudgements(beat);drawTestPlay(beat);testPlay.frame=requestAnimationFrame(testPlayLoop);}
 
-        document.getElementById('test-speed-range').addEventListener('input',e=>{testPlay.speed=Math.max(.5,Math.min(10,parseFloat(e.target.value)||1.6));document.getElementById('test-speed-value').textContent=testPlay.speed.toFixed(1);});
+        document.getElementById('test-speed-range').addEventListener('input',e=>setPreviewNoteSpeed(e.target.value));
         window.addEventListener('resize',()=>{if(testPlay.active)resizeTestPlay();});
         window.addEventListener('keydown',e=>{
             if(e.code==='F11'){

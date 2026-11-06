@@ -35,7 +35,7 @@ internal sealed class MobileSongLibrary
         return result;
     }
 
-    public void ImportZip(Stream input, string name)
+    public string ImportZip(Stream input, string name)
     {
         string safeName = Path.GetFileNameWithoutExtension(name);
         foreach (char ch in Path.GetInvalidFileNameChars()) safeName = safeName.Replace(ch, '_');
@@ -58,5 +58,6 @@ internal sealed class MobileSongLibrary
             using FileStream output = File.Create(destination);
             source.CopyTo(output);
         }
+        return target;
     }
 }

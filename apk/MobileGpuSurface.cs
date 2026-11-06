@@ -29,9 +29,14 @@ internal sealed class MobileGpuFrame
         Color nearColor, Color farColor, float u0 = 0, float v0 = 0, float u1 = 1, float v1 = 1, bool sprite = false)
     {
         if (right <= left || far <= near) return;
+        MobileLaneFold.Split(left, right, projection.FoldLanes, projection.FoldEnabled ? projection.FoldAmount : 0, Emit);
+        void Emit(double segmentLeft, double segmentRight)
+        {
         float[] vertices = new float[40];
-        Put(0, left, far, farColor, u0, v0); Put(1, right, far, farColor, u1, v0);
-        Put(2, right, near, nearColor, u1, v1); Put(3, left, near, nearColor, u0, v1);
+        float leftU = u0 + (u1 - u0) * (float)((segmentLeft - left) / (right - left));
+        float rightU = u0 + (u1 - u0) * (float)((segmentRight - left) / (right - left));
+        Put(0, segmentLeft, far, farColor, leftU, v0); Put(1, segmentRight, far, farColor, rightU, v0);
+        Put(2, segmentRight, near, nearColor, rightU, v1); Put(3, segmentLeft, near, nearColor, leftU, v1);
         List<float> target = sprite ? Sprites : BuildingCover ? Cover : Geometry;
         foreach (int index in new[] { 0, 1, 2, 0, 2, 3 })
             for (int component = 0; component < 10; component++) target.Add(vertices[index * 10 + component]);
@@ -42,6 +47,7 @@ internal sealed class MobileGpuFrame
             vertices[offset + 4] = u; vertices[offset + 5] = v;
             vertices[offset + 6] = color.R / 255f; vertices[offset + 7] = color.G / 255f;
             vertices[offset + 8] = color.B / 255f; vertices[offset + 9] = color.A / 255f;
+        }
         }
     }
 }

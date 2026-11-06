@@ -12,7 +12,7 @@ internal sealed partial class GameSurface
         if (session is null || player is null) return;
         if (!audioStarted && PlaybackSeconds >= 0)
         {
-            player.Start(); videoPlayer?.Start(); audioStarted = true;
+            player.Start(); WithOptionalVideo(video=>video.Start()); audioStarted = true;
             if (!practicePlaying) playbackBase = 0;
             playbackClock.Restart();
         }
@@ -20,7 +20,9 @@ internal sealed partial class GameSurface
         AdvanceMobileReplay(seconds);
         session.AutoPlay = !mobileReplaying && settings.AutoPlay;
         badgeEligible&=!settings.AutoPlay&&!mobileReplaying;
+        session.StageMap.Enabled=settings.StageDecorations;session.StageMap.Speed=settings.NoteSpeed;
         if (!PracticePreroll) session.Advance(seconds, held);
+        if(danPlaying&&session.Life?.Failed==true&&UpdateDanFailure(seconds))return;
         if(danPlaying)danEligible&=!settings.AutoPlay;
         UpdatePracticeVolume(seconds);
         MobileDifficulty diff = session.Difficulty;
@@ -32,6 +34,7 @@ internal sealed partial class GameSurface
         if (gpuFrame is not null) gpuFrame.FeverPulse = activeFever.End > activeFever.Start
             ? Math.Pow(1 - (feverBeat - Math.Floor(feverBeat)), 2) * settings.FeverAuraBrightness / 100.0 : 0;
         MobileProjection projection = MobileProjection.At(diff, beat);
+        if(settings.StageDecorations&&gpuFrame is not null)session.StageMap.Append(gpuFrame.Geometry,session,projection,seconds,settings.NoteSpeed);
         if (gpuFrame is not null)
         {
             gpuFrame.Background = background??menuBackground;
@@ -40,6 +43,7 @@ internal sealed partial class GameSurface
             if(background==null&&videoPlayer==null){double phase=(Environment.TickCount64%5000)/1000.0;gpuFrame.BackgroundBrightness*=(float)(.25+(phase<2?.075*(1-Math.Cos(Math.PI*phase)):0));DrawMenuParticles(canvas);}
             gpuFrame.Seconds = seconds;
             gpuFrame.Filter = FilterAt(diff.FilterChanges, beat);
+            if(danFailureAt!=0)gpuFrame.Filter=new MobileFilterChange(0,"GLITCH",Math.Clamp((Environment.TickCount64-danFailureAt)/3000d,0,1)*100,0,false);
         }
         if (gpuFrame is null && background is not null && videoPlayer is null)
         {
@@ -48,11 +52,22 @@ internal sealed partial class GameSurface
         }
         if (gpuFrame is null) Fill(canvas, new RectF(0, 0, 1920, 1080), Color.Argb((int)Math.Round(255 * (1 - settings.BackgroundBrightness / 100.0)), 0, 0, 0));
         int lanes = diff.Lanes;
+        double decorationScroll=MobileChart.ScrollPosition(diff,chart.Bpm,beat),decorationNs=MobileChart.NsMultiplierAt(diff,beat);
+        if(gpuFrame is not null)MobileSideLights.Append(gpuFrame.Geometry,projection,decorationScroll,settings.NoteSpeed,decorationNs);
+        else foreach(var strip in MobileSideLights.Segments(decorationScroll,settings.NoteSpeed,decorationNs))
+            WorldQuad(canvas,projection,strip.X-strip.Width,strip.X+strip.Width,strip.Near,strip.Far,0,Color.Rgb(160,225,255),strip.Alpha);
+        projection.FoldEnabled = true;
         double laneWidth = 2.3 / lanes;
         double laneAlpha = Visibility(diff.LaneVisibilityChanges, beat) * (1 - settings.LaneTransparency / 100.0);
         if (judgementDepths.Length != lanes) judgementDepths = new double[lanes];
         HyperLane.JudgementLineMotion.Evaluate(diff.JudgementLineChanges, beat, judgementDepths);
-        for (int i = 0; i < lanes; i++) judgementDepths[i] = projection.DepthAtScreenFraction(judgementDepths[i] / 100);
+        for (int i = 0; i < lanes; i++)
+        {
+            double laneX = -1.15 + (i + .5) * laneWidth;
+            judgementDepths[i] = Math.Max(projection.DepthAtScreenFraction(judgementDepths[i] / 100, laneX, 0),
+                2 * Math.Abs(projection.FoldAmount) / 100);
+        }
+        if(settings.ChordLinks&&gpuFrame is not null)session.ChordLinks.Append(gpuFrame.Geometry,session,projection,seconds,settings.NoteSpeed,judgementDepths);
         for (int lane = 1; lane <= lanes; lane++)
         {
             double left = 1.15 - lane * laneWidth;
@@ -103,8 +118,10 @@ internal sealed partial class GameSurface
             double layerBeat = MobileChart.BeatAtSeconds(timing, chart.Bpm, seconds - chart.OffsetFor(diff));
             double scroll = MobileChart.ScrollPosition(timing, chart.Bpm, layerBeat);
             double ns = MobileChart.NsMultiplierAt(timing, layerBeat);
-            foreach (MobileNote note in diff.NotesByLayer.GetValueOrDefault(layer, []))
+            var layerNotes=diff.NotesByLayer.GetValueOrDefault(layer, []);
+            for(int ni=layerNotes.Length-1;ni>=0;ni--)
             {
+                MobileNote note=layerNotes[ni];
                 if (note.Layer != layer || note.Done || (long)note.Lane + note.LaneSpan - 1 < 1 || note.Lane > lanes) continue;
                 int first = Math.Max(1, note.Lane), last = (int)Math.Min(lanes, (long)note.Lane + note.LaneSpan - 1);
                 double depth = judgementDepths[first - 1];

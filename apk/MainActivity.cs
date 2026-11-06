@@ -13,7 +13,7 @@ namespace HyperLane.Android;
 [Activity(Label = "Hyper Lane", Icon = "@drawable/hyperlane_icon", MainLauncher = true, Theme = "@android:style/Theme.Material.NoActionBar",
     ScreenOrientation = ScreenOrientation.Landscape,
     ConfigurationChanges = ConfigChanges.Orientation | ConfigChanges.ScreenSize)]
-public sealed class MainActivity : Activity
+public sealed partial class MainActivity : Activity
 {
     private MobileSongLibrary? library;
     private GameSurface? surface;
@@ -25,6 +25,7 @@ public sealed class MainActivity : Activity
     protected override void OnCreate(Bundle? savedInstanceState)
     {
         base.OnCreate(savedInstanceState);
+        HyperLane.ReplayJudgementMigration.Apply(FilesDir!.AbsolutePath);
         Window?.SetFlags(WindowManagerFlags.Fullscreen, WindowManagerFlags.Fullscreen);
         Window?.AddFlags(WindowManagerFlags.KeepScreenOn);
         library = new MobileSongLibrary(FilesDir!.AbsolutePath);
@@ -92,7 +93,7 @@ public sealed class MainActivity : Activity
     }
 
 #pragma warning disable CS0672 // Kept for Android's document-picker result callback.
-    protected override void OnActivityResult(int requestCode, Result resultCode, Intent? data)
+    protected override async void OnActivityResult(int requestCode, Result resultCode, Intent? data)
     {
         base.OnActivityResult(requestCode, resultCode, data);
         if(requestCode==865&&resultCode==Result.Ok&&data?.Data!=null)
@@ -102,15 +103,7 @@ public sealed class MainActivity : Activity
             return;
         }
         if (requestCode != 864 || resultCode != Result.Ok || data?.Data is null || library is null || surface is null) return;
-        try
-        {
-            using System.IO.Stream input = ContentResolver!.OpenInputStream(data.Data)!;
-            string name = data.Data.LastPathSegment ?? "song.zip";
-            library.ImportZip(input, name);
-            surface.SetSongs(library.Scan());
-            new AlertDialog.Builder(this)!.SetTitle("曲ZIPの取り込み")!.SetMessage("取り込みが完了しました。選曲画面から曲を選んでください。")!.SetPositiveButton("OK", (_, _) => { })!.Show();
-        }
-        catch (Exception error) { new AlertDialog.Builder(this)!.SetTitle("取り込みに失敗しました")!.SetMessage("譜面と音源が入ったZIPを選択してください。\n" + error.Message)!.SetPositiveButton("OK", (_, _) => { })!.Show(); }
+        await ImportPreparedZip(data.Data);
     }
 #pragma warning restore CS0672
 }
@@ -160,7 +153,7 @@ internal sealed partial class GameSurface : View
             return player.PositionSeconds;
         }
     }
-    private double ChartPlaybackSeconds => MobilePlaybackTiming.ChartSeconds(PlaybackSeconds, settings.AudioOffsetMs);
+    private double ChartPlaybackSeconds => danFailureAt!=0?danFailureSongSeconds+(System.Environment.TickCount64-danFailureAt)/1000d:MobilePlaybackTiming.ChartSeconds(PlaybackSeconds, settings.AudioOffsetMs);
 
     public GameSurface(Context context, Action importZip, TextureView videoView, MobileGpuSurface gpu) : base(context)
     {
@@ -248,22 +241,15 @@ internal sealed partial class GameSurface : View
             player = new UnifiedAudioPlayer(Context!);
             player.SetBufferFrames(settings.AudioBufferFrames);
             player.SetDataSource(audioPath);
-            await Task.Run(() => player.Prepare());
             StopVideo();
             string videoPath = FindMedia(song.Folder, song.Chart.Video, ".mp4");
-            if (settings.PreferMusicVideo && videoPath.Length > 0 && gpu.VideoSurface is { } texture)
-            {
-                videoPlayer = new MediaPlayer();
-                videoPlayer.SetDataSource(videoPath);
-                videoPlayer.SetSurface(texture);
-                videoPlayer.SetVolume(0, 0);
-                await Task.Run(() => videoPlayer.Prepare());
-            }
+            var preparedAudio=player;
+            await Task.WhenAll(Task.Run(()=>preparedAudio.Prepare()),PrepareOptionalVideo(videoPath));
             using(var warmBitmap=Bitmap.CreateBitmap(1,1,Bitmap.Config.Argb8888!)!)
             using(var warmCanvas=new Canvas(warmBitmap))foreach(string word in new[]{"PERFECT","GREAT","GOOD","BAD","MISS","AUTO"})DrawMobileJudgement(warmCanvas,word,new RectF(0,0,1,1));
             session = new MobileSession(song, diff) { AutoPlay = settings.AutoPlay };
             badgeEligible=!settings.AutoPlay&&!practicePlaying&&!mobileReplaying&&!danPlaying;
-            if(danPlaying&&activeDan!=null)session.ConfigureDanGauge(activeDan.Definition.CarryGauge&&danResults.Count>0?danResults[^1].Gauge:activeDan.Definition.InitialGauge,DanScoreUnits,danGlobalGauge);
+            if(danPlaying&&activeDan!=null){session.ConfigureDanGauge(activeDan.Definition.CarryGauge&&danResults.Count>0?danResults[^1].Gauge:activeDan.Definition.InitialGauge,DanScoreUnits,danGlobalGauge);session.Life=danLife;}
             if (practicePlaying) PracticeTiming.SkipPreviousNotes(diff);
             soundTimes = diff.Notes.Where(n => n.Kind is not ('D' or 'G')).SelectMany(n => n.Kind == 'L'
                 ? new[] { n.StartSeconds, n.EndSeconds } : new[] { n.StartSeconds }).OrderBy(t => t).ToArray();
@@ -363,6 +349,7 @@ internal sealed partial class GameSurface : View
                 gpuFrame = frame;
                 try { DrawPlaying(hud); } finally { gpuFrame = null; }
             });
+            int overlayState=canvas.Save();canvas.Translate(stageLeft,stageTop);canvas.Scale(stageScale,stageScale);DrawDanFailureOverlay(canvas);canvas.RestoreToCount(overlayState);
             return;
         }
         if (videoPlayer is null) canvas.DrawColor(Color.Rgb(2, 8, 20));
@@ -381,6 +368,7 @@ internal sealed partial class GameSurface : View
         else if (page == Page.Paused) DrawPaused(canvas);
         else DrawResult(canvas);
         DrawMenuTransition(canvas);
+        DrawDanFailureOverlay(canvas);
         canvas.RestoreToCount(save);
     }
 
@@ -437,6 +425,7 @@ internal sealed partial class GameSurface : View
 
     public override bool OnTouchEvent(MotionEvent? e)
     {
+        if(danFailureAt!=0||danReturnWhiteAt!=0)return true;
         if (e is null) return false;
         int actionIndex = e.ActionIndex;
         float x = (e.GetX(actionIndex) - stageLeft) / stageScale;

@@ -23,15 +23,15 @@ internal sealed partial class GameSurface
     private void DrawNativeSettings(Canvas canvas)
     {
         int saved = canvas.Save();
-        canvas.Scale(1.4f, 1.4f, 960, 540);
+        canvas.Scale(1f, 1f, 960, 540);
         DrawSettingsContents(canvas);
         canvas.RestoreToCount(saved);
     }
 
     private void DrawSettingsContents(Canvas canvas)
     {
-        if(selectionBackground!=null)ResultImage(canvas,selectionBackground,new RectF(0,0,1920,1080),.5f);
-        Fill(canvas, new RectF(550, 190, 1370, 890), Color.Argb(225, 0, 0, 0));
+        Fill(canvas,new RectF(0,0,1920,1080),Color.Rgb(7,9,22));
+        Fill(canvas, new RectF(550, 190, 1370, 890), Color.Rgb(8,10,24));
         UiText(canvas, "設 定", 570, 202, 25, Color.White);
         string[] tabs = ["プレイ・音声", "映像・演出", "プリセット"];
         for (int i = 0; i < 3; i++)
@@ -75,13 +75,13 @@ internal sealed partial class GameSurface
             }
         }
         if(settingsTab==0)UiText(canvas,player?.BufferStatus??"次の曲開始時に適用",586,795,17,Color.Cyan);
+        if(settingsTab==1){ScreenButton(canvas,"星座の3D装飾  "+(settings.StageDecorations?"ON":"OFF"),new(586,732,1308,774),22);ScreenButton(canvas,"同時押しの線  "+(settings.ChordLinks?"ON":"OFF"),new(586,780,1308,822),22);}
         ScreenButton(canvas, "保存して閉じる", new RectF(1080, 832, 1340, 878), 23);
     }
 
     private bool TouchNativeSettings(MotionEvent e, float x, float y)
     {
-        x = 960 + (x - 960) / 1.4f;
-        y = 540 + (y - 540) / 1.4f;
+        if(settingsTab==1&&e.ActionMasked==MotionEventActions.Up&&Hit(x,y,586,732,1308,822)){if(y<=774)settings.StageDecorations=!settings.StageDecorations;else if(y>=780)settings.ChordLinks=!settings.ChordLinks;settings.Save(Context!);Invalidate();return true;}
         int sliderRow=(int)((y-300)/48);
         if(settingsTab<2&&y>=300&&y<=342+sliderRow*48&&x>=1065&&x<=1215&&IsMobileSlider(settingsTab,sliderRow)&&e.ActionMasked is MotionEventActions.Down or MotionEventActions.Move or MotionEventActions.Up) {
             double fraction=Math.Clamp((x-1080)/125,0,1);
@@ -175,10 +175,10 @@ internal sealed partial class GameSurface
     private void PausePlaying()
     {
         if (page != Page.Playing) return;
-        if (audioStarted) { player?.Pause(); videoPlayer?.Pause(); }
+        if (audioStarted) { player?.Pause(); WithOptionalVideo(video=>video.Pause()); }
         playbackClock.Stop(); held.Clear(); fingers.Clear(); page = Page.Paused; Invalidate();
     }
-    private void DrawPaused(Canvas canvas)
+    private void DrawLegacyPaused(Canvas canvas)
     {
         Fill(canvas, new RectF(0, 0, 1920, 1080), Color.Argb(220, 0, 8, 20));
         Fill(canvas, new RectF(682, 350, 1238, 715), Color.Argb(240, 11, 27, 49));
@@ -197,11 +197,11 @@ internal sealed partial class GameSurface
         if (e.ActionMasked != MotionEventActions.Up) return true;
         for (int i = 0; i < 4; i++)
         {
-            float left = 710 + i % 2 * 260, top = 492 + i / 2 * 76;
-            if (!Hit(x, y, left, top, left + 235, top + 62)) continue;
+            float left=i==0?810:i==1?1190:i==2?1740:430,top=i==2?60:480;
+            if(!Hit(x,y,left,top,left+(i==2?110:300),top+(i==2?130:220)))continue;
             switch (i)
             {
-                case 0: page = Page.Playing; playbackClock.Start(); StartSeScheduler(); if (audioStarted) { player?.Start(); videoPlayer?.Start(); } break;
+                case 0: page = Page.Playing; playbackClock.Start(); StartSeScheduler(); if (audioStarted) { player?.Start(); WithOptionalVideo(video=>video.Start()); } break;
                 case 1: if(danPlaying)BeginMobileDan();else StartSelected(); break;
                 case 2: OpenSettingsPage(Page.Paused); break;
                 case 3: if (practicePlaying) ReturnToPractice(); else StopPlaying(); break;
@@ -212,6 +212,7 @@ internal sealed partial class GameSurface
 
     private void FinishPlaying()
     {
+        if(danPlaying&&session?.Life?.Failed==true)return;
         if (page is not (Page.Playing or Page.Paused) || session is null) return;
         StopSeScheduler();
         if (practicePlaying) { ReturnToPractice(); return; }
@@ -221,7 +222,7 @@ internal sealed partial class GameSurface
         playbackClock.Stop();
         resultBlur?.Dispose(); resultBlur = background is null ? null : MobileResultBackground.Create(background);
         SaveMobileReplay();
-        try{pendingBadge=Badges.Award(session,badgeEligible&&!settings.AutoPlay&&!mobileReplaying);}catch(Exception error){message="称号保存エラー: "+error.Message;}
+        try{QueueBadgeAwards(Badges.AwardAll(session,badgeEligible&&!settings.AutoPlay&&!mobileReplaying));}catch(Exception error){message="称号保存エラー: "+error.Message;}
         if (!settings.AutoPlay && !mobileReplaying && HyperLane.ChartLevel.TryParse(session.Difficulty.Level, out double level))
         {
             try { rating.Update(RatingKey(session.Song, session.Difficulty), Hash(session.Song), level, session.Score,session.Counts,session.MaxCombo); RefreshRating(); }
@@ -248,7 +249,7 @@ internal sealed partial class GameSurface
         ratingTotal = rating.TotalFor(charts);
     }
 
-    private void DrawNativeResult(Canvas canvas)
+    private void DrawLegacyResult(Canvas canvas)
     {
         if (session is null) return;
         double elapsed = (Environment.TickCount64 - resultStartedAt) / 1000.0;
@@ -348,9 +349,9 @@ internal sealed partial class GameSurface
     }
     private bool TouchNativeResult(MotionEvent e, float x, float y)
     {
-        if (e.ActionMasked != MotionEventActions.Up || Environment.TickCount64 - resultStartedAt < 4500) return true;
+        if (e.ActionMasked != MotionEventActions.Up || Environment.TickCount64 - resultStartedAt < 1500) return true;
         if(Hit(x,y,1688,0,1920,48)){OpenMobileBest30();return true;}
-        for (int i = 0; i < 3; i++) if (Hit(x, y, 1250, 694 + i * 91, 1637, 783 + i * 91))
+        for (int i = 0; i < 3; i++) if (Hit(x, y, 850+i*235,960,1070+i*235,1040))
         {
             if (i == 0) StopPlaying();
             else if (i == 1) StartSelected();

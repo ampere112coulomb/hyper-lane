@@ -84,10 +84,11 @@ internal sealed partial class IosLaneRenderer : GLKViewDelegate
         var diff=s.Difficulty;var chart=s.Song.Chart;double beat=MobileChart.BeatAtSeconds(diff,chart.Bpm,Seconds-chart.OffsetFor(diff));
         var p=MobileProjection.At(diff,beat);int lanes=diff.Lanes;double width=2.3/lanes,alpha=Visibility(diff.LaneVisibilityChanges,beat)*(1-Settings.LaneTransparency/100.0);
         if(depths.Length!=lanes)depths=new double[lanes];HyperLane.JudgementLineMotion.Evaluate(diff.JudgementLineChanges,beat,depths);
-        for(int i=0;i<lanes;i++)depths[i]=p.DepthAtScreenFraction(depths[i]/100);
-        if(Settings.ChordLinks)s.ChordLinks.Append(geometry,s,p,Seconds,Settings.NoteSpeed,depths,true);
         MobileSideLights.Append(geometry,p,MobileChart.ScrollPosition(diff,chart.Bpm,beat),Settings.NoteSpeed,MobileChart.NsMultiplierAt(diff,beat),true);
         if(Settings.StageDecorations)s.StageMap.Append(geometry,s,p,Seconds,Settings.NoteSpeed,true);
+        p.FoldEnabled=true;
+        for(int i=0;i<lanes;i++)depths[i]=Math.Max(p.DepthAtScreenFraction(depths[i]/100,-1.15+(i+.5)*width,0),2*Math.Abs(p.FoldAmount)/100);
+        if(Settings.ChordLinks)s.ChordLinks.Append(geometry,s,p,Seconds,Settings.NoteSpeed,depths,true);
         for(int lane=1;lane<=lanes;lane++)Quad(p,1.15-lane*width,1.15-(lane-1)*width,-12,52,.004,lane%2==1?8:11,lane%2==1?20:25,lane%2==1?37:44,alpha);
         for(int edge=0;edge<=lanes;edge++){double x=-1.15+edge*width;bool outside=edge==0||edge==lanes;Quad(p,x-(outside?.012:.005),x+(outside?.012:.005),-12,52,.014,outside?85:37,outside?170:77,outside?215:110,alpha);}
         double scroll=MobileChart.ScrollPosition(diff,chart.Bpm,beat),speed=Settings.NoteSpeed*10;
@@ -150,15 +151,21 @@ internal sealed partial class IosLaneRenderer : GLKViewDelegate
     }
     private void Quad(MobileProjection p,double left,double right,double near,double far,double y,int r,int g,int b,double a,int[]? region=null)
     {
-        if(far<=near||right<=left||a<=0)return;float[] v=new float[40];
-        Put(0,left,far,0,0);Put(1,right,far,1,0);Put(2,right,near,1,1);Put(3,left,near,0,1);
+        if(far<=near||right<=left||a<=0)return;
+        MobileLaneFold.Split(left,right,p.FoldLanes,p.FoldEnabled?p.FoldAmount:0,Emit);
+        void Emit(double segmentLeft,double segmentRight)
+        {
+        float[] v=new float[40];
+        float u0=(float)((segmentLeft-left)/(right-left)),u1=(float)((segmentRight-left)/(right-left));
+        Put(0,segmentLeft,far,u0,0);Put(1,segmentRight,far,u1,0);Put(2,segmentRight,near,u1,1);Put(3,segmentLeft,near,u0,1);
         var target=region==null?geometry:sprites;HyperLane.MobileNearClip.AppendQuad(v,target);
-        void Put(int index,double x,double z,int u,int t)
+        void Put(int index,double x,double z,float u,int t)
         {
             int at=index*10;p.Clip(x,y,z,v.AsSpan(at,4));
             v[at+4]=region==null?0:(region[0]+.5f+(region[2]-1)*u)/atlasWidth;
             v[at+5]=region==null?0:(region[1]+.5f+(region[3]-1)*t)/atlasHeight;
             v[at+6]=(float)(r/255.0*a);v[at+7]=(float)(g/255.0*a);v[at+8]=(float)(b/255.0*a);v[at+9]=(float)a;
+        }
         }
     }
     protected override void Dispose(bool disposing){if(disposing){EAGLContext.SetCurrentContext(context);DisposeEffects();if(atlas!=0)Gl.glDeleteTextures(1,ref atlas);if(vertexBuffer!=0)Gl.glDeleteBuffers(1,ref vertexBuffer);if(program!=0)Gl.glDeleteProgram(program);View.Delegate=null;View.Dispose();context.Dispose();}base.Dispose(disposing);}

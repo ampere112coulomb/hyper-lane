@@ -125,6 +125,16 @@ internal sealed class MobileChart
                                     }
                                 }
                                 else if (activeLayer != 1) continue;
+                                else if (parts[1].Equals("LANE_FOLD", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    string[] fold = parts[2].Split(',', 2, StringSplitOptions.TrimEntries);
+                                    if (Number(fold[0], out double target) && target is >= -100 and <= 100 &&
+                                        (fold.Length == 1 || Number(fold[1], out _)))
+                                    {
+                                        double duration = fold.Length == 1 ? 0 : double.Parse(fold[1], CultureInfo.InvariantCulture);
+                                        if (duration is >= 0 and <= 32) difficulty.LaneFoldChanges.Add((beat, target, duration));
+                                    }
+                                }
                                 else if (parts[1].Equals("JUDGE_LINE", StringComparison.OrdinalIgnoreCase) &&
                                     HyperLane.JudgementLineMotion.TryParse(beat, parts[2], out var lineChange))
                                     difficulty.JudgementLineChanges.Add(lineChange);
@@ -224,6 +234,7 @@ internal sealed class MobileChart
             diff.FilterChanges.Sort((a, b) => a.Beat.CompareTo(b.Beat));
             var orderedCameras=diff.CameraChanges.OrderBy(c=>c.Beat).ToArray();diff.CameraChanges.Clear();diff.CameraChanges.AddRange(orderedCameras);
             diff.JudgementLineChanges.Sort((a, b) => a.Beat.CompareTo(b.Beat));
+            diff.LaneFoldChanges.Sort((a, b) => a.Beat.CompareTo(b.Beat));
             diff.Timing = new MobileTiming(diff, chart.Bpm);
             diff.Notes.Sort((a, b) => a.Beat.CompareTo(b.Beat));
             foreach (MobileNote note in diff.Notes)
@@ -397,6 +408,7 @@ internal sealed class MobileDifficulty
     public List<MobileNote> Notes { get; } = new();
     public List<(double Beat, double Value)> BpmChanges { get; } = new();
     public List<(double Beat, double Value)> BsChanges { get; } = new();
+    public List<(double Beat, double Target, double Duration)> LaneFoldChanges { get; } = new();
     public List<MobileNsChange> NsChanges { get; } = new();
     public List<(double Beat, double Length)> SigChanges { get; } = new();
     public List<MobileVisibilityChange> LaneVisibilityChanges { get; } = new();

@@ -1,4 +1,4 @@
-param([ValidateSet('start','status','download','visual','cancel')][string]$Action='status',[long]$RunId=0)
+param([ValidateSet('start','status','download','visual','inspect','cancel')][string]$Action='status',[long]$RunId=0)
 $ErrorActionPreference='Stop'
 $credential="protocol=https`nhost=github.com`nusername=ampere112coulomb`n`n" | git -c credential.interactive=never credential fill 2>$null
 $passwordLine=@($credential | Where-Object { $_ -like 'password=*' })
@@ -31,7 +31,7 @@ if($Action -eq 'status'){
   Get-ChildItem $out -Recurse -Filter '*.txt' | Select-String 'error CS|error :|Build FAILED' | ForEach-Object {$_.Line}
  }
 }
-if($Action -in @('download','visual')){
+if($Action -in @('download','visual','inspect')){
  if($Action -eq 'download' -and $run.conclusion -ne 'success'){throw 'Build not successful'}
  $artifacts=Invoke-RestMethod "$base/actions/runs/$RunId/artifacts" -Headers $headers
  $name=if($Action -eq 'visual'){'iOS-editor-visual-check'}else{'HyperLane-Editor-iOS-unsigned'}

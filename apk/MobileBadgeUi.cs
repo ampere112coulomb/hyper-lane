@@ -9,6 +9,9 @@ internal sealed partial class GameSurface
     private MobileBadges? mobileBadges;
     private MobileBadges Badges=>mobileBadges??=new(Context!.FilesDir!.AbsolutePath);
     private BadgeAward? pendingBadge;
+    private readonly Queue<BadgeAward> pendingBadges=new();
+    private void QueueBadgeAwards(IEnumerable<BadgeAward> awards){pendingBadges.Clear();foreach(var award in awards)pendingBadges.Enqueue(award);NextBadgeAward();}
+    private void NextBadgeAward(){pendingBadge=pendingBadges.TryDequeue(out var award)?award:null;}
     private bool badgePicker;
     private bool badgeEligible;
     private int badgePage;
@@ -41,14 +44,14 @@ internal sealed partial class GameSurface
         else{
             var awards=Badges.Collection.Awards;ResultText(canvas,"称号",new RectF(410,250,1500,300),35,1);
             var entries=new[]{(BadgeAward?)null}.Concat(awards).ToArray();int start=badgePage*5;
-            for(int i=0;i<5&&start+i<entries.Length;i++){var a=entries[start+i];float y=320+i*70;ResultText(canvas,a==null?"なし":Path.GetFileNameWithoutExtension(a.Image),new RectF(430,y,1080,y+62),30,1);if(BadgeImage(a)is {} image)ResultImage(canvas,image,new RectF(1110,y+8,1480,y+60),1);}
+            for(int i=0;i<5&&start+i<entries.Length;i++){var a=entries[start+i];float y=320+i*70;ResultText(canvas,a==null?"なし":Path.GetFileNameWithoutExtension(a.Image),new RectF(430,y,1080,y+32),26,1);ResultText(canvas,MobileBadges.Requirements(a,allChapterSongs),new(430,y+33,1080,y+65),15,.8f);if(BadgeImage(a)is {} image)ResultImage(canvas,image,new RectF(1110,y+8,1480,y+60),1);}
             ScreenButton(canvas,"前",new RectF(440,745,640,815),29);ScreenButton(canvas,"次",new RectF(700,745,900,815),29);ScreenButton(canvas,"閉じる",new RectF(1200,745,1480,815),29);
         }
         canvas.RestoreToCount(save);
     }
     private bool TouchBadges(MotionEvent e,float x,float y)
     {
-        if(pendingBadge!=null){if(e.ActionMasked==MotionEventActions.Up&&Environment.TickCount64-resultStartedAt>=5450&&y>=660&&y<=732){if(x>=610&&x<=890){Badges.Equip(pendingBadge.Id);pendingBadge=null;}else if(x>=1030&&x<=1310)pendingBadge=null;}Invalidate();return true;}
+        if(pendingBadge!=null){if(e.ActionMasked==MotionEventActions.Up&&Environment.TickCount64-resultStartedAt>=5450&&y>=660&&y<=732){if(x>=610&&x<=890){Badges.Equip(pendingBadge.Id);NextBadgeAward();}else if(x>=1030&&x<=1310)NextBadgeAward();}Invalidate();return true;}
         if(badgePicker){if(e.ActionMasked!=MotionEventActions.Up)return true;if(y>=745&&y<=815){if(x>=1200&&x<=1480)badgePicker=false;else if(x>=440&&x<=640)badgePage=Math.Max(0,badgePage-1);else if(x>=700&&x<=900)badgePage=Math.Min(Badges.Collection.Awards.Count/5,badgePage+1);}else if(x>=430&&x<=1480&&y>=320&&y<670){int i=badgePage*5+(int)((y-320)/70);if(i<=Badges.Collection.Awards.Count){Badges.Equip(i==0?"":Badges.Collection.Awards[i-1].Id);badgePicker=false;}}Invalidate();return true;}
         if(page is Page.Select or Page.Result&&x>=1346&&x<1720&&y>=0&&y<=48){if(e.ActionMasked==MotionEventActions.Up){badgePicker=true;badgePage=0;Invalidate();}return true;}return false;
     }

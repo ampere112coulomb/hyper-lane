@@ -7,11 +7,14 @@ internal sealed class MobileStageMap
     private readonly record struct Pulse(int Side,double At,int[] Nodes);
     private readonly List<Pulse> pulses=new(64);
     internal bool Enabled=true;
+    private readonly StarMapMotion.Travel travel=new();
+    private double Depth(MobileSession session,double beat,double speed)
+        =>travel.At(session.Difficulty,beat,b=>MobileChart.ScrollPosition(session.Difficulty,session.Song.Chart.Bpm,b),b=>MobileChart.NsMultiplierAt(session.Difficulty,b))*speed*10;
     internal void Register(MobileSession session,MobileNote note,double seconds)
     {
         if(!Enabled||note.Kind is 'D' or 'G')return;
         double beat=MobileChart.BeatAtSeconds(session.Difficulty,session.Song.Chart.Bpm,seconds-session.Song.Chart.OffsetFor(session.Difficulty));
-        double depth=MobileChart.ScrollPosition(session.Difficulty,session.Song.Chart.Bpm,beat)*10*Speed*Math.Max(MobileChart.NsMultiplierAt(session.Difficulty,beat),.1);
+        double depth=Depth(session,beat,Speed);
         if(!double.IsFinite(depth))return;
         pulses.RemoveAll(p=>seconds<p.At||seconds-p.At>=1.2);if(pulses.Count>=64)pulses.RemoveAt(0);
         int side=note.Lane<=session.Difficulty.Lanes/2?1:-1,id=(int)((uint)(session.Difficulty.Notes.IndexOf(note)*7+note.Lane*3)%24);
@@ -22,7 +25,7 @@ internal sealed class MobileStageMap
     internal void Append(List<float> output,MobileSession session,MobileProjection projection,double seconds,double speed,bool premultiply=false)
     {
         Speed=speed;double beat=MobileChart.BeatAtSeconds(session.Difficulty,session.Song.Chart.Bpm,seconds-session.Song.Chart.OffsetFor(session.Difficulty));
-        double depth=MobileChart.ScrollPosition(session.Difficulty,session.Song.Chart.Bpm,beat)*speed*10*Math.Max(MobileChart.NsMultiplierAt(session.Difficulty,beat),.1);
+        double depth=Depth(session,beat,speed);
         if(!double.IsFinite(depth))return;
         for(int side=-1;side<=1;side+=2)for(int id=0;id<24;id++){
             var p=StarMapMotion.Fragment(id,side,depth,beat);double fade=Math.Clamp((p.Z+4)/5,0,1)*Math.Clamp((56-p.Z)/8,0,1);float angle=(float)(beat*.12+id*1.7),radius=.09f+id%4*.025f;

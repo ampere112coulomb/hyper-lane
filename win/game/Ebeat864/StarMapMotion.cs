@@ -5,6 +5,27 @@ namespace HyperLane;
 
 internal static class StarMapMotion
 {
+    // Integrate NS against scroll increments, never multiply the entire travelled
+    // distance by today's NS. Fixed beat samples keep seeks and frame rates deterministic.
+    internal sealed class Travel
+    {
+        private object? owner;
+        private readonly System.Collections.Generic.List<double> distances = new() { 0 };
+        private const double Step = 1d / 64;
+        internal double At(object chart, double beat, Func<double,double> scroll, Func<double,double> ns)
+        {
+            if (!ReferenceEquals(owner, chart)) { owner = chart; distances.Clear(); distances.Add(0); }
+            if (!double.IsFinite(beat)) return double.NaN;
+            if (beat <= 0) return (scroll(beat)-scroll(0))*Math.Max(ns(0),.1);
+            int index = (int)Math.Min(Math.Floor(beat / Step), int.MaxValue-1);
+            while (distances.Count <= index) {
+                double start=(distances.Count-1)*Step;
+                distances.Add(distances[^1]+(scroll(start+Step)-scroll(start))*Math.Max(ns(start+Step/2),.1));
+            }
+            double at=index*Step;
+            return distances[index]+(scroll(beat)-scroll(at))*Math.Max(ns(at+Step/2),.1);
+        }
+    }
     internal const int Fragments=24;
     internal const float MaxLinkDistance=7;
     internal static int BuildChain(ReadOnlySpan<Vector3> points,int start,Span<int> nodes)

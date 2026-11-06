@@ -8,6 +8,9 @@ internal sealed class MobileProjection
     private readonly Vec3 right;
     private readonly Vec3 up;
     private readonly double focalY = 540 / Math.Tan(Math.PI * 13 / 180);
+    internal double FoldAmount { get; set; }
+    internal int FoldLanes { get; set; }
+    internal bool FoldEnabled { get; set; }
 
     private MobileProjection(Vec3 camera, Vec3 forward, Vec3 right, Vec3 up)
     { this.camera = camera; this.forward = forward; this.right = right; this.up = up; }
@@ -41,7 +44,7 @@ internal sealed class MobileProjection
             double rx = pose.Rx * Math.PI / 180, ry = pose.Ry * Math.PI / 180;
             forward = Normalize(new(Math.Cos(rx) * Math.Sin(ry), Math.Sin(rx), Math.Cos(rx) * Math.Cos(ry)));
         }
-        else forward = Normalize(new(-pose.X, -pose.Y, 5 - pose.Z));
+        else forward = Normalize(new(-pose.X, MobileLaneFold.CenterY(difficulty.Lanes, MobileLaneFold.At(difficulty, beat)) - pose.Y, 5 - pose.Z));
         Vec3 right = Normalize(new(-forward.Z, 0, forward.X));
         Vec3 up = Cross(right, forward);
         if (pose.Advanced && Math.Abs(pose.Rz) > .0001)
@@ -51,11 +54,15 @@ internal sealed class MobileProjection
             right = right * Math.Cos(angle) + up * Math.Sin(angle);
             up = up * Math.Cos(angle) - priorRight * Math.Sin(angle);
         }
-        return new MobileProjection(location, forward, right, up);
+        return new MobileProjection(location, forward, right, up)
+        {
+            FoldAmount = MobileLaneFold.At(difficulty, beat), FoldLanes = difficulty.Lanes
+        };
     }
 
     public bool Project(double x, double y, double z, out float screenX, out float screenY)
     {
+        if (FoldEnabled) (x, y) = MobileLaneFold.Map(x, y, FoldLanes, FoldAmount);
         Vec3 relative = new Vec3(x, y, z) - camera;
         double depth = Dot(relative, forward);
         if (depth <= .1 || !double.IsFinite(depth))
@@ -69,6 +76,26 @@ internal sealed class MobileProjection
     {
         if (!TouchZones.Supports(lanes) || screenX < 0 || screenX >= 1920 || screenY < 0 || screenY >= 1080) return -1;
         Vec3 ray = forward + right * ((screenX - 960) / focalY) + up * ((540 - screenY) / focalY);
+        if (Math.Abs(FoldAmount) > .00001)
+        {
+            double width = 2.3 / lanes, closest = double.PositiveInfinity;
+            int selected = -1;
+            for (int lane = 0; lane < lanes; lane++)
+            {
+                var a = MobileLaneFold.Map(-1.15 + lane * width, 0, lanes, FoldAmount);
+                var b = MobileLaneFold.Map(-1.15 + (lane + 1) * width, 0, lanes, FoldAmount);
+                double dx = b.X - a.X, dy = b.Y - a.Y;
+                double denominator = ray.X * dy - ray.Y * dx;
+                if (Math.Abs(denominator) < 1e-9) continue;
+                double distance = ((a.X - camera.X) * dy - (a.Y - camera.Y) * dx) / denominator;
+                if (distance <= 0 || distance >= closest) continue;
+                Vec3 foldHit = camera + ray * distance;
+                double along = ((foldHit.X - a.X) * dx + (foldHit.Y - a.Y) * dy) / (dx * dx + dy * dy);
+                if (along < -1e-6 || along >= 1 + 1e-6 || foldHit.Z < -12 || foldHit.Z > 52) continue;
+                closest = distance; selected = lane;
+            }
+            return selected;
+        }
         if (Math.Abs(ray.Y) < .000001) return -1;
         double t = -camera.Y / ray.Y;
         if (t <= 0) return -1;
@@ -79,6 +106,7 @@ internal sealed class MobileProjection
 
     public void Clip(double x, double y, double z, Span<float> clip)
     {
+        if (FoldEnabled) (x, y) = MobileLaneFold.Map(x, y, FoldLanes, FoldAmount);
         Vec3 relative = new Vec3(x, y, z) - camera;
         double depth = Dot(relative, forward);
         clip[0] = (float)(Dot(relative, right) / Math.Tan(Math.PI * 13 / 180) / (1920.0 / 1080));
@@ -98,17 +126,20 @@ internal sealed class MobileProjection
     }
 
     public double DepthAtScreenFraction(double fraction)
+        => DepthAtScreenFraction(fraction, 0, 0);
+
+    public double DepthAtScreenFraction(double fraction, double x, double y)
     {
         if (fraction <= 0) return 0;
         if (fraction >= 1) return 45;
-        if (!Project(0, 0, 0, out _, out float nearY) || !Project(0, 0, 45, out _, out float farY) || Math.Abs(farY - nearY) < 1)
+        if (!Project(x, y, 0, out _, out float nearY) || !Project(x, y, 45, out _, out float farY) || Math.Abs(farY - nearY) < 1)
             return 45 * fraction;
         double target = nearY + (farY - nearY) * fraction, low = 0, high = 45;
         for (int i = 0; i < 18; i++)
         {
             double middle = (low + high) * .5;
-            if (!Project(0, 0, middle, out _, out float y)) break;
-            if ((y - target) * (farY - nearY) < 0) low = middle; else high = middle;
+            if (!Project(x, y, middle, out _, out float projectedY)) break;
+            if ((projectedY - target) * (farY - nearY) < 0) low = middle; else high = middle;
         }
         return (low + high) * .5;
     }
@@ -169,5 +200,69 @@ internal sealed class MobileProjection
         public static Vec3 operator +(Vec3 a, Vec3 b) => new(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
         public static Vec3 operator -(Vec3 a, Vec3 b) => new(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
         public static Vec3 operator *(Vec3 a, double scale) => new(a.X * scale, a.Y * scale, a.Z * scale);
+    }
+}
+
+internal static class MobileLaneFold
+{
+    private const double HalfWidth = 1.15;
+
+    internal static double At(MobileDifficulty diff, double beat)
+    {
+        double from = 0, target = 0, start = 0, duration = 0;
+        foreach (var change in diff.LaneFoldChanges)
+        {
+            if (change.Beat > beat) break;
+            from += (target - from) * (duration <= 0 ? 1 : Math.Clamp((change.Beat - start) / duration, 0, 1));
+            target = change.Target; start = change.Beat; duration = change.Duration;
+        }
+        return from + (target - from) * (duration <= 0 ? 1 : Math.Clamp((beat - start) / duration, 0, 1));
+    }
+
+    internal static double CenterY(int lanes, double amount)
+    {
+        if (lanes < 3 || Math.Abs(amount) < 0.00001) return 0;
+        double step = 2 * HalfWidth / lanes, sum = 0;
+        for (int lane = 0; lane < lanes; lane++) sum += Map(-HalfWidth + (lane + .5) * step, 0, lanes, amount).Y;
+        return sum / lanes;
+    }
+
+    internal static (double X, double Y) Map(double x, double height, int lanes, double amount)
+    {
+        if (lanes < 3 || Math.Abs(amount) < 0.00001) return (x, height);
+        double step = 2 * HalfWidth / lanes;
+        double turn = 2 * Math.PI / lanes * Math.Clamp(Math.Abs(amount) / 100, 0, 1);
+        double totalX = 0, totalY = 0;
+        for (int i = 0; i < lanes; i++)
+        {
+            double angle = (i - (lanes - 1) / 2.0) * turn;
+            totalX += step * Math.Cos(angle); totalY += step * Math.Sin(angle);
+        }
+        int laneIndex = Math.Clamp((int)Math.Floor((x + HalfWidth) / step), 0, lanes - 1);
+        double mappedX = -totalX / 2, mappedY = -totalY / 2;
+        for (int i = 0; i < laneIndex; i++)
+        {
+            double angle = (i - (lanes - 1) / 2.0) * turn;
+            mappedX += step * Math.Cos(angle); mappedY += step * Math.Sin(angle);
+        }
+        double current = (laneIndex - (lanes - 1) / 2.0) * turn;
+        double along = x - (-HalfWidth + laneIndex * step);
+        mappedX += along * Math.Cos(current);
+        mappedY += along * Math.Sin(current);
+        double sign = Math.Sign(amount);
+        return (mappedX - sign * height * Math.Sin(current), sign * mappedY + height * Math.Cos(current));
+    }
+
+    internal static void Split(double left, double right, int lanes, double amount, Action<double, double> append)
+    {
+        if (lanes < 3 || Math.Abs(amount) < 0.00001) { append(left, right); return; }
+        double step = 2 * HalfWidth / lanes, at = left;
+        while (at < right - .000001)
+        {
+            int seam = (int)Math.Floor((at + HalfWidth + .000001) / step) + 1;
+            double next = Math.Min(right, -HalfWidth + seam * step);
+            if (next <= at + .000001) next = right;
+            append(at, next); at = next;
+        }
     }
 }
