@@ -137,14 +137,15 @@ internal sealed partial class GameSurface
         int crop=Math.Min(image.Width,image.Height);paint.Color=Alpha(Color.White,opacity);paint.FilterBitmap=true;
         canvas.DrawBitmap(image,new Rect((image.Width-crop)/2,(image.Height-crop)/2,(image.Width+crop)/2,(image.Height+crop)/2),rect,paint);
     }
-    private sealed record MobileDanMeter(double Value,double Limit,bool Minimum,bool Exclusive=false,bool Percent=false);
-    private static List<MobileDanMeter> MobileDanMeters(DanConditions c,int[] n,IReadOnlyList<double> gauges)
+    private sealed record MobileDanMeter(string Name,double Value,double Limit,bool Minimum,bool Exclusive=false,bool Percent=false);
+    private static List<MobileDanMeter> MobileDanMeters(DanConditions c,int[] n,IReadOnlyList<double> gauges,string scope="全体")
     {
         List<MobileDanMeter> result=[];
-        if(c.GaugeMin is double g)result.Add(new(gauges.Count==0?0:c.GaugeScope=="everySong"?gauges.Min():gauges[^1],g,true,false,true));
-        if(c.BadMissMaxExclusive is int bm)result.Add(new(n[3]+n[4],bm,false,true));
-        if(c.BadMax is int b)result.Add(new(n[3],b,false));if(c.MissMax is int m)result.Add(new(n[4],m,false));if(c.PerfectMin is int p)result.Add(new(n[0],p,true));return result;
+        if(c.GaugeMin is double g)result.Add(new(scope+" / GAUGE",gauges.Count==0?0:c.GaugeScope=="everySong"?gauges.Min():gauges[^1],g,true,false,true));
+        if(c.BadMissMaxExclusive is int bm)result.Add(new(scope+" / BAD + MISS",n[3]+n[4],bm,false,true));
+        if(c.BadMax is int b)result.Add(new(scope+" / BAD",n[3],b,false));if(c.MissMax is int m)result.Add(new(scope+" / MISS",n[4],m,false));if(c.PerfectMin is int p)result.Add(new(scope+" / PERFECT",n[0],p,true));return result;
     }
+    private static string MobileDanOrdinal(int number)=>number+((number%100 is 11 or 12 or 13)?"th":(number%10) switch{1=>"st",2=>"nd",3=>"rd",_=>"th"});
     private void DrawMobileDanMeter(Canvas canvas,MobileDanMeter meter,RectF rect,float progress,float opacity=1)
     {
         bool passed=meter.Minimum?meter.Value>=meter.Limit:meter.Exclusive?meter.Value<meter.Limit:meter.Value<=meter.Limit;
@@ -166,10 +167,14 @@ internal sealed partial class GameSurface
         int[] live=(int[])danCounts.Clone();for(int i=0;i<5;i++)live[i]+=session.Counts[i];
         var gauges=danResults.Select(r=>r.GlobalGauge).Append(session.GlobalGauge).ToArray();
         var meters=MobileDanMeters(activeDan.Definition.Conditions,live,gauges);
-        if(activeDan.Definition.Tracks[danTrackIndex].Conditions is {} own)meters.AddRange(MobileDanMeters(own,session.Counts,new[]{session.Gauge}));
-        FitMobileText(canvas,$"{activeDan.Definition.Title}  {danTrackIndex+1}/{activeDan.Tracks.Count}",new(1530,18,1880,46),18,1);
-        float top=50;if(danLife is {} life){Fill(canvas,new(1530,top,1880,top+54),Color.Argb(82,8,12,30));FitMobileText(canvas,$"LIFE  {life.Value:0.##} / {life.Maximum:0.##}",new(1540,top+4,1870,top+42),20,1);Fill(canvas,new(1540,top+47,1870,top+50),Color.Argb(65,148,157,197));Fill(canvas,new(1540,top+47,1540+330*(float)Math.Clamp(life.Value/life.Maximum,0,1),top+50),life.Value/life.Maximum<=.25?Color.Salmon:Color.Rgb(155,223,255));top+=58;}
-        float row=Math.Min(58,500f/Math.Max(1,meters.Count));for(int i=0;i<meters.Count;i++){var m=meters[i];float y=top+i*row;bool pass=m.Minimum?m.Value>=m.Limit:m.Exclusive?m.Value<m.Limit:m.Value<=m.Limit;var color=pass?Color.Rgb(133,215,245):Color.Rgb(244,144,166);Fill(canvas,new(1530,y,1880,y+row-4),Color.Argb(82,8,12,30));FitMobileText(canvas,$"{(m.Percent?"GAUGE":"条件")}  {m.Value:0.##} / {(m.Exclusive?"< ":"")}{m.Limit:0.##}",new(1540,y+3,1870,y+row-14),18,1);double max=m.Percent?100:Math.Max(1,m.Limit),fraction=m.Minimum?m.Value/max:m.Limit==0?(pass?1:0):1-m.Value/max;Fill(canvas,new(1540,y+row-10,1870,y+row-7),Color.Argb(65,148,157,197));Fill(canvas,new(1540,y+row-10,1540+330*(float)Math.Clamp(fraction,0,1),y+row-7),color);}
+        if(activeDan.Definition.Tracks[danTrackIndex].Conditions is {} own)meters.AddRange(MobileDanMeters(own,session.Counts,new[]{session.Gauge},MobileDanOrdinal(danTrackIndex+1)));
+        FitMobileText(canvas,$"{activeDan.Definition.Title}  {danTrackIndex+1}/{activeDan.Tracks.Count}"+(settings.AutoPlay?"  AUTO":""),new(34,4,1886,26),14,1);
+        int cells=meters.Count+(danLife!=null?1:0),cell=0;
+        if(cells==0)return;
+        float gap=10,width=(1852f-gap*(cells-1))/cells;
+        RectF Cell(int index)=>new(34+index*(width+gap),30,34+index*(width+gap)+width,84);
+        if(danLife is {} life){var rect=Cell(cell++);var color=life.Value/life.Maximum<=.25?Color.Salmon:Color.Rgb(155,223,255);Fill(canvas,rect,Color.Argb(82,8,12,30));FitMobileText(canvas,$"{life.Value:0.##}",new(rect.Left+10,rect.Top+7,rect.Right-10,rect.Top+37),20,1);var bar=new RectF(rect.Left+10,rect.Bottom-10,rect.Right-10,rect.Bottom-4);Fill(canvas,bar,Color.Argb(65,148,157,197));Fill(canvas,new(bar.Left,bar.Top,bar.Left+bar.Width()*(float)Math.Clamp(life.Value/life.Maximum,0,1),bar.Bottom),color);}
+        foreach(var meter in meters){var rect=Cell(cell++);bool pass=meter.Minimum?meter.Value>=meter.Limit:meter.Exclusive?meter.Value<meter.Limit:meter.Value<=meter.Limit;var color=pass?Color.Rgb(133,215,245):Color.Rgb(244,144,166);Fill(canvas,rect,Color.Argb(82,8,12,30));string[] parts=meter.Name.Split(" / ",2,StringSplitOptions.None);string prefix=parts.Length==2&&parts[0]!="全体"?parts[0]+" ":"",unit=meter.Percent?"%":"";string label=$"{prefix}{parts[^1]}{meter.Limit:0.##}{unit}{(meter.Minimum?"以上":meter.Exclusive?"未満":"以下")} / {meter.Value:0.##}{unit}";FitMobileText(canvas,label,new(rect.Left+10,rect.Top+7,rect.Right-10,rect.Top+37),18,1);double maximum=meter.Percent?100:Math.Max(1,meter.Limit),fraction=meter.Minimum?meter.Value/maximum:meter.Limit==0?(pass?1:0):1-meter.Value/maximum;var bar=new RectF(rect.Left+10,rect.Bottom-10,rect.Right-10,rect.Bottom-4);Fill(canvas,bar,Color.Argb(65,148,157,197));Fill(canvas,new(bar.Left,bar.Top,bar.Left+bar.Width()*(float)Math.Clamp(fraction,0,1),bar.Bottom),color);if(meter.Minimum){float x=bar.Left+bar.Width()*(float)Math.Clamp(meter.Limit/maximum,0,1);Line(canvas,x,bar.Top-2,x,bar.Bottom+2,Color.Rgb(208,188,249),1);}}
     }
     private void BeginDanResultTransition(){ /* Result's wipe and reveal use resultStartedAt. */ }
     private void DrawMobileDanResult(Canvas canvas)
