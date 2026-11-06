@@ -92,7 +92,7 @@ internal sealed class MobileProjection
                 Vec3 foldHit = camera + ray * distance;
                 double along = ((foldHit.X - a.X) * dx + (foldHit.Y - a.Y) * dy) / (dx * dx + dy * dy);
                 if (along < -1e-6 || along >= 1 + 1e-6 || foldHit.Z < -12 || foldHit.Z > 52) continue;
-                closest = distance; selected = lane;
+                closest = distance; selected = lanes - 1 - lane;
             }
             return selected;
         }

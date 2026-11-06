@@ -381,7 +381,7 @@ var touchReload=System.Text.Json.JsonSerializer.Deserialize<HyperLane.iOS.IosSet
 if(touchReload?.LaneTouch!=true)throw new Exception("Touch selection did not survive serialization");
 Console.WriteLine("Lane touch projection, multiple heights, outside rejection and default panel mode: OK");
 foreach (int lanes in new[] { 4, 6, 8 })
-foreach (int amount in new[] { -100, -50, 50, 100 })
+foreach (int amount in new[] { -100, -50, -10, 10, 50, 100 })
 {
     var chart = MobileChart.Parse($"BPM:120\nDIFFICULTY:Master\nLANES:{lanes}\nCHANGE:0,LANE_FOLD,{amount},4\n");
     var diff = chart.Difficulties[0];
@@ -399,6 +399,19 @@ foreach (int amount in new[] { -100, -50, 50, 100 })
             int hit = foldProjection.HitLane(lanes, sx, sy);
             if (hit < 0 || hit >= lanes) throw new Exception("Folded lane touch gave invalid lane");
         }
+    }
+}
+foreach (int lanes in new[] { 4, 6, 8 })
+foreach (int amount in new[] { -10, 10 })
+{
+    var diff = MobileChart.Parse($"BPM:120\nDIFFICULTY:Master\nLANES:{lanes}\nCHANGE:0,LANE_FOLD,{amount}\n").Difficulties[0];
+    var slightFoldProjection = MobileProjection.At(diff, 0);
+    slightFoldProjection.FoldEnabled = true;
+    for (int lane = 0; lane < lanes; lane++)
+    {
+        double x = 1.15 - (lane + .5) * 2.3 / lanes;
+        if (!slightFoldProjection.Project(x, 0, 5, out float sx, out float sy) ||
+            slightFoldProjection.HitLane(lanes, sx, sy) != lane) throw new Exception("Folded lane order changed");
     }
 }
 Console.WriteLine("Fold transitions and finite projection on 4/6/8 lanes: OK");
